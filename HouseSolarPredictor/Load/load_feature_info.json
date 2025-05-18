@@ -1,0 +1,45 @@
+{
+  "feature_names": [
+    "temperature_2m (\u00b0C)",
+    "temperature_2m_squared",
+    "temp_moving_avg_3h",
+    "temp_diff_from_daily_high",
+    "daily_temp_range",
+    "hour_sin",
+    "hour_cos",
+    "minute_sin",
+    "minute_cos",
+    "day_of_week",
+    "is_weekend",
+    "prev_day_load",
+    "prev_week_load"
+  ],
+  "categorical_features": [
+    "day_of_week"
+  ],
+  "numerical_features": [
+    "temperature_2m (\u00b0C)",
+    "temperature_2m_squared",
+    "temp_moving_avg_3h",
+    "temp_diff_from_daily_high",
+    "daily_temp_range",
+    "hour_sin",
+    "hour_cos",
+    "minute_sin",
+    "minute_cos",
+    "is_weekend",
+    "prev_day_load",
+    "prev_week_load"
+  ],
+  "one_hot_categories": {
+    "day_of_week": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  }
+}

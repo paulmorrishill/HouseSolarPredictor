@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HouseSolarPredictor", "HouseSolarPredictor.csproj", "{E9AACD49-1B5C-0877-8A77-F30FA165B1CF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E9AACD49-1B5C-0877-8A77-F30FA165B1CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9AACD49-1B5C-0877-8A77-F30FA165B1CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9AACD49-1B5C-0877-8A77-F30FA165B1CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9AACD49-1B5C-0877-8A77-F30FA165B1CF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7B8C4D3D-F34C-4BC5-9940-12AF3B637C47}
+	EndGlobalSection
+EndGlobal

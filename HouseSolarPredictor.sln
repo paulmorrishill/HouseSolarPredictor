@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HouseSolarPredictor", "HouseSolarPredictor\HouseSolarPredictor.csproj", "{98C3E818-8B96-4DA3-BF28-9E27AC885D20}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HouseSolarPredictor.Tests", "HouseSolarPredictor.Tests\HouseSolarPredictor.Tests.csproj", "{1152BD38-C96C-4E79-9B79-FFAE2E44539F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{98C3E818-8B96-4DA3-BF28-9E27AC885D20}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98C3E818-8B96-4DA3-BF28-9E27AC885D20}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98C3E818-8B96-4DA3-BF28-9E27AC885D20}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98C3E818-8B96-4DA3-BF28-9E27AC885D20}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1152BD38-C96C-4E79-9B79-FFAE2E44539F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1152BD38-C96C-4E79-9B79-FFAE2E44539F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1152BD38-C96C-4E79-9B79-FFAE2E44539F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1152BD38-C96C-4E79-9B79-FFAE2E44539F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

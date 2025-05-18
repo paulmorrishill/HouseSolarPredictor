@@ -1,0 +1,2192 @@
+[
+  {
+    "day_of_year": 1,
+    "solar_declination": -0.4016288271741726,
+    "max_solar_elevation": 0.27406588257679276,
+    "max_theoretical_radiation": 270.64780046864354
+  },
+  {
+    "day_of_year": 2,
+    "solar_declination": -0.4002134852371095,
+    "max_solar_elevation": 0.27548122451385604,
+    "max_theoretical_radiation": 272.01004809407243
+  },
+  {
+    "day_of_year": 3,
+    "solar_declination": -0.3986795514070562,
+    "max_solar_elevation": 0.27701515834390933,
+    "max_theoretical_radiation": 273.48582345358096
+  },
+  {
+    "day_of_year": 4,
+    "solar_declination": -0.39702748022171164,
+    "max_solar_elevation": 0.2786672295292538,
+    "max_theoretical_radiation": 275.0745371923062
+  },
+  {
+    "day_of_year": 5,
+    "solar_declination": -0.3952577612254225,
+    "max_solar_elevation": 0.2804369485255429,
+    "max_theoretical_radiation": 276.77555392602164
+  },
+  {
+    "day_of_year": 6,
+    "solar_declination": -0.3933709188241212,
+    "max_solar_elevation": 0.28232379092684434,
+    "max_theoretical_radiation": 278.5881923013854
+  },
+  {
+    "day_of_year": 7,
+    "solar_declination": -0.39136751212993254,
+    "max_solar_elevation": 0.28432719762103287,
+    "max_theoretical_radiation": 280.5117250663028
+  },
+  {
+    "day_of_year": 8,
+    "solar_declination": -0.3892481347954971,
+    "max_solar_elevation": 0.2864465749554683,
+    "max_theoretical_radiation": 282.54537915153855
+  },
+  {
+    "day_of_year": 9,
+    "solar_declination": -0.387013414838059,
+    "max_solar_elevation": 0.2886812949129065,
+    "max_theoretical_radiation": 284.68833576475413
+  },
+  {
+    "day_of_year": 10,
+    "solar_declination": -0.38466401445337084,
+    "max_solar_elevation": 0.29103069529759473,
+    "max_theoretical_radiation": 286.9397304982053
+  },
+  {
+    "day_of_year": 11,
+    "solar_declination": -0.38220062981947084,
+    "max_solar_elevation": 0.2934940799314947,
+    "max_theoretical_radiation": 289.2986534513677
+  },
+  {
+    "day_of_year": 12,
+    "solar_declination": -0.37962399089039006,
+    "max_solar_elevation": 0.29607071886057534,
+    "max_theoretical_radiation": 291.7641493697989
+  },
+  {
+    "day_of_year": 13,
+    "solar_declination": -0.3769348611798518,
+    "max_solar_elevation": 0.2987598485711136,
+    "max_theoretical_radiation": 294.33521780157275
+  },
+  {
+    "day_of_year": 14,
+    "solar_declination": -0.37413403753502533,
+    "max_solar_elevation": 0.3015606722159401,
+    "max_theoretical_radiation": 297.0108132726537
+  },
+  {
+    "day_of_year": 15,
+    "solar_declination": -0.3712223499004034,
+    "max_solar_elevation": 0.3044723598505621,
+    "max_theoretical_radiation": 299.78984548259194
+  },
+  {
+    "day_of_year": 16,
+    "solar_declination": -0.3682006610718716,
+    "max_solar_elevation": 0.3074940486790938,
+    "max_theoretical_radiation": 302.67117952193865
+  },
+  {
+    "day_of_year": 17,
+    "solar_declination": -0.365069866441043,
+    "max_solar_elevation": 0.31062484330992257,
+    "max_theoretical_radiation": 305.6536361127879
+  },
+  {
+    "day_of_year": 18,
+    "solar_declination": -0.361830893729935,
+    "max_solar_elevation": 0.31386381602103053,
+    "max_theoretical_radiation": 308.73599187384934
+  },
+  {
+    "day_of_year": 19,
+    "solar_declination": -0.35848470271606453,
+    "max_solar_elevation": 0.3172100070349009,
+    "max_theoretical_radiation": 311.9169796114622
+  },
+  {
+    "day_of_year": 20,
+    "solar_declination": -0.35503228494804573,
+    "max_solar_elevation": 0.32066242480291973,
+    "max_theoretical_radiation": 315.1952886379367
+  },
+  {
+    "day_of_year": 21,
+    "solar_declination": -0.3514746634517726,
+    "max_solar_elevation": 0.3242200462991929,
+    "max_theoretical_radiation": 318.5695651186026
+  },
+  {
+    "day_of_year": 22,
+    "solar_declination": -0.3478128924272743,
+    "max_solar_elevation": 0.32788181732369104,
+    "max_theoretical_radiation": 322.038412448919
+  },
+  {
+    "day_of_year": 23,
+    "solar_declination": -0.34404805693633267,
+    "max_solar_elevation": 0.3316466528146327,
+    "max_theoretical_radiation": 325.6003916629674
+  },
+  {
+    "day_of_year": 24,
+    "solar_declination": -0.34018127258095565,
+    "max_solar_elevation": 0.3355134371700097,
+    "max_theoretical_radiation": 329.25402187461464
+  },
+  {
+    "day_of_year": 25,
+    "solar_declination": -0.3362136851727998,
+    "max_solar_elevation": 0.33948102457816565,
+    "max_theoretical_radiation": 332.9977807525949
+  },
+  {
+    "day_of_year": 26,
+    "solar_declination": -0.3321464703936416,
+    "max_solar_elevation": 0.3435482393573239,
+    "max_theoretical_radiation": 336.83010503070517
+  },
+  {
+    "day_of_year": 27,
+    "solar_declination": -0.3279808334469978,
+    "max_solar_elevation": 0.3477138763039678,
+    "max_theoretical_radiation": 340.74939105425705
+  },
+  {
+    "day_of_year": 28,
+    "solar_declination": -0.3237180087009976,
+    "max_solar_elevation": 0.3519767010499679,
+    "max_theoretical_radiation": 344.7539953638676
+  },
+  {
+    "day_of_year": 29,
+    "solar_declination": -0.31935925932261244,
+    "max_solar_elevation": 0.3563354504283529,
+    "max_theoretical_radiation": 348.8422353176039
+  },
+  {
+    "day_of_year": 30,
+    "solar_declination": -0.31490587690335275,
+    "max_solar_elevation": 0.36078883284761276,
+    "max_theoretical_radiation": 353.01238975242416
+  },
+  {
+    "day_of_year": 31,
+    "solar_declination": -0.31035918107654104,
+    "max_solar_elevation": 0.3653355286744244,
+    "max_theoretical_radiation": 357.2626996857776
+  },
+  {
+    "day_of_year": 32,
+    "solar_declination": -0.30572051912627674,
+    "max_solar_elevation": 0.3699741906246887,
+    "max_theoretical_radiation": 361.5913690581486
+  },
+  {
+    "day_of_year": 33,
+    "solar_declination": -0.3009912655882061,
+    "max_solar_elevation": 0.37470344416275925,
+    "max_theoretical_radiation": 365.9965655172318
+  },
+  {
+    "day_of_year": 34,
+    "solar_declination": -0.2961728218422181,
+    "max_solar_elevation": 0.3795218879087474,
+    "max_theoretical_radiation": 370.4764212443393
+  },
+  {
+    "day_of_year": 35,
+    "solar_declination": -0.2912666156971853,
+    "max_solar_elevation": 0.3844280940537801,
+    "max_theoretical_radiation": 375.02903382353645
+  },
+  {
+    "day_of_year": 36,
+    "solar_declination": -0.2862741009678731,
+    "max_solar_elevation": 0.38942060878309226,
+    "max_theoretical_radiation": 379.6524671539062
+  },
+  {
+    "day_of_year": 37,
+    "solar_declination": -0.28119675704414293,
+    "max_solar_elevation": 0.39449795270682264,
+    "max_theoretical_radiation": 384.3447524052242
+  },
+  {
+    "day_of_year": 38,
+    "solar_declination": -0.2760360884525775,
+    "max_solar_elevation": 0.3996586212983879,
+    "max_theoretical_radiation": 389.10388901722627
+  },
+  {
+    "day_of_year": 39,
+    "solar_declination": -0.2707936244106569,
+    "max_solar_elevation": 0.40490108534030855,
+    "max_theoretical_radiation": 393.92784574253005
+  },
+  {
+    "day_of_year": 40,
+    "solar_declination": -0.26547091837361836,
+    "max_solar_elevation": 0.410223791377347,
+    "max_theoretical_radiation": 398.8145617331496
+  },
+  {
+    "day_of_year": 41,
+    "solar_declination": -0.2600695475741341,
+    "max_solar_elevation": 0.41562516217683143,
+    "max_theoretical_radiation": 403.7619476704323
+  },
+  {
+    "day_of_year": 42,
+    "solar_declination": -0.2545911125549431,
+    "max_solar_elevation": 0.4211035971960224,
+    "max_theoretical_radiation": 408.76788693810994
+  },
+  {
+    "day_of_year": 43,
+    "solar_declination": -0.24903723669457573,
+    "max_solar_elevation": 0.4266574730563897,
+    "max_theoretical_radiation": 413.8302368380435
+  },
+  {
+    "day_of_year": 44,
+    "solar_declination": -0.24340956572631214,
+    "max_solar_elevation": 0.43228514402465334,
+    "max_theoretical_radiation": 418.94682984810197
+  },
+  {
+    "day_of_year": 45,
+    "solar_declination": -0.2377097672505151,
+    "max_solar_elevation": 0.4379849425004503,
+    "max_theoretical_radiation": 424.11547492149526
+  },
+  {
+    "day_of_year": 46,
+    "solar_declination": -0.23193953024048483,
+    "max_solar_elevation": 0.4437551795104806,
+    "max_theoretical_radiation": 429.3339588267477
+  },
+  {
+    "day_of_year": 47,
+    "solar_declination": -0.22610056454197922,
+    "max_solar_elevation": 0.4495941452089862,
+    "max_theoretical_radiation": 434.6000475273685
+  },
+  {
+    "day_of_year": 48,
+    "solar_declination": -0.22019460036655003,
+    "max_solar_elevation": 0.45550010938441554,
+    "max_theoretical_radiation": 439.9114876001481
+  },
+  {
+    "day_of_year": 49,
+    "solar_declination": -0.21422338777884353,
+    "max_solar_elevation": 0.4614713219721218,
+    "max_theoretical_radiation": 445.26600769087685
+  },
+  {
+    "day_of_year": 50,
+    "solar_declination": -0.20818869617801877,
+    "max_solar_elevation": 0.46750601357294674,
+    "max_theoretical_radiation": 450.6613200061564
+  },
+  {
+    "day_of_year": 51,
+    "solar_declination": -0.20209231377343648,
+    "max_solar_elevation": 0.47360239597752907,
+    "max_theoretical_radiation": 456.09512183984293
+  },
+  {
+    "day_of_year": 52,
+    "solar_declination": -0.19593604705477372,
+    "max_solar_elevation": 0.47975866269619183,
+    "max_theoretical_radiation": 461.5650971325433
+  },
+  {
+    "day_of_year": 53,
+    "solar_declination": -0.1897217202567224,
+    "max_solar_elevation": 0.48597298949424306,
+    "max_theoretical_radiation": 467.0689180624535
+  },
+  {
+    "day_of_year": 54,
+    "solar_declination": -0.18345117481842904,
+    "max_solar_elevation": 0.4922435349325365,
+    "max_theoretical_radiation": 472.60424666571413
+  },
+  {
+    "day_of_year": 55,
+    "solar_declination": -0.17712626883783628,
+    "max_solar_elevation": 0.49856844091312924,
+    "max_theoretical_radiation": 478.1687364843383
+  },
+  {
+    "day_of_year": 56,
+    "solar_declination": -0.17074887652108892,
+    "max_solar_elevation": 0.5049458332298766,
+    "max_theoretical_radiation": 483.7600342396543
+  },
+  {
+    "day_of_year": 57,
+    "solar_declination": -0.16432088762716576,
+    "max_solar_elevation": 0.5113738221237998,
+    "max_theoretical_radiation": 489.3757815290966
+  },
+  {
+    "day_of_year": 58,
+    "solar_declination": -0.15784420690790352,
+    "max_solar_elevation": 0.517850502843062,
+    "max_theoretical_radiation": 495.01361654407066
+  },
+  {
+    "day_of_year": 59,
+    "solar_declination": -0.15132075354357746,
+    "max_solar_elevation": 0.5243739562073879,
+    "max_theoretical_radiation": 500.67117580652166
+  },
+  {
+    "day_of_year": 60,
+    "solar_declination": -0.14475246057420713,
+    "max_solar_elevation": 0.5309422491767584,
+    "max_theoretical_radiation": 506.3460959217384
+  },
+  {
+    "day_of_year": 61,
+    "solar_declination": -0.1381412743267547,
+    "max_solar_elevation": 0.5375534354242109,
+    "max_theoretical_radiation": 512.0360153448347
+  },
+  {
+    "day_of_year": 62,
+    "solar_declination": -0.13148915383838633,
+    "max_solar_elevation": 0.5442055559125791,
+    "max_theoretical_radiation": 517.738576158272
+  },
+  {
+    "day_of_year": 63,
+    "solar_declination": -0.12479807027596736,
+    "max_solar_elevation": 0.5508966394749981,
+    "max_theoretical_radiation": 523.451425857704
+  },
+  {
+    "day_of_year": 64,
+    "solar_declination": -0.11807000635196263,
+    "max_solar_elevation": 0.5576247033990027,
+    "max_theoretical_radiation": 529.1722191433558
+  },
+  {
+    "day_of_year": 65,
+    "solar_declination": -0.11130695573691639,
+    "max_solar_elevation": 0.5643877540140492,
+    "max_theoretical_radiation": 534.8986197140923
+  },
+  {
+    "day_of_year": 66,
+    "solar_declination": -0.10451092246868443,
+    "max_solar_elevation": 0.571183787282281,
+    "max_theoretical_radiation": 540.6283020612641
+  },
+  {
+    "day_of_year": 67,
+    "solar_declination": -0.09768392035859459,
+    "max_solar_elevation": 0.5780107893923708,
+    "max_theoretical_radiation": 546.3589532593838
+  },
+  {
+    "day_of_year": 68,
+    "solar_declination": -0.09082797239471085,
+    "max_solar_elevation": 0.5848667373562546,
+    "max_theoretical_radiation": 552.088274750633
+  },
+  {
+    "day_of_year": 69,
+    "solar_declination": -0.08394511014237833,
+    "max_solar_elevation": 0.5917495996085871,
+    "max_theoretical_radiation": 557.8139841201756
+  },
+  {
+    "day_of_year": 70,
+    "solar_declination": -0.07703737314222679,
+    "max_solar_elevation": 0.5986573366087387,
+    "max_theoretical_radiation": 563.5338168592269
+  },
+  {
+    "day_of_year": 71,
+    "solar_declination": -0.07010680830581054,
+    "max_solar_elevation": 0.605587901445155,
+    "max_theoretical_radiation": 569.2455281128088
+  },
+  {
+    "day_of_year": 72,
+    "solar_declination": -0.06315546930906443,
+    "max_solar_elevation": 0.612539240441901,
+    "max_theoretical_radiation": 574.9468944091175
+  },
+  {
+    "day_of_year": 73,
+    "solar_declination": -0.05618541598375537,
+    "max_solar_elevation": 0.6195092937672101,
+    "max_theoretical_radiation": 580.635715367431
+  },
+  {
+    "day_of_year": 74,
+    "solar_declination": -0.04919871370710974,
+    "max_solar_elevation": 0.6264959960438558,
+    "max_theoretical_radiation": 586.309815381487
+  },
+  {
+    "day_of_year": 75,
+    "solar_declination": -0.042197432789797484,
+    "max_solar_elevation": 0.633497276961168,
+    "max_theoretical_radiation": 591.9670452752894
+  },
+  {
+    "day_of_year": 76,
+    "solar_declination": -0.03518364786245444,
+    "max_solar_elevation": 0.640511061888511,
+    "max_theoretical_radiation": 597.6052839283178
+  },
+  {
+    "day_of_year": 77,
+    "solar_declination": -0.028159437260924427,
+    "max_solar_elevation": 0.6475352724900411,
+    "max_theoretical_radiation": 603.2224398671605
+  },
+  {
+    "day_of_year": 78,
+    "solar_declination": -0.021126882410403582,
+    "max_solar_elevation": 0.6545678273405618,
+    "max_theoretical_radiation": 608.816452820622
+  },
+  {
+    "day_of_year": 79,
+    "solar_declination": -0.01408806720866906,
+    "max_solar_elevation": 0.6616066425422964,
+    "max_theoretical_radiation": 614.3852952354209
+  },
+  {
+    "day_of_year": 80,
+    "solar_declination": -0.0070450774085752225,
+    "max_solar_elevation": 0.6686496323423903,
+    "max_theoretical_radiation": 619.9269737496435
+  },
+  {
+    "day_of_year": 81,
+    "solar_declination": 0.0,
+    "max_solar_elevation": 0.6756947097509655,
+    "max_theoretical_radiation": 625.4395306211946
+  },
+  {
+    "day_of_year": 82,
+    "solar_declination": 0.0070450774085752225,
+    "max_solar_elevation": 0.6827397871595406,
+    "max_theoretical_radiation": 630.9210451085581
+  },
+  {
+    "day_of_year": 83,
+    "solar_declination": 0.01408806720866906,
+    "max_solar_elevation": 0.6897827769596345,
+    "max_theoretical_radiation": 636.3696348012643
+  },
+  {
+    "day_of_year": 84,
+    "solar_declination": 0.021126882410403582,
+    "max_solar_elevation": 0.6968215921613691,
+    "max_theoretical_radiation": 641.783456897555
+  },
+  {
+    "day_of_year": 85,
+    "solar_declination": 0.028159437260924427,
+    "max_solar_elevation": 0.7038541470118899,
+    "max_theoretical_radiation": 647.1607094268321
+  },
+  {
+    "day_of_year": 86,
+    "solar_declination": 0.03518364786245444,
+    "max_solar_elevation": 0.7108783576134199,
+    "max_theoretical_radiation": 652.4996324145843
+  },
+  {
+    "day_of_year": 87,
+    "solar_declination": 0.042197432789797484,
+    "max_solar_elevation": 0.717892142540763,
+    "max_theoretical_radiation": 657.798508987593
+  },
+  {
+    "day_of_year": 88,
+    "solar_declination": 0.04919871370710974,
+    "max_solar_elevation": 0.7248934234580752,
+    "max_theoretical_radiation": 663.0556664173431
+  },
+  {
+    "day_of_year": 89,
+    "solar_declination": 0.05618541598375537,
+    "max_solar_elevation": 0.7318801257347208,
+    "max_theoretical_radiation": 668.2694770996837
+  },
+  {
+    "day_of_year": 90,
+    "solar_declination": 0.06315546930906443,
+    "max_solar_elevation": 0.7388501790600299,
+    "max_theoretical_radiation": 673.4383594689126
+  },
+  {
+    "day_of_year": 91,
+    "solar_declination": 0.07010680830581054,
+    "max_solar_elevation": 0.745801518056776,
+    "max_theoretical_radiation": 678.560778844597
+  },
+  {
+    "day_of_year": 92,
+    "solar_declination": 0.07703737314222679,
+    "max_solar_elevation": 0.7527320828931923,
+    "max_theoretical_radiation": 683.6352482095782
+  },
+  {
+    "day_of_year": 93,
+    "solar_declination": 0.08394511014237833,
+    "max_solar_elevation": 0.7596398198933438,
+    "max_theoretical_radiation": 688.6603289177503
+  },
+  {
+    "day_of_year": 94,
+    "solar_declination": 0.09082797239471085,
+    "max_solar_elevation": 0.7665226821456763,
+    "max_theoretical_radiation": 693.6346313303568
+  },
+  {
+    "day_of_year": 95,
+    "solar_declination": 0.09768392035859459,
+    "max_solar_elevation": 0.7733786301095601,
+    "max_theoretical_radiation": 698.5568153796889
+  },
+  {
+    "day_of_year": 96,
+    "solar_declination": 0.10451092246868443,
+    "max_solar_elevation": 0.7802056322196499,
+    "max_theoretical_radiation": 703.4255910592327
+  },
+  {
+    "day_of_year": 97,
+    "solar_declination": 0.11130695573691639,
+    "max_solar_elevation": 0.7870016654878819,
+    "max_theoretical_radiation": 708.2397188394607
+  },
+  {
+    "day_of_year": 98,
+    "solar_declination": 0.11807000635196263,
+    "max_solar_elevation": 0.7937647161029281,
+    "max_theoretical_radiation": 712.9980100086244
+  },
+  {
+    "day_of_year": 99,
+    "solar_declination": 0.12479807027596736,
+    "max_solar_elevation": 0.8004927800269328,
+    "max_theoretical_radiation": 717.6993269380631
+  },
+  {
+    "day_of_year": 100,
+    "solar_declination": 0.13148915383838633,
+    "max_solar_elevation": 0.8071838635893518,
+    "max_theoretical_radiation": 722.3425832717035
+  },
+  {
+    "day_of_year": 101,
+    "solar_declination": 0.1381412743267547,
+    "max_solar_elevation": 0.8138359840777202,
+    "max_theoretical_radiation": 726.9267440395831
+  },
+  {
+    "day_of_year": 102,
+    "solar_declination": 0.14475246057420713,
+    "max_solar_elevation": 0.8204471703251726,
+    "max_theoretical_radiation": 731.4508256953973
+  },
+  {
+    "day_of_year": 103,
+    "solar_declination": 0.15132075354357746,
+    "max_solar_elevation": 0.8270154632945429,
+    "max_theoretical_radiation": 735.9138960782223
+  },
+  {
+    "day_of_year": 104,
+    "solar_declination": 0.15784420690790352,
+    "max_solar_elevation": 0.8335389166588689,
+    "max_theoretical_radiation": 740.3150742987291
+  },
+  {
+    "day_of_year": 105,
+    "solar_declination": 0.16432088762716576,
+    "max_solar_elevation": 0.8400155973781313,
+    "max_theoretical_radiation": 744.6535305503644
+  },
+  {
+    "day_of_year": 106,
+    "solar_declination": 0.17074887652108892,
+    "max_solar_elevation": 0.8464435862720544,
+    "max_theoretical_radiation": 748.9284858461218
+  },
+  {
+    "day_of_year": 107,
+    "solar_declination": 0.17712626883783628,
+    "max_solar_elevation": 0.8528209785888017,
+    "max_theoretical_radiation": 753.1392116816917
+  },
+  {
+    "day_of_year": 108,
+    "solar_declination": 0.18345117481842904,
+    "max_solar_elevation": 0.8591458845693944,
+    "max_theoretical_radiation": 757.2850296259193
+  },
+  {
+    "day_of_year": 109,
+    "solar_declination": 0.1897217202567224,
+    "max_solar_elevation": 0.8654164300076879,
+    "max_theoretical_radiation": 761.3653108396538
+  },
+  {
+    "day_of_year": 110,
+    "solar_declination": 0.19593604705477372,
+    "max_solar_elevation": 0.8716307568057392,
+    "max_theoretical_radiation": 765.3794755242183
+  },
+  {
+    "day_of_year": 111,
+    "solar_declination": 0.20209231377343648,
+    "max_solar_elevation": 0.877787023524402,
+    "max_theoretical_radiation": 769.3269923008628
+  },
+  {
+    "day_of_year": 112,
+    "solar_declination": 0.20818869617801877,
+    "max_solar_elevation": 0.8838834059289842,
+    "max_theoretical_radiation": 773.2073775227109
+  },
+  {
+    "day_of_year": 113,
+    "solar_declination": 0.21422338777884353,
+    "max_solar_elevation": 0.889918097529809,
+    "max_theoretical_radiation": 777.0201945208328
+  },
+  {
+    "day_of_year": 114,
+    "solar_declination": 0.22019460036655003,
+    "max_solar_elevation": 0.8958893101175155,
+    "max_theoretical_radiation": 780.7650527862116
+  },
+  {
+    "day_of_year": 115,
+    "solar_declination": 0.22610056454197922,
+    "max_solar_elevation": 0.9017952742929447,
+    "max_theoretical_radiation": 784.4416070894904
+  },
+  {
+    "day_of_year": 116,
+    "solar_declination": 0.23193953024048483,
+    "max_solar_elevation": 0.9076342399914503,
+    "max_theoretical_radiation": 788.0495565405047
+  },
+  {
+    "day_of_year": 117,
+    "solar_declination": 0.2377097672505151,
+    "max_solar_elevation": 0.9134044770014805,
+    "max_theoretical_radiation": 791.5886435897168
+  },
+  {
+    "day_of_year": 118,
+    "solar_declination": 0.24340956572631214,
+    "max_solar_elevation": 0.9191042754772776,
+    "max_theoretical_radiation": 795.0586529737766
+  },
+  {
+    "day_of_year": 119,
+    "solar_declination": 0.24903723669457573,
+    "max_solar_elevation": 0.9247319464455412,
+    "max_theoretical_radiation": 798.4594106075298
+  },
+  {
+    "day_of_year": 120,
+    "solar_declination": 0.2545911125549431,
+    "max_solar_elevation": 0.9302858223059085,
+    "max_theoretical_radiation": 801.7907824248923
+  },
+  {
+    "day_of_year": 121,
+    "solar_declination": 0.2600695475741341,
+    "max_solar_elevation": 0.9357642573250995,
+    "max_theoretical_radiation": 805.0526731710968
+  },
+  {
+    "day_of_year": 122,
+    "solar_declination": 0.26547091837361836,
+    "max_solar_elevation": 0.9411656281245838,
+    "max_theoretical_radiation": 808.2450251488947
+  },
+  {
+    "day_of_year": 123,
+    "solar_declination": 0.2707936244106569,
+    "max_solar_elevation": 0.9464883341616224,
+    "max_theoretical_radiation": 811.3678169213805
+  },
+  {
+    "day_of_year": 124,
+    "solar_declination": 0.2760360884525775,
+    "max_solar_elevation": 0.951730798203543,
+    "max_theoretical_radiation": 814.4210619741629
+  },
+  {
+    "day_of_year": 125,
+    "solar_declination": 0.28119675704414293,
+    "max_solar_elevation": 0.9568914667951084,
+    "max_theoretical_radiation": 817.4048073396793
+  },
+  {
+    "day_of_year": 126,
+    "solar_declination": 0.2862741009678731,
+    "max_solar_elevation": 0.9619688107188386,
+    "max_theoretical_radiation": 820.3191321864986
+  },
+  {
+    "day_of_year": 127,
+    "solar_declination": 0.2912666156971853,
+    "max_solar_elevation": 0.9669613254481508,
+    "max_theoretical_radiation": 823.1641463765085
+  },
+  {
+    "day_of_year": 128,
+    "solar_declination": 0.2961728218422181,
+    "max_solar_elevation": 0.9718675315931835,
+    "max_theoretical_radiation": 825.9399889929258
+  },
+  {
+    "day_of_year": 129,
+    "solar_declination": 0.3009912655882061,
+    "max_solar_elevation": 0.9766859753391716,
+    "max_theoretical_radiation": 828.646826842103
+  },
+  {
+    "day_of_year": 130,
+    "solar_declination": 0.30572051912627674,
+    "max_solar_elevation": 0.9814152288772422,
+    "max_theoretical_radiation": 831.2848529321324
+  },
+  {
+    "day_of_year": 131,
+    "solar_declination": 0.31035918107654104,
+    "max_solar_elevation": 0.9860538908275065,
+    "max_theoretical_radiation": 833.8542849312736
+  },
+  {
+    "day_of_year": 132,
+    "solar_declination": 0.31490587690335275,
+    "max_solar_elevation": 0.9906005866543182,
+    "max_theoretical_radiation": 836.3553636092443
+  },
+  {
+    "day_of_year": 133,
+    "solar_declination": 0.31935925932261244,
+    "max_solar_elevation": 0.9950539690735779,
+    "max_theoretical_radiation": 838.788351264425
+  },
+  {
+    "day_of_year": 134,
+    "solar_declination": 0.3237180087009976,
+    "max_solar_elevation": 0.999412718451963,
+    "max_theoretical_radiation": 841.1535301400324
+  },
+  {
+    "day_of_year": 135,
+    "solar_declination": 0.3279808334469978,
+    "max_solar_elevation": 1.0036755431979634,
+    "max_theoretical_radiation": 843.4512008323104
+  },
+  {
+    "day_of_year": 136,
+    "solar_declination": 0.3321464703936416,
+    "max_solar_elevation": 1.007841180144607,
+    "max_theoretical_radiation": 845.6816806937858
+  },
+  {
+    "day_of_year": 137,
+    "solar_declination": 0.3362136851727998,
+    "max_solar_elevation": 1.0119083949237653,
+    "max_theoretical_radiation": 847.8453022346156
+  },
+  {
+    "day_of_year": 138,
+    "solar_declination": 0.34018127258095565,
+    "max_solar_elevation": 1.015875982331921,
+    "max_theoretical_radiation": 849.9424115250351
+  },
+  {
+    "day_of_year": 139,
+    "solar_declination": 0.34404805693633267,
+    "max_solar_elevation": 1.019742766687298,
+    "max_theoretical_radiation": 851.9733666018938
+  },
+  {
+    "day_of_year": 140,
+    "solar_declination": 0.3478128924272743,
+    "max_solar_elevation": 1.0235076021782397,
+    "max_theoretical_radiation": 853.9385358822307
+  },
+  {
+    "day_of_year": 141,
+    "solar_declination": 0.3514746634517726,
+    "max_solar_elevation": 1.027169373202738,
+    "max_theoretical_radiation": 855.8382965868115
+  },
+  {
+    "day_of_year": 142,
+    "solar_declination": 0.35503228494804573,
+    "max_solar_elevation": 1.0307269946990112,
+    "max_theoretical_radiation": 857.6730331765043
+  },
+  {
+    "day_of_year": 143,
+    "solar_declination": 0.35848470271606453,
+    "max_solar_elevation": 1.03417941246703,
+    "max_theoretical_radiation": 859.4431358043313
+  },
+  {
+    "day_of_year": 144,
+    "solar_declination": 0.361830893729935,
+    "max_solar_elevation": 1.0375256034809004,
+    "max_theoretical_radiation": 861.1489987859785
+  },
+  {
+    "day_of_year": 145,
+    "solar_declination": 0.365069866441043,
+    "max_solar_elevation": 1.0407645761920086,
+    "max_theoretical_radiation": 862.7910190915022
+  },
+  {
+    "day_of_year": 146,
+    "solar_declination": 0.3682006610718716,
+    "max_solar_elevation": 1.0438953708228371,
+    "max_theoretical_radiation": 864.3695948609003
+  },
+  {
+    "day_of_year": 147,
+    "solar_declination": 0.3712223499004034,
+    "max_solar_elevation": 1.0469170596513688,
+    "max_theoretical_radiation": 865.8851239461695
+  },
+  {
+    "day_of_year": 148,
+    "solar_declination": 0.37413403753502533,
+    "max_solar_elevation": 1.0498287472859908,
+    "max_theoretical_radiation": 867.3380024823957
+  },
+  {
+    "day_of_year": 149,
+    "solar_declination": 0.3769348611798518,
+    "max_solar_elevation": 1.0526295709308173,
+    "max_theoretical_radiation": 868.7286234903577
+  },
+  {
+    "day_of_year": 150,
+    "solar_declination": 0.37962399089039006,
+    "max_solar_elevation": 1.0553187006413556,
+    "max_theoretical_radiation": 870.0573755130597
+  },
+  {
+    "day_of_year": 151,
+    "solar_declination": 0.38220062981947084,
+    "max_solar_elevation": 1.0578953395704362,
+    "max_theoretical_radiation": 871.3246412885281
+  },
+  {
+    "day_of_year": 152,
+    "solar_declination": 0.38466401445337084,
+    "max_solar_elevation": 1.0603587242043364,
+    "max_theoretical_radiation": 872.5307964611292
+  },
+  {
+    "day_of_year": 153,
+    "solar_declination": 0.387013414838059,
+    "max_solar_elevation": 1.0627081245890244,
+    "max_theoretical_radiation": 873.6762083335948
+  },
+  {
+    "day_of_year": 154,
+    "solar_declination": 0.3892481347954971,
+    "max_solar_elevation": 1.0649428445464626,
+    "max_theoretical_radiation": 874.7612346618508
+  },
+  {
+    "day_of_year": 155,
+    "solar_declination": 0.39136751212993254,
+    "max_solar_elevation": 1.067062221880898,
+    "max_theoretical_radiation": 875.7862224946649
+  },
+  {
+    "day_of_year": 156,
+    "solar_declination": 0.3933709188241212,
+    "max_solar_elevation": 1.0690656285750866,
+    "max_theoretical_radiation": 876.7515070600414
+  },
+  {
+    "day_of_year": 157,
+    "solar_declination": 0.3952577612254225,
+    "max_solar_elevation": 1.070952470976388,
+    "max_theoretical_radiation": 877.6574107002074
+  },
+  {
+    "day_of_year": 158,
+    "solar_declination": 0.39702748022171164,
+    "max_solar_elevation": 1.072722189972677,
+    "max_theoretical_radiation": 878.5042418569373
+  },
+  {
+    "day_of_year": 159,
+    "solar_declination": 0.3986795514070562,
+    "max_solar_elevation": 1.0743742611580216,
+    "max_theoretical_radiation": 879.2922941088779
+  },
+  {
+    "day_of_year": 160,
+    "solar_declination": 0.4002134852371095,
+    "max_solar_elevation": 1.0759081949880749,
+    "max_theoretical_radiation": 880.0218452624425
+  },
+  {
+    "day_of_year": 161,
+    "solar_declination": 0.4016288271741726,
+    "max_solar_elevation": 1.077323536925138,
+    "max_theoretical_radiation": 880.6931564977441
+  },
+  {
+    "day_of_year": 162,
+    "solar_declination": 0.402925157821884,
+    "max_solar_elevation": 1.0786198675728493,
+    "max_theoretical_radiation": 881.3064715709469
+  },
+  {
+    "day_of_year": 163,
+    "solar_declination": 0.4041020930494956,
+    "max_solar_elevation": 1.0797968028004612,
+    "max_theoretical_radiation": 881.8620160743203
+  },
+  {
+    "day_of_year": 164,
+    "solar_declination": 0.40515928410569935,
+    "max_solar_elevation": 1.0808539938566648,
+    "max_theoretical_radiation": 882.3599967551747
+  },
+  {
+    "day_of_year": 165,
+    "solar_declination": 0.40609641772196897,
+    "max_solar_elevation": 1.0817911274729344,
+    "max_theoretical_radiation": 882.8006008947691
+  },
+  {
+    "day_of_year": 166,
+    "solar_declination": 0.4069132162053891,
+    "max_solar_elevation": 1.0826079259563546,
+    "max_theoretical_radiation": 883.183995748176
+  },
+  {
+    "day_of_year": 167,
+    "solar_declination": 0.40760943752094114,
+    "max_solar_elevation": 1.0833041472719067,
+    "max_theoretical_radiation": 883.5103280459924
+  },
+  {
+    "day_of_year": 168,
+    "solar_declination": 0.40818487536322356,
+    "max_solar_elevation": 1.0838795851141891,
+    "max_theoretical_radiation": 883.779723558683
+  },
+  {
+    "day_of_year": 169,
+    "solar_declination": 0.40863935921758476,
+    "max_solar_elevation": 1.0843340689685501,
+    "max_theoretical_radiation": 883.9922867242441
+  },
+  {
+    "day_of_year": 170,
+    "solar_declination": 0.4089727544106502,
+    "max_solar_elevation": 1.0846674641616156,
+    "max_theoretical_radiation": 884.1481003397727
+  },
+  {
+    "day_of_year": 171,
+    "solar_declination": 0.40918496215022876,
+    "max_solar_elevation": 1.0848796719011942,
+    "max_theoretical_radiation": 884.2472253174254
+  },
+  {
+    "day_of_year": 172,
+    "solar_declination": 0.4092759195545874,
+    "max_solar_elevation": 1.0849706293055528,
+    "max_theoretical_radiation": 884.2897005051526
+  },
+  {
+    "day_of_year": 173,
+    "solar_declination": 0.40924559967108437,
+    "max_solar_elevation": 1.0849403094220498,
+    "max_theoretical_radiation": 884.2755425724845
+  },
+  {
+    "day_of_year": 174,
+    "solar_declination": 0.4090940114841553,
+    "max_solar_elevation": 1.0847887212351208,
+    "max_theoretical_radiation": 884.2047459615501
+  },
+  {
+    "day_of_year": 175,
+    "solar_declination": 0.4088211999126516,
+    "max_solar_elevation": 1.084515909663617,
+    "max_theoretical_radiation": 884.0772829034065
+  },
+  {
+    "day_of_year": 176,
+    "solar_declination": 0.4084272457965297,
+    "max_solar_elevation": 1.0841219555474952,
+    "max_theoretical_radiation": 883.8931034996524
+  },
+  {
+    "day_of_year": 177,
+    "solar_declination": 0.4079122658728965,
+    "max_solar_elevation": 1.083606975623862,
+    "max_theoretical_radiation": 883.6521358691962
+  },
+  {
+    "day_of_year": 178,
+    "solar_declination": 0.4072764127414173,
+    "max_solar_elevation": 1.0829711224923828,
+    "max_theoretical_radiation": 883.3542863599519
+  },
+  {
+    "day_of_year": 179,
+    "solar_declination": 0.406519874819098,
+    "max_solar_elevation": 1.0822145845700635,
+    "max_theoretical_radiation": 882.9994398251283
+  },
+  {
+    "day_of_year": 180,
+    "solar_declination": 0.40564287628445234,
+    "max_solar_elevation": 1.0813375860354177,
+    "max_theoretical_radiation": 882.5874599636803
+  },
+  {
+    "day_of_year": 181,
+    "solar_declination": 0.40464567701107335,
+    "max_solar_elevation": 1.080340386762039,
+    "max_theoretical_radiation": 882.1181897243843
+  },
+  {
+    "day_of_year": 182,
+    "solar_declination": 0.40352857249062707,
+    "max_solar_elevation": 1.0792232822415926,
+    "max_theoretical_radiation": 881.591451772903
+  },
+  {
+    "day_of_year": 183,
+    "solar_declination": 0.4022918937452919,
+    "max_solar_elevation": 1.0779866034962573,
+    "max_theoretical_radiation": 881.0070490211032
+  },
+  {
+    "day_of_year": 184,
+    "solar_declination": 0.4009360072296698,
+    "max_solar_elevation": 1.0766307169806353,
+    "max_theoretical_radiation": 880.3647652177862
+  },
+  {
+    "day_of_year": 185,
+    "solar_declination": 0.39946131472219787,
+    "max_solar_elevation": 1.0751560244731633,
+    "max_theoretical_radiation": 879.6643655998952
+  },
+  {
+    "day_of_year": 186,
+    "solar_declination": 0.39786825320609254,
+    "max_solar_elevation": 1.073562962957058,
+    "max_theoretical_radiation": 878.9055976031627
+  },
+  {
+    "day_of_year": 187,
+    "solar_declination": 0.3961572947398621,
+    "max_solar_elevation": 1.0718520044908275,
+    "max_theoretical_radiation": 878.0881916310628
+  },
+  {
+    "day_of_year": 188,
+    "solar_declination": 0.39432894631742554,
+    "max_solar_elevation": 1.0700236560683911,
+    "max_theoretical_radiation": 877.2118618808338
+  },
+  {
+    "day_of_year": 189,
+    "solar_declination": 0.3923837497178794,
+    "max_solar_elevation": 1.0680784594688448,
+    "max_theoretical_radiation": 876.2763072252424
+  },
+  {
+    "day_of_year": 190,
+    "solar_declination": 0.3903222813449571,
+    "max_solar_elevation": 1.0660169910959225,
+    "max_theoretical_radiation": 875.2812121486664
+  },
+  {
+    "day_of_year": 191,
+    "solar_declination": 0.3881451520562275,
+    "max_solar_elevation": 1.063839861807193,
+    "max_theoretical_radiation": 874.2262477359691
+  },
+  {
+    "day_of_year": 192,
+    "solar_declination": 0.3858530069820852,
+    "max_solar_elevation": 1.0615477167330507,
+    "max_theoretical_radiation": 873.1110727125588
+  },
+  {
+    "day_of_year": 193,
+    "solar_declination": 0.3834465253345842,
+    "max_solar_elevation": 1.0591412350855496,
+    "max_theoretical_radiation": 871.9353345339222
+  },
+  {
+    "day_of_year": 194,
+    "solar_declination": 0.3809264202061727,
+    "max_solar_elevation": 1.0566211299571382,
+    "max_theoretical_radiation": 870.698670522839
+  },
+  {
+    "day_of_year": 195,
+    "solar_declination": 0.37829343835838874,
+    "max_solar_elevation": 1.0539881481093543,
+    "max_theoretical_radiation": 869.4007090523901
+  },
+  {
+    "day_of_year": 196,
+    "solar_declination": 0.37554836000057806,
+    "max_solar_elevation": 1.0512430697515436,
+    "max_theoretical_radiation": 868.0410707727882
+  },
+  {
+    "day_of_year": 197,
+    "solar_declination": 0.37269199855870183,
+    "max_solar_elevation": 1.0483867083096672,
+    "max_theoretical_radiation": 866.6193698799732
+  },
+  {
+    "day_of_year": 198,
+    "solar_declination": 0.36972520043430046,
+    "max_solar_elevation": 1.045419910185266,
+    "max_theoretical_radiation": 865.1352154238324
+  },
+  {
+    "day_of_year": 199,
+    "solar_declination": 0.36664884475368725,
+    "max_solar_elevation": 1.0423435545046527,
+    "max_theoretical_radiation": 863.5882126538241
+  },
+  {
+    "day_of_year": 200,
+    "solar_declination": 0.3634638431074433,
+    "max_solar_elevation": 1.0391585528584089,
+    "max_theoretical_radiation": 861.9779643997057
+  },
+  {
+    "day_of_year": 201,
+    "solar_declination": 0.3601711392802944,
+    "max_solar_elevation": 1.0358658490312598,
+    "max_theoretical_radiation": 860.3040724849919
+  },
+  {
+    "day_of_year": 202,
+    "solar_declination": 0.35677170897144694,
+    "max_solar_elevation": 1.0324664187224124,
+    "max_theoretical_radiation": 858.5661391706977
+  },
+  {
+    "day_of_year": 203,
+    "solar_declination": 0.3532665595054672,
+    "max_solar_elevation": 1.0289612692564327,
+    "max_theoretical_radiation": 856.7637686268445
+  },
+  {
+    "day_of_year": 204,
+    "solar_declination": 0.3496567295337891,
+    "max_solar_elevation": 1.0253514392847545,
+    "max_theoretical_radiation": 854.8965684291528
+  },
+  {
+    "day_of_year": 205,
+    "solar_declination": 0.3459432887269401,
+    "max_solar_elevation": 1.0216379984779056,
+    "max_theoretical_radiation": 852.9641510782737
+  },
+  {
+    "day_of_year": 206,
+    "solar_declination": 0.34212733745757345,
+    "max_solar_elevation": 1.0178220472085389,
+    "max_theoretical_radiation": 850.9661355388505
+  },
+  {
+    "day_of_year": 207,
+    "solar_declination": 0.33821000647440547,
+    "max_solar_elevation": 1.013904716225371,
+    "max_theoretical_radiation": 848.9021487956587
+  },
+  {
+    "day_of_year": 208,
+    "solar_declination": 0.3341924565671494,
+    "max_solar_elevation": 1.0098871663181148,
+    "max_theoretical_radiation": 846.7718274240054
+  },
+  {
+    "day_of_year": 209,
+    "solar_declination": 0.3300758782225486,
+    "max_solar_elevation": 1.005770587973514,
+    "max_theoretical_radiation": 844.5748191715365
+  },
+  {
+    "day_of_year": 210,
+    "solar_declination": 0.32586149127160957,
+    "max_solar_elevation": 1.001556201022575,
+    "max_theoretical_radiation": 842.3107845485478
+  },
+  {
+    "day_of_year": 211,
+    "solar_declination": 0.3215505445281397,
+    "max_solar_elevation": 0.9972452542791052,
+    "max_theoretical_radiation": 839.9793984238642
+  },
+  {
+    "day_of_year": 212,
+    "solar_declination": 0.31714431541869714,
+    "max_solar_elevation": 0.9928390251696626,
+    "max_theoretical_radiation": 837.580351623317
+  },
+  {
+    "day_of_year": 213,
+    "solar_declination": 0.3126441096040611,
+    "max_solar_elevation": 0.9883388193550265,
+    "max_theoretical_radiation": 835.1133525278204
+  },
+  {
+    "day_of_year": 214,
+    "solar_declination": 0.30805126059233684,
+    "max_solar_elevation": 0.9837459703433022,
+    "max_theoretical_radiation": 832.5781286680273
+  },
+  {
+    "day_of_year": 215,
+    "solar_declination": 0.30336712934380844,
+    "max_solar_elevation": 0.9790618390947738,
+    "max_theoretical_radiation": 829.9744283125277
+  },
+  {
+    "day_of_year": 216,
+    "solar_declination": 0.2985931038676565,
+    "max_solar_elevation": 0.9742878136186219,
+    "max_theoretical_radiation": 827.3020220465428
+  },
+  {
+    "day_of_year": 217,
+    "solar_declination": 0.29373059881066166,
+    "max_solar_elevation": 0.9694253085616271,
+    "max_theoretical_radiation": 824.5607043380572
+  },
+  {
+    "day_of_year": 218,
+    "solar_declination": 0.2887810550380137,
+    "max_solar_elevation": 0.9644757647889792,
+    "max_theoretical_radiation": 821.7502950883423
+  },
+  {
+    "day_of_year": 219,
+    "solar_declination": 0.2837459392063523,
+    "max_solar_elevation": 0.9594406489573177,
+    "max_theoretical_radiation": 818.8706411638182
+  },
+  {
+    "day_of_year": 220,
+    "solar_declination": 0.27862674332916515,
+    "max_solar_elevation": 0.9543214530801306,
+    "max_theoretical_radiation": 815.9216179062261
+  },
+  {
+    "day_of_year": 221,
+    "solar_declination": 0.2734249843346721,
+    "max_solar_elevation": 0.9491196940856376,
+    "max_theoretical_radiation": 812.9031306180934
+  },
+  {
+    "day_of_year": 222,
+    "solar_declination": 0.2681422036163262,
+    "max_solar_elevation": 0.9438369133672917,
+    "max_theoretical_radiation": 809.8151160205043
+  },
+  {
+    "day_of_year": 223,
+    "solar_declination": 0.262779966576066,
+    "max_solar_elevation": 0.9384746763270315,
+    "max_theoretical_radiation": 806.6575436802191
+  },
+  {
+    "day_of_year": 224,
+    "solar_declination": 0.2573398621604532,
+    "max_solar_elevation": 0.9330345719114186,
+    "max_theoretical_radiation": 803.4304174032256
+  },
+  {
+    "day_of_year": 225,
+    "solar_declination": 0.25182350238983303,
+    "max_solar_elevation": 0.9275182121407985,
+    "max_theoretical_radiation": 800.1337765918486
+  },
+  {
+    "day_of_year": 226,
+    "solar_declination": 0.2462325218806586,
+    "max_solar_elevation": 0.921927231631624,
+    "max_theoretical_radiation": 796.7676975625966
+  },
+  {
+    "day_of_year": 227,
+    "solar_declination": 0.24056857736111786,
+    "max_solar_elevation": 0.9162632871120833,
+    "max_theoretical_radiation": 793.3322948219869
+  },
+  {
+    "day_of_year": 228,
+    "solar_declination": 0.2348333471802099,
+    "max_solar_elevation": 0.9105280569311753,
+    "max_theoretical_radiation": 789.8277222976493
+  },
+  {
+    "day_of_year": 229,
+    "solar_declination": 0.22902853081041358,
+    "max_solar_elevation": 0.904723240561379,
+    "max_theoretical_radiation": 786.2541745220831
+  },
+  {
+    "day_of_year": 230,
+    "solar_declination": 0.2231558483440978,
+    "max_solar_elevation": 0.8988505580950632,
+    "max_theoretical_radiation": 782.611887766525
+  },
+  {
+    "day_of_year": 231,
+    "solar_declination": 0.21721703998382,
+    "max_solar_elevation": 0.8929117497347855,
+    "max_theoretical_radiation": 778.9011411224599
+  },
+  {
+    "day_of_year": 232,
+    "solar_declination": 0.2112138655266673,
+    "max_solar_elevation": 0.8869085752776328,
+    "max_theoretical_radiation": 775.1222575284078
+  },
+  {
+    "day_of_year": 233,
+    "solar_declination": 0.20514810384279053,
+    "max_solar_elevation": 0.880842813593756,
+    "max_theoretical_radiation": 771.2756047397124
+  },
+  {
+    "day_of_year": 234,
+    "solar_declination": 0.19902155234828625,
+    "max_solar_elevation": 0.8747162620992517,
+    "max_theoretical_radiation": 767.3615962391583
+  },
+  {
+    "day_of_year": 235,
+    "solar_declination": 0.19283602647258447,
+    "max_solar_elevation": 0.8685307362235499,
+    "max_theoretical_radiation": 763.3806920863589
+  },
+  {
+    "day_of_year": 236,
+    "solar_declination": 0.18659335912049657,
+    "max_solar_elevation": 0.862288068871462,
+    "max_theoretical_radiation": 759.3333997039631
+  },
+  {
+    "day_of_year": 237,
+    "solar_declination": 0.18029540012908674,
+    "max_solar_elevation": 0.8559901098800522,
+    "max_theoretical_radiation": 755.2202745988601
+  },
+  {
+    "day_of_year": 238,
+    "solar_declination": 0.17394401571952506,
+    "max_solar_elevation": 0.8496387254704905,
+    "max_theoretical_radiation": 751.0419210166752
+  },
+  {
+    "day_of_year": 239,
+    "solar_declination": 0.1675410879440866,
+    "max_solar_elevation": 0.8432357976950521,
+    "max_theoretical_radiation": 746.7989925279885
+  },
+  {
+    "day_of_year": 240,
+    "solar_declination": 0.16108851412845746,
+    "max_solar_elevation": 0.8367832238794229,
+    "max_theoretical_radiation": 742.4921925448367
+  },
+  {
+    "day_of_year": 241,
+    "solar_declination": 0.15458820630951717,
+    "max_solar_elevation": 0.8302829160604827,
+    "max_theoretical_radiation": 738.1222747662046
+  },
+  {
+    "day_of_year": 242,
+    "solar_declination": 0.14804209066876078,
+    "max_solar_elevation": 0.8237368004197263,
+    "max_theoretical_radiation": 733.6900435513469
+  },
+  {
+    "day_of_year": 243,
+    "solar_declination": 0.14145210696152896,
+    "max_solar_elevation": 0.8171468167124945,
+    "max_theoretical_radiation": 729.1963542199353
+  },
+  {
+    "day_of_year": 244,
+    "solar_declination": 0.13482020794221808,
+    "max_solar_elevation": 0.8105149176931835,
+    "max_theoretical_radiation": 724.6421132781705
+  },
+  {
+    "day_of_year": 245,
+    "solar_declination": 0.12814835878563557,
+    "max_solar_elevation": 0.803843068536601,
+    "max_theoretical_radiation": 720.0282785701537
+  },
+  {
+    "day_of_year": 246,
+    "solar_declination": 0.12143853650467676,
+    "max_solar_elevation": 0.7971332462556422,
+    "max_theoretical_radiation": 715.3558593539668
+  },
+  {
+    "day_of_year": 247,
+    "solar_declination": 0.11469272936449333,
+    "max_solar_elevation": 0.7903874391154588,
+    "max_theoretical_radiation": 710.6259163020683
+  },
+  {
+    "day_of_year": 248,
+    "solar_declination": 0.10791293629332721,
+    "max_solar_elevation": 0.7836076460442927,
+    "max_theoretical_radiation": 705.8395614257659
+  },
+  {
+    "day_of_year": 249,
+    "solar_declination": 0.10110116629018565,
+    "max_solar_elevation": 0.7767958760411511,
+    "max_theoretical_radiation": 700.9979579236955
+  },
+  {
+    "day_of_year": 250,
+    "solar_declination": 0.09425943782953045,
+    "max_solar_elevation": 0.7699541475804959,
+    "max_theoretical_radiation": 696.102319954386
+  },
+  {
+    "day_of_year": 251,
+    "solar_declination": 0.08738977826316105,
+    "max_solar_elevation": 0.7630844880141265,
+    "max_theoretical_radiation": 691.1539123331578
+  },
+  {
+    "day_of_year": 252,
+    "solar_declination": 0.08049422321946623,
+    "max_solar_elevation": 0.7561889329704317,
+    "max_theoretical_radiation": 686.1540501537603
+  },
+  {
+    "day_of_year": 253,
+    "solar_declination": 0.07357481600022404,
+    "max_solar_elevation": 0.7492695257511895,
+    "max_theoretical_radiation": 681.1040983353124
+  },
+  {
+    "day_of_year": 254,
+    "solar_declination": 0.06663360697512641,
+    "max_solar_elevation": 0.7423283167260919,
+    "max_theoretical_radiation": 676.0054710952688
+  },
+  {
+    "day_of_year": 255,
+    "solar_declination": 0.05967265297421103,
+    "max_solar_elevation": 0.7353673627251764,
+    "max_theoretical_radiation": 670.8596313492947
+  },
+  {
+    "day_of_year": 256,
+    "solar_declination": 0.052694016678378065,
+    "max_solar_elevation": 0.7283887264293435,
+    "max_theoretical_radiation": 665.6680900390785
+  },
+  {
+    "day_of_year": 257,
+    "solar_declination": 0.0456997660081731,
+    "max_solar_elevation": 0.7213944757591385,
+    "max_theoretical_radiation": 660.4324053892735
+  },
+  {
+    "day_of_year": 258,
+    "solar_declination": 0.03869197351101836,
+    "max_solar_elevation": 0.7143866832619838,
+    "max_theoretical_radiation": 655.1541820949017
+  },
+  {
+    "day_of_year": 259,
+    "solar_declination": 0.03167271574707113,
+    "max_solar_elevation": 0.7073674254980366,
+    "max_theoretical_radiation": 649.8350704406957
+  },
+  {
+    "day_of_year": 260,
+    "solar_declination": 0.024644072673894853,
+    "max_solar_elevation": 0.7003387824248604,
+    "max_theoretical_radiation": 644.4767653540091
+  },
+  {
+    "day_of_year": 261,
+    "solar_declination": 0.017608127030122475,
+    "max_solar_elevation": 0.693302836781088,
+    "max_theoretical_radiation": 639.0810053930421
+  },
+  {
+    "day_of_year": 262,
+    "solar_declination": 0.010566963718296744,
+    "max_solar_elevation": 0.6862616734692623,
+    "max_theoretical_radiation": 633.6495716722835
+  },
+  {
+    "day_of_year": 263,
+    "solar_declination": 0.003522669187067527,
+    "max_solar_elevation": 0.679217378938033,
+    "max_theoretical_radiation": 628.1842867271747
+  },
+  {
+    "day_of_year": 264,
+    "solar_declination": -0.003522669187067245,
+    "max_solar_elevation": 0.6721720405638982,
+    "max_theoretical_radiation": 622.6870133201422
+  },
+  {
+    "day_of_year": 265,
+    "solar_declination": -0.010566963718296461,
+    "max_solar_elevation": 0.665127746032669,
+    "max_theoretical_radiation": 617.1596531902449
+  },
+  {
+    "day_of_year": 266,
+    "solar_declination": -0.017608127030122375,
+    "max_solar_elevation": 0.6580865827208431,
+    "max_theoretical_radiation": 611.6041457488003
+  },
+  {
+    "day_of_year": 267,
+    "solar_declination": -0.02464407267389457,
+    "max_solar_elevation": 0.6510506370770709,
+    "max_theoretical_radiation": 606.0224667234503
+  },
+  {
+    "day_of_year": 268,
+    "solar_declination": -0.031672715747070854,
+    "max_solar_elevation": 0.6440219940038946,
+    "max_theoretical_radiation": 600.4166267532256
+  },
+  {
+    "day_of_year": 269,
+    "solar_declination": -0.038691973511018087,
+    "max_solar_elevation": 0.6370027362399474,
+    "max_theoretical_radiation": 594.788669937252
+  },
+  {
+    "day_of_year": 270,
+    "solar_declination": -0.045699766008173,
+    "max_solar_elevation": 0.6299949437427924,
+    "max_theoretical_radiation": 589.1406723398258
+  },
+  {
+    "day_of_year": 271,
+    "solar_declination": -0.052694016678377795,
+    "max_solar_elevation": 0.6230006930725877,
+    "max_theoretical_radiation": 583.4747404546525
+  },
+  {
+    "day_of_year": 272,
+    "solar_declination": -0.059672652974210746,
+    "max_solar_elevation": 0.6160220567767547,
+    "max_theoretical_radiation": 577.7930096311126
+  },
+  {
+    "day_of_year": 273,
+    "solar_declination": -0.06663360697512613,
+    "max_solar_elevation": 0.6090611027758394,
+    "max_theoretical_radiation": 572.097642465469
+  },
+  {
+    "day_of_year": 274,
+    "solar_declination": -0.07357481600022375,
+    "max_solar_elevation": 0.6021198937507417,
+    "max_theoretical_radiation": 566.3908271599844
+  },
+  {
+    "day_of_year": 275,
+    "solar_declination": -0.08049422321946612,
+    "max_solar_elevation": 0.5952004865314994,
+    "max_theoretical_radiation": 560.6747758529483
+  },
+  {
+    "day_of_year": 276,
+    "solar_declination": -0.08738977826316077,
+    "max_solar_elevation": 0.5883049314878047,
+    "max_theoretical_radiation": 554.9517229226536
+  },
+  {
+    "day_of_year": 277,
+    "solar_declination": -0.09425943782953014,
+    "max_solar_elevation": 0.5814352719214353,
+    "max_theoretical_radiation": 549.2239232683739
+  },
+  {
+    "day_of_year": 278,
+    "solar_declination": -0.10110116629018537,
+    "max_solar_elevation": 0.5745935434607801,
+    "max_theoretical_radiation": 543.4936505714182
+  },
+  {
+    "day_of_year": 279,
+    "solar_declination": -0.1079129362933271,
+    "max_solar_elevation": 0.5677817734576385,
+    "max_theoretical_radiation": 537.7631955393343
+  },
+  {
+    "day_of_year": 280,
+    "solar_declination": -0.11469272936449305,
+    "max_solar_elevation": 0.5610019803864723,
+    "max_theoretical_radiation": 532.0348641363353
+  },
+  {
+    "day_of_year": 281,
+    "solar_declination": -0.12143853650467648,
+    "max_solar_elevation": 0.554256173246289,
+    "max_theoretical_radiation": 526.310975803009
+  },
+  {
+    "day_of_year": 282,
+    "solar_declination": -0.1281483587856353,
+    "max_solar_elevation": 0.5475463509653302,
+    "max_theoretical_radiation": 520.59386166835
+  },
+  {
+    "day_of_year": 283,
+    "solar_declination": -0.13482020794221783,
+    "max_solar_elevation": 0.5408745018087475,
+    "max_theoretical_radiation": 514.8858627571267
+  },
+  {
+    "day_of_year": 284,
+    "solar_declination": -0.14145210696152885,
+    "max_solar_elevation": 0.5342426027894367,
+    "max_theoretical_radiation": 509.1893281955576
+  },
+  {
+    "day_of_year": 285,
+    "solar_declination": -0.14804209066876053,
+    "max_solar_elevation": 0.5276526190822048,
+    "max_theoretical_radiation": 503.50661341822797
+  },
+  {
+    "day_of_year": 286,
+    "solar_declination": -0.15458820630951708,
+    "max_solar_elevation": 0.5211065034414484,
+    "max_theoretical_radiation": 497.840078379125
+  },
+  {
+    "day_of_year": 287,
+    "solar_declination": -0.16108851412845734,
+    "max_solar_elevation": 0.5146061956225081,
+    "max_theoretical_radiation": 492.1920857696102
+  },
+  {
+    "day_of_year": 288,
+    "solar_declination": -0.16754108794408668,
+    "max_solar_elevation": 0.5081536218068787,
+    "max_theoretical_radiation": 486.5649992460829
+  },
+  {
+    "day_of_year": 289,
+    "solar_declination": -0.17394401571952517,
+    "max_solar_elevation": 0.5017506940314402,
+    "max_theoretical_radiation": 480.96118167001276
+  },
+  {
+    "day_of_year": 290,
+    "solar_declination": -0.18029540012908662,
+    "max_solar_elevation": 0.4953993096218787,
+    "max_theoretical_radiation": 475.3829933629385
+  },
+  {
+    "day_of_year": 291,
+    "solar_declination": -0.18659335912049646,
+    "max_solar_elevation": 0.4891013506304689,
+    "max_theoretical_radiation": 469.8327903789493
+  },
+  {
+    "day_of_year": 292,
+    "solar_declination": -0.19283602647258435,
+    "max_solar_elevation": 0.4828586832783812,
+    "max_theoretical_radiation": 464.31292279706605
+  },
+  {
+    "day_of_year": 293,
+    "solar_declination": -0.1990215523482863,
+    "max_solar_elevation": 0.47667315740267924,
+    "max_theoretical_radiation": 458.8257330358466
+  },
+  {
+    "day_of_year": 294,
+    "solar_declination": -0.20514810384279042,
+    "max_solar_elevation": 0.4705466059081751,
+    "max_theoretical_radiation": 453.37355419243795
+  },
+  {
+    "day_of_year": 295,
+    "solar_declination": -0.2112138655266672,
+    "max_solar_elevation": 0.46448084422429825,
+    "max_theoretical_radiation": 447.95870840818236
+  },
+  {
+    "day_of_year": 296,
+    "solar_declination": -0.2172170399838199,
+    "max_solar_elevation": 0.45847766976714555,
+    "max_theoretical_radiation": 442.5835052627854
+  },
+  {
+    "day_of_year": 297,
+    "solar_declination": -0.22315584834409785,
+    "max_solar_elevation": 0.4525388614068677,
+    "max_theoretical_radiation": 437.2502401989281
+  },
+  {
+    "day_of_year": 298,
+    "solar_declination": -0.2290285308104137,
+    "max_solar_elevation": 0.4466661789405517,
+    "max_theoretical_radiation": 431.9611929790909
+  },
+  {
+    "day_of_year": 299,
+    "solar_declination": -0.23483334718020984,
+    "max_solar_elevation": 0.4408613625707556,
+    "max_theoretical_radiation": 426.71862617623714
+  },
+  {
+    "day_of_year": 300,
+    "solar_declination": -0.24056857736111778,
+    "max_solar_elevation": 0.43512613238984765,
+    "max_theoretical_radiation": 421.52478369987216
+  },
+  {
+    "day_of_year": 301,
+    "solar_declination": -0.2462325218806585,
+    "max_solar_elevation": 0.4294621878703069,
+    "max_theoretical_radiation": 416.3818893588789
+  },
+  {
+    "day_of_year": 302,
+    "solar_declination": -0.2518235023898331,
+    "max_solar_elevation": 0.4238712073611324,
+    "max_theoretical_radiation": 411.29214546239155
+  },
+  {
+    "day_of_year": 303,
+    "solar_declination": -0.2573398621604531,
+    "max_solar_elevation": 0.41835484759051234,
+    "max_theoretical_radiation": 406.25773145984806
+  },
+  {
+    "day_of_year": 304,
+    "solar_declination": -0.26277996657606595,
+    "max_solar_elevation": 0.4129147431748996,
+    "max_theoretical_radiation": 401.2808026212268
+  },
+  {
+    "day_of_year": 305,
+    "solar_declination": -0.2681422036163259,
+    "max_solar_elevation": 0.40755250613463945,
+    "max_theoretical_radiation": 396.36348875834705
+  },
+  {
+    "day_of_year": 306,
+    "solar_declination": -0.2734249843346719,
+    "max_solar_elevation": 0.4022697254162937,
+    "max_theoretical_radiation": 391.5078929879807
+  },
+  {
+    "day_of_year": 307,
+    "solar_declination": -0.27862674332916515,
+    "max_solar_elevation": 0.3970679664218002,
+    "max_theoretical_radiation": 386.7160905373917
+  },
+  {
+    "day_of_year": 308,
+    "solar_declination": -0.28374593920635216,
+    "max_solar_elevation": 0.3919487705446132,
+    "max_theoretical_radiation": 381.99012759279896
+  },
+  {
+    "day_of_year": 309,
+    "solar_declination": -0.28878105503801343,
+    "max_solar_elevation": 0.38691365471295214,
+    "max_theoretical_radiation": 377.332020191118
+  },
+  {
+    "day_of_year": 310,
+    "solar_declination": -0.29373059881066144,
+    "max_solar_elevation": 0.381964110940304,
+    "max_theoretical_radiation": 372.74375315522906
+  },
+  {
+    "day_of_year": 311,
+    "solar_declination": -0.29859310386765636,
+    "max_solar_elevation": 0.377101605883309,
+    "max_theoretical_radiation": 368.2272790728845
+  },
+  {
+    "day_of_year": 312,
+    "solar_declination": -0.3033671293438083,
+    "max_solar_elevation": 0.3723275804071573,
+    "max_theoretical_radiation": 363.7845173192515
+  },
+  {
+    "day_of_year": 313,
+    "solar_declination": -0.3080512605923367,
+    "max_solar_elevation": 0.3676434491586287,
+    "max_theoretical_radiation": 359.41735312296964
+  },
+  {
+    "day_of_year": 314,
+    "solar_declination": -0.3126441096040609,
+    "max_solar_elevation": 0.3630506001469045,
+    "max_theoretical_radiation": 355.12763667549734
+  },
+  {
+    "day_of_year": 315,
+    "solar_declination": -0.31714431541869703,
+    "max_solar_elevation": 0.3585503943322683,
+    "max_theoretical_radiation": 350.9171822833932
+  },
+  {
+    "day_of_year": 316,
+    "solar_declination": -0.3215505445281395,
+    "max_solar_elevation": 0.3541441652228259,
+    "max_theoretical_radiation": 346.78776756309554
+  },
+  {
+    "day_of_year": 317,
+    "solar_declination": -0.32586149127160935,
+    "max_solar_elevation": 0.3498332184793562,
+    "max_theoretical_radiation": 342.74113267764204
+  },
+  {
+    "day_of_year": 318,
+    "solar_declination": -0.3300758782225485,
+    "max_solar_elevation": 0.345618831528417,
+    "max_theoretical_radiation": 338.7789796146909
+  },
+  {
+    "day_of_year": 319,
+    "solar_declination": -0.33419245656714924,
+    "max_solar_elevation": 0.34150225318381633,
+    "max_theoretical_radiation": 334.90297150510327
+  },
+  {
+    "day_of_year": 320,
+    "solar_declination": -0.3382100064744053,
+    "max_solar_elevation": 0.3374847032765602,
+    "max_theoretical_radiation": 331.1147319812624
+  },
+  {
+    "day_of_year": 321,
+    "solar_declination": -0.34212733745757323,
+    "max_solar_elevation": 0.3335673722933923,
+    "max_theoretical_radiation": 327.4158445742297
+  },
+  {
+    "day_of_year": 322,
+    "solar_declination": -0.34594328872693986,
+    "max_solar_elevation": 0.32975142102402555,
+    "max_theoretical_radiation": 323.80785214875397
+  },
+  {
+    "day_of_year": 323,
+    "solar_declination": -0.3496567295337891,
+    "max_solar_elevation": 0.3260379802171762,
+    "max_theoretical_radiation": 320.29225637508677
+  },
+  {
+    "day_of_year": 324,
+    "solar_declination": -0.353266559505467,
+    "max_solar_elevation": 0.3224281502454984,
+    "max_theoretical_radiation": 316.87051723649137
+  },
+  {
+    "day_of_year": 325,
+    "solar_declination": -0.35677170897144683,
+    "max_solar_elevation": 0.3189230007795185,
+    "max_theoretical_radiation": 313.54405257127047
+  },
+  {
+    "day_of_year": 326,
+    "solar_declination": -0.3601711392802942,
+    "max_solar_elevation": 0.31552357047067137,
+    "max_theoretical_radiation": 310.3142376480999
+  },
+  {
+    "day_of_year": 327,
+    "solar_declination": -0.3634638431074432,
+    "max_solar_elevation": 0.3122308666435223,
+    "max_theoretical_radiation": 307.18240477338713
+  },
+  {
+    "day_of_year": 328,
+    "solar_declination": -0.3666488447536872,
+    "max_solar_elevation": 0.30904586499727826,
+    "max_theoretical_radiation": 304.14984292936333
+  },
+  {
+    "day_of_year": 329,
+    "solar_declination": -0.36972520043430035,
+    "max_solar_elevation": 0.305969509316665,
+    "max_theoretical_radiation": 301.21779744155583
+  },
+  {
+    "day_of_year": 330,
+    "solar_declination": -0.3726919985587018,
+    "max_solar_elevation": 0.30300271119226374,
+    "max_theoretical_radiation": 298.3874696742853
+  },
+  {
+    "day_of_year": 331,
+    "solar_declination": -0.3755483600005779,
+    "max_solar_elevation": 0.30014634975038756,
+    "max_theoretical_radiation": 295.6600167527974
+  },
+  {
+    "day_of_year": 332,
+    "solar_declination": -0.37829343835838863,
+    "max_solar_elevation": 0.2974012713925769,
+    "max_theoretical_radiation": 293.03655131063033
+  },
+  {
+    "day_of_year": 333,
+    "solar_declination": -0.3809264202061726,
+    "max_solar_elevation": 0.29476828954479295,
+    "max_theoretical_radiation": 290.5181412608136
+  },
+  {
+    "day_of_year": 334,
+    "solar_declination": -0.38344652533458407,
+    "max_solar_elevation": 0.29224818441638134,
+    "max_theoretical_radiation": 288.10580958948685
+  },
+  {
+    "day_of_year": 335,
+    "solar_declination": -0.38585300698208513,
+    "max_solar_elevation": 0.28984170276888044,
+    "max_theoretical_radiation": 285.80053417054074
+  },
+  {
+    "day_of_year": 336,
+    "solar_declination": -0.3881451520562275,
+    "max_solar_elevation": 0.287549557694738,
+    "max_theoretical_radiation": 283.60324759988276
+  },
+  {
+    "day_of_year": 337,
+    "solar_declination": -0.3903222813449571,
+    "max_solar_elevation": 0.2853724284060084,
+    "max_theoretical_radiation": 281.51483704795925
+  },
+  {
+    "day_of_year": 338,
+    "solar_declination": -0.3923837497178794,
+    "max_solar_elevation": 0.2833109600330861,
+    "max_theoretical_radiation": 279.53614412917625
+  },
+  {
+    "day_of_year": 339,
+    "solar_declination": -0.39432894631742543,
+    "max_solar_elevation": 0.28136576343354003,
+    "max_theoretical_radiation": 277.6679647869001
+  },
+  {
+    "day_of_year": 340,
+    "solar_declination": -0.39615729473986205,
+    "max_solar_elevation": 0.2795374150111034,
+    "max_theoretical_radiation": 275.91104919274545
+  },
+  {
+    "day_of_year": 341,
+    "solar_declination": -0.39786825320609254,
+    "max_solar_elevation": 0.2778264565448729,
+    "max_theoretical_radiation": 274.26610165890173
+  },
+  {
+    "day_of_year": 342,
+    "solar_declination": -0.39946131472219787,
+    "max_solar_elevation": 0.27623339502876765,
+    "max_theoretical_radiation": 272.73378056229075
+  },
+  {
+    "day_of_year": 343,
+    "solar_declination": -0.4009360072296698,
+    "max_solar_elevation": 0.27475870252129564,
+    "max_theoretical_radiation": 271.31469827939856
+  },
+  {
+    "day_of_year": 344,
+    "solar_declination": -0.40229189374529184,
+    "max_solar_elevation": 0.2734028160056736,
+    "max_theoretical_radiation": 270.00942113067924
+  },
+  {
+    "day_of_year": 345,
+    "solar_declination": -0.40352857249062696,
+    "max_solar_elevation": 0.27216613726033856,
+    "max_theoretical_radiation": 268.81846933348226
+  },
+  {
+    "day_of_year": 346,
+    "solar_declination": -0.4046456770110733,
+    "max_solar_elevation": 0.2710490327398922,
+    "max_theoretical_radiation": 267.7423169625229
+  },
+  {
+    "day_of_year": 347,
+    "solar_declination": -0.4056428762844523,
+    "max_solar_elevation": 0.2700518334665132,
+    "max_theoretical_radiation": 266.78139191697716
+  },
+  {
+    "day_of_year": 348,
+    "solar_declination": -0.4065198748190979,
+    "max_solar_elevation": 0.26917483493186767,
+    "max_theoretical_radiation": 265.9360758933526
+  },
+  {
+    "day_of_year": 349,
+    "solar_declination": -0.40727641274141724,
+    "max_solar_elevation": 0.2684182970095481,
+    "max_theoretical_radiation": 265.2067043633609
+  },
+  {
+    "day_of_year": 350,
+    "solar_declination": -0.4079122658728964,
+    "max_solar_elevation": 0.26778244387806893,
+    "max_theoretical_radiation": 264.593566556095
+  },
+  {
+    "day_of_year": 351,
+    "solar_declination": -0.4084272457965297,
+    "max_solar_elevation": 0.2672674639544357,
+    "max_theoretical_radiation": 264.0969054438849
+  },
+  {
+    "day_of_year": 352,
+    "solar_declination": -0.4088211999126516,
+    "max_solar_elevation": 0.2668735098383139,
+    "max_theoretical_radiation": 263.71691773129913
+  },
+  {
+    "day_of_year": 353,
+    "solar_declination": -0.4090940114841553,
+    "max_solar_elevation": 0.2666006982668101,
+    "max_theoretical_radiation": 263.4537538468297
+  },
+  {
+    "day_of_year": 354,
+    "solar_declination": -0.40924559967108437,
+    "max_solar_elevation": 0.26644911007988115,
+    "max_theoretical_radiation": 263.30751793689393
+  },
+  {
+    "day_of_year": 355,
+    "solar_declination": -0.4092759195545874,
+    "max_solar_elevation": 0.26641879019637793,
+    "max_theoretical_radiation": 263.27826786186046
+  },
+  {
+    "day_of_year": 356,
+    "solar_declination": -0.40918496215022876,
+    "max_solar_elevation": 0.26650974760073676,
+    "max_theoretical_radiation": 263.3660151939092
+  },
+  {
+    "day_of_year": 357,
+    "solar_declination": -0.4089727544106502,
+    "max_solar_elevation": 0.2667219553403153,
+    "max_theoretical_radiation": 263.5707252166067
+  },
+  {
+    "day_of_year": 358,
+    "solar_declination": -0.4086393592175848,
+    "max_solar_elevation": 0.2670553505333806,
+    "max_theoretical_radiation": 263.89231692618176
+  },
+  {
+    "day_of_year": 359,
+    "solar_declination": -0.40818487536322356,
+    "max_solar_elevation": 0.267509834387742,
+    "max_theoretical_radiation": 264.3306630345624
+  },
+  {
+    "day_of_year": 360,
+    "solar_declination": -0.4076094375209412,
+    "max_solar_elevation": 0.2680852722300242,
+    "max_theoretical_radiation": 264.8855899743307
+  },
+  {
+    "day_of_year": 361,
+    "solar_declination": -0.40691321620538917,
+    "max_solar_elevation": 0.26878149354557634,
+    "max_theoretical_radiation": 265.55687790584057
+  },
+  {
+    "day_of_year": 362,
+    "solar_declination": -0.406096417721969,
+    "max_solar_elevation": 0.2695982920289963,
+    "max_theoretical_radiation": 266.34426072682055
+  },
+  {
+    "day_of_year": 363,
+    "solar_declination": -0.40515928410569935,
+    "max_solar_elevation": 0.2705354256452661,
+    "max_theoretical_radiation": 267.2474260848846
+  },
+  {
+    "day_of_year": 364,
+    "solar_declination": -0.4041020930494957,
+    "max_solar_elevation": 0.2715926167014697,
+    "max_theoretical_radiation": 268.26601539344085
+  },
+  {
+    "day_of_year": 365,
+    "solar_declination": -0.40292515782188404,
+    "max_solar_elevation": 0.27276955192908137,
+    "max_theoretical_radiation": 269.3996238515868
+  }
+]
