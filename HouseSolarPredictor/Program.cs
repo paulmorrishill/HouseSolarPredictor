@@ -40,18 +40,6 @@ class Program
 
         var targetDate = GetTargetDateFromUser();
 
-        // Create battery optimizer
-        var batteryOptimizer = new BatteryChargingOptimizer(
-            BatteryCapacityKwh,
-            MaxChargingRateKw,
-            ChargingEfficiency);
-
-        // Generate the charging plan
-        await GenerateChargingPlanAsync(
-            targetDate,
-            weatherClient,
-            octopusClient,
-            batteryOptimizer);
     }
 
     private static DateTime GetTargetDateFromUser()
@@ -78,8 +66,7 @@ class Program
     private static async Task GenerateChargingPlanAsync(
         DateTime targetDate,
         OpenMeteoClient weatherClient,
-        OctopusApiClient octopusClient,
-        BatteryChargingOptimizer batteryOptimizer)
+        OctopusApiClient octopusClient)
     {
         Console.WriteLine($"\nGenerating charging plan for {targetDate:yyyy-MM-dd}...");
 
@@ -101,7 +88,6 @@ class Program
 
         Console.WriteLine($"Daily temperature range: Low: {dailyLowTemp:F1}°C, High: {dailyHighTemp:F1}°C");
 
-        // Initialize the solar predictor with context provider
         var solarContextProvider = new SolarPredictionContextProvider(weatherDataCache, dayInfo);
         var solarPredictor = new SolarPredictor(
             "model.onnx",
@@ -109,13 +95,13 @@ class Program
             "computed_values.json",
             solarContextProvider);
 
-        // Initialize the load predictor with context provider
         var loadContextProvider = new LoadPredictionContextProvider(
             weatherDataCache,
             dailyHighTemp,
             dailyLowTemp,
             historicalConsumption,
             targetDate);
+        
         _loadEnergyPredictor = new LoadEnergyPredictor(
             "load_prediction_model.onnx",
             "load_feature_info.json",
@@ -123,24 +109,6 @@ class Program
 
         // Step 3: Predict solar generation for each half-hour
         Console.WriteLine("Predicting solar generation for each half-hour...");
-        timeSegments = GenerateTimeSegments(
-            targetDate, 
-            solarPredictor, 
-            weatherDataCache, 
-            dayInfo, 
-            historicalConsumption, 
-            dailyHighTemp, 
-            dailyLowTemp);
-
-        // Fetch electricity prices
-        Console.WriteLine("Fetching electricity prices from Octopus API...");
-        var fromDate = targetDate;
-        var toDate = targetDate.AddDays(1);
-        var prices = await octopusClient.GetElectricityPricesAsync(fromDate, toDate);
-        Console.WriteLine($"Fetched {prices.Count} price points");
-
-        // Step 4: Assign prices to each time segment
-        AssignPricesToTimeSegments(timeSegments, prices);
     }
 
     private static async Task<(float High, float Low)> FetchWeatherDataAndGetTemperatureRange(
@@ -171,86 +139,6 @@ class Program
 
         return (dailyHighTemp, dailyLowTemp);
     }
-
-    private static List<TimeSegment> GenerateTimeSegments(
-        DateTime targetDate,
-        SolarPredictor solarPredictor,
-        Dictionary<int, WeatherData> weatherDataCache,
-        DayInfo dayInfo,
-        Dictionary<DateTime, float> historicalConsumption,
-        float dailyHighTemp,
-        float dailyLowTemp)
-    {
-        var timeSegments = new List<TimeSegment>();
-
-        for (int hour = 0; hour < HoursPerDay; hour++)
-        {
-            var weatherData = weatherDataCache[hour];
-
-            // Predict for both :00 and :30 of each hour
-            foreach (int minute in new[] { 0, MinutesPerHalfHour })
-            {
-                var startTime = targetDate.AddHours(hour).AddMinutes(minute);
-                var endTime = startTime.AddMinutes(MinutesPerHalfHour);
-                int dayOfYear = startTime.DayOfYear;
-
-                // Create a charge segment for this time period
-                var chargeSegment = new HalfHourSegment(hour, minute);
-                
-                // Predict solar generation for this time segment
-                var solarPrediction = solarPredictor.PredictSolarEnergy(dayOfYear, chargeSegment);
-
-                // Predict load energy with all available data
-                var expectedConsumption = _loadEnergyPredictor.PredictLoad(dayOfYear, chargeSegment);
-
-                var segment = new TimeSegment
-                {
-                    StartTime = startTime,
-                    EndTime = endTime,
-                    SolarGeneration = solarPrediction,
-                    EstimatedConsumption = expectedConsumption
-                };
-
-                timeSegments.Add(segment);
-            }
-        }
-
-        // Initialize PredictedState for each segment
-        foreach (var segment in timeSegments)
-        {
-            segment.PredictedState.StartBatteryChargeKwh = 0; // Will be calculated during optimization
-            segment.PredictedState.EndBatteryChargeKwh = 0;   // Will be calculated during optimization
-            segment.PredictedState.SolarPercentage = 0;
-            segment.PredictedState.GridPercentage = 0;
-            segment.PredictedState.BatteryPercentage = 0;
-        }
-        
-        return timeSegments;
-    }
-
-    private static void AssignPricesToTimeSegments(List<TimeSegment> timeSegments, List<EnergyPrice> prices)
-    {
-        foreach (var segment in timeSegments)
-        {
-            var pricePoint = prices.Find(p =>
-                segment.StartTime >= p.ValidFrom && segment.StartTime < p.ValidTo);
-
-            if (pricePoint != null)
-            {
-                segment.EnergyPrice = pricePoint.PricePerKwh;
-                continue;
-            }
-            
-            throw new ElectricitySupplierException($"Warning: No price data found for {segment.StartTime}.");
-        }
-        
-    }
-    
-    private static void DisplayChargingPlan(List<TimeSegment> chargingPlan, DateTime targetDate, float totalAverageCost)
-    {
-        Console.WriteLine("\nCharging Schedule:");
-    }
-
 
 }
 

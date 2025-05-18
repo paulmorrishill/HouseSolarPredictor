@@ -10,8 +10,7 @@ namespace HouseSolarPredictor.Prediction;
 public class LoadEnergyPredictor : ILoadPredictor
 {
     private readonly InferenceSession _session;
-    private readonly FeatureInfo _featureInfo;
-    private StandardScaler _scaler; // Removed readonly to allow initialization in InitializeScaler
+    private readonly LoadFeatureInfo _loadFeatureInfo;
     private readonly ILoadPredictionContextProvider _contextProvider;
 
     /// <summary>
@@ -36,12 +35,8 @@ public class LoadEnergyPredictor : ILoadPredictor
 
         // Load feature information
         var featureInfoJson = File.ReadAllText(featureInfoPath);
-        _featureInfo = JsonSerializer.Deserialize<FeatureInfo>(featureInfoJson);
-        Console.WriteLine($"Loaded feature info with {_featureInfo.feature_names.Length} features");
-
-        // Initialize scaler (in a real implementation, scaler values would be loaded from 
-        // a file saved during training, but for this demo we'll use dummy values)
-        InitializeScaler();
+        _loadFeatureInfo = JsonSerializer.Deserialize<LoadFeatureInfo>(featureInfoJson)!;
+        Console.WriteLine($"Loaded feature info with {_loadFeatureInfo.feature_names.Length} features");
     }
 
     private void LogModelMetadata()
@@ -56,23 +51,6 @@ public class LoadEnergyPredictor : ILoadPredictor
         foreach (var output in _session.OutputMetadata)
         {
             Console.WriteLine($"  Name: {output.Key}, Shape: [{string.Join(",", output.Value.Dimensions)}]");
-        }
-    }
-
-    private void InitializeScaler()
-    {
-        // In a real implementation, these values would be loaded from a file saved during training
-        // For now, we'll just create a dummy scaler with means of 0 and scales of 1
-        _scaler = new StandardScaler
-        {
-            means = new float[_featureInfo.feature_names.Length],
-            scales = new float[_featureInfo.feature_names.Length]
-        };
-
-        for (int i = 0; i < _featureInfo.feature_names.Length; i++)
-        {
-            _scaler.means[i] = 0.0f;
-            _scaler.scales[i] = 1.0f;
         }
     }
 
@@ -180,11 +158,11 @@ public class LoadEnergyPredictor : ILoadPredictor
     private float[] CreateInputArray(Dictionary<string, float> features)
     {
         // Create array matching the expected feature order
-        var inputFeatures = new float[_featureInfo.feature_names.Length];
+        var inputFeatures = new float[_loadFeatureInfo.feature_names.Length];
 
-        for (int i = 0; i < _featureInfo.feature_names.Length; i++)
+        for (int i = 0; i < _loadFeatureInfo.feature_names.Length; i++)
         {
-            string featureName = _featureInfo.feature_names[i];
+            string featureName = _loadFeatureInfo.feature_names[i];
 
             if (features.ContainsKey(featureName))
             {
@@ -245,10 +223,10 @@ public class LoadEnergyPredictor : ILoadPredictor
         for (int i = 0; i < features.Length; i++)
         {
             // Skip categorical features
-            if (_featureInfo.categorical_features.Contains(_featureInfo.feature_names[i]))
+            if (_loadFeatureInfo.categorical_features.Contains(_loadFeatureInfo.feature_names[i]))
                 continue;
 
-            scaledFeatures[i] = (features[i] - _scaler.means[i]) / _scaler.scales[i];
+            scaledFeatures[i] = (features[i] - _loadFeatureInfo.means[i]) / _loadFeatureInfo.scales[i];
         }
 
         return scaledFeatures;
@@ -262,15 +240,15 @@ public class LoadEnergyPredictor : ILoadPredictor
     private float[] PreprocessCategoricalFeatures(float[] scaledFeatures)
     {
         // If no categorical features, return as is
-        if (_featureInfo.categorical_features.Length == 0)
+        if (_loadFeatureInfo.categorical_features.Length == 0)
             return scaledFeatures;
 
         // Identify categorical features and their positions
         var categoricalFeaturePositions = new Dictionary<string, int>();
-        for (int i = 0; i < _featureInfo.feature_names.Length; i++)
+        for (int i = 0; i < _loadFeatureInfo.feature_names.Length; i++)
         {
-            string featureName = _featureInfo.feature_names[i];
-            if (_featureInfo.categorical_features.Contains(featureName))
+            string featureName = _loadFeatureInfo.feature_names[i];
+            if (_loadFeatureInfo.categorical_features.Contains(featureName))
             {
                 categoricalFeaturePositions[featureName] = i;
             }
@@ -278,9 +256,9 @@ public class LoadEnergyPredictor : ILoadPredictor
 
         // Calculate the total size of the preprocessed features array
         int totalSize = scaledFeatures.Length;
-        foreach (var catFeature in _featureInfo.categorical_features)
+        foreach (var catFeature in _loadFeatureInfo.categorical_features)
         {
-            if (_featureInfo.one_hot_categories.TryGetValue(catFeature, out var categories))
+            if (_loadFeatureInfo.one_hot_categories.TryGetValue(catFeature, out var categories))
             {
                 // Drop first category (-1) as per Python's OneHotEncoder(drop='first')
                 totalSize += categories.Length - 1 - 1; // -1 for the original feature too
@@ -292,27 +270,24 @@ public class LoadEnergyPredictor : ILoadPredictor
         int currentIndex = 0;
 
         // Copy numerical features and handle categorical ones
-        for (int i = 0; i < _featureInfo.feature_names.Length; i++)
+        for (int i = 0; i < _loadFeatureInfo.feature_names.Length; i++)
         {
-            string featureName = _featureInfo.feature_names[i];
+            string featureName = _loadFeatureInfo.feature_names[i];
             
-            if (_featureInfo.categorical_features.Contains(featureName))
+            if (_loadFeatureInfo.categorical_features.Contains(featureName))
             {
-                // Skip adding the original categorical feature
-                // We'll add one-hot encoded features later
                 continue;
             }
             else
             {
-                // Copy numerical feature
                 preprocessedFeatures[currentIndex++] = scaledFeatures[i];
             }
         }
 
         // Add one-hot encoded features for each categorical feature
-        foreach (var catFeature in _featureInfo.categorical_features)
+        foreach (var catFeature in _loadFeatureInfo.categorical_features)
         {
-            if (_featureInfo.one_hot_categories.TryGetValue(catFeature, out var categories))
+            if (_loadFeatureInfo.one_hot_categories.TryGetValue(catFeature, out var categories))
             {
                 int featurePos = categoricalFeaturePositions[catFeature];
                 int categoryValue = (int)scaledFeatures[featurePos];
@@ -325,7 +300,6 @@ public class LoadEnergyPredictor : ILoadPredictor
             }
         }
 
-        // Verify correct size
         if (currentIndex != totalSize)
         {
             Console.WriteLine($"Warning: Preprocessed features size mismatch. Expected {totalSize}, got {currentIndex}");
@@ -448,9 +422,9 @@ public class LoadEnergyPredictor : ILoadPredictor
         
         // Calculate expected one-hot encoded size
         int expectedSize = inputArray.Length;
-        foreach (var catFeature in _featureInfo.categorical_features)
+        foreach (var catFeature in _loadFeatureInfo.categorical_features)
         {
-            if (_featureInfo.one_hot_categories.TryGetValue(catFeature, out var categories))
+            if (_loadFeatureInfo.one_hot_categories.TryGetValue(catFeature, out var categories))
             {
                 expectedSize += categories.Length - 1 - 1; // -1 for drop='first', -1 for original feature
             }
@@ -463,20 +437,14 @@ public class LoadEnergyPredictor : ILoadPredictor
     /// <summary>
     /// Class to hold feature information loaded from JSON
     /// </summary>
-    public class FeatureInfo
+    public class LoadFeatureInfo
     {
         public string[] feature_names { get; set; }
         public string[] categorical_features { get; set; }
         public string[] numerical_features { get; set; }
         public Dictionary<string, int[]> one_hot_categories { get; set; }
-    }
-
-    /// <summary>
-    /// Class to hold standard scaling parameters
-    /// </summary>
-    public class StandardScaler
-    {
         public float[] means { get; set; }
         public float[] scales { get; set; }
     }
+
 }

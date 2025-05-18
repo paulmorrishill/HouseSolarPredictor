@@ -1,4 +1,5 @@
-﻿using HouseSolarPredictor.Time;
+﻿using HouseSolarPredictor.EnergySupply;
+using HouseSolarPredictor.Time;
 
 namespace HouseSolarPredictor.Prediction;
 
@@ -16,31 +17,27 @@ public enum OutputsMode
 
 public class PredictedState
 {
-    public decimal StartBatteryChargeKwh { get; set; }
-    public decimal EndBatteryChargeKwh { get; set; }
-    public decimal SolarPercentage { get; set; }
-    public decimal GridPercentage { get; set; }
-    public decimal BatteryPercentage { get; set; }
+    public Kwh StartBatteryChargeKwh { get; set; }
+    public Kwh EndBatteryChargeKwh { get; set; }
 }
 
 public class TimeSegment
 {
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public HalfHourSegment HalfHourSegment { get; set; }
     public Kwh SolarGeneration { get; set; }
-    public Gbp EnergyPrice { get; set; }
+    public ElectricityRate GridPrice { get; set; }
     public Kwh EstimatedConsumption { get; set; }
-    public Kwh ChargingAmount { get; set; }
+    public Kwh BatteryChargeDelta { get; set; }
     public PredictedState PredictedState { get; set; } = new PredictedState();
     public OutputsMode Mode { get; set; } = OutputsMode.LoadFirst;
         
     public override string ToString()
     {
-        return $"{StartTime:HH:mm} - {EndTime:HH:mm}: " +
+        return $"{HalfHourSegment.HourStart} - {HalfHourSegment.HourEnd}: " +
                $"Solar: {SolarGeneration:F2} kWh, " +
-               $"Price: {EnergyPrice:F3} £/kWh, " +
+               $"Price: {GridPrice:F3} £/kWh, " +
                $"Mode: {Mode}" +
-               $"(Charge amount {ChargingAmount:F2} kWh)";
+               $"(Charge amount {BatteryChargeDelta:F2} kWh)";
     }
 }
 
