@@ -73,8 +73,24 @@ public record Kwh(float Value)
         return new Kwh(Math.Max(first.Value, second.Value));
     }
 
+    // > and <
+    public static bool operator >(Kwh a, Kwh b)
+    {
+        return a.Value > b.Value;
+    }
+    
+    public static bool operator <(Kwh a, Kwh b)
+    {
+        return a.Value < b.Value;
+    }
+    
     public override string ToString()
     {
         return $"{Value:F2} kWh";
+    }
+
+    public Kwh AbsoluteValue()
+    {
+        return new Kwh(Math.Abs(Value));
     }
 }

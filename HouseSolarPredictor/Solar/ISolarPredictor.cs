@@ -10,7 +10,7 @@ public interface ISolarPredictor
 public interface IBatteryPredictor
 {
     public Kwh Capacity { get; }
-    public Kwh MaxChargePerSegment { get; }
+    public Kwh GridChargePerSegment { get; }
     public Kwh PredictNewBatteryStateAfter30Minutes(Kwh startCapacity, Kwh availablePowerToCharge);
 }
 
@@ -19,11 +19,11 @@ public class LifePo4BatteryPredictor : IBatteryPredictor
     public LifePo4BatteryPredictor(Kwh capacity, Kwh maxChargePerSegment)
     { 
         Capacity = capacity;
-        MaxChargePerSegment = maxChargePerSegment;
+        GridChargePerSegment = maxChargePerSegment;
     }
 
     public Kwh Capacity { get; }
-    public Kwh MaxChargePerSegment { get; }
+    public Kwh GridChargePerSegment { get; }
 
     public Kwh PredictNewBatteryStateAfter30Minutes(Kwh startCapacity, Kwh availablePowerToCharge)
     {
