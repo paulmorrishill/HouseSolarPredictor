@@ -21,6 +21,7 @@ namespace HouseSolarPredictor.Solar
             ISolarPredictionContextProvider contextProvider)
         {
             _session = new InferenceSession(modelPath);
+            _contextProvider = contextProvider;
             Console.WriteLine("ONNX model loaded successfully");
 
             Console.WriteLine("Model inputs:");

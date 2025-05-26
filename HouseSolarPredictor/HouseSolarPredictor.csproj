@@ -25,9 +25,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Load\load_feature_info.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
       <None Update="Load\load_prediction_model.onnx">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
@@ -39,6 +36,9 @@
       </None>
       <None Update="Solar\scaling_params.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Load\load_feature_info.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
 

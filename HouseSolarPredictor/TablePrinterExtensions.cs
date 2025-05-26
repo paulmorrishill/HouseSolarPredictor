@@ -1,3 +1,4 @@
+using HouseSolarPredictor;
 using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 

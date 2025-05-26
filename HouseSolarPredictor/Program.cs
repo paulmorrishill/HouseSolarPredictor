@@ -121,7 +121,8 @@ class Program
             houseSimulator,
             graphBasedPlanOptimiser);
 
-        chargePlanner.CreateChargePlan(targetDate, Kwh.Zero);
+       var plan =  await chargePlanner.CreateChargePlan(targetDate, Kwh.Zero);
+       plan.PrintPlanTable();
     }
 
     private static async Task<(float High, float Low)> FetchWeatherDataAndGetTemperatureRange(

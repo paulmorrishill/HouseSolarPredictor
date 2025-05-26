@@ -37,6 +37,19 @@ public class LoadEnergyPredictor : ILoadPredictor
         // Load feature information
         var featureInfoJson = File.ReadAllText(featureInfoPath);
         _loadFeatureInfo = JsonSerializer.Deserialize<LoadFeatureInfo>(featureInfoJson)!;
+        var nullChecks = new List<object>
+        {
+            _loadFeatureInfo.feature_names,
+            _loadFeatureInfo.categorical_features,
+            _loadFeatureInfo.numerical_features,
+            _loadFeatureInfo.means,
+            _loadFeatureInfo.scales
+        };
+        
+        if (nullChecks.Any(x => x == null))
+        {
+            throw new InvalidOperationException($"Feature info JSON is missing required fields: " + featureInfoJson);
+        }
         Console.WriteLine($"Loaded feature info with {_loadFeatureInfo.feature_names.Length} features");
     }
 
@@ -163,6 +176,10 @@ public class LoadEnergyPredictor : ILoadPredictor
 
         for (int i = 0; i < _loadFeatureInfo.feature_names.Length; i++)
         {
+            if( i >= _loadFeatureInfo.feature_names.Length)
+            {
+                throw new InvalidOperationException($"Feature index {i} exceeds expected feature names length {_loadFeatureInfo.feature_names.Length}");
+            }
             string featureName = _loadFeatureInfo.feature_names[i];
 
             if (features.ContainsKey(featureName))
@@ -221,13 +238,13 @@ public class LoadEnergyPredictor : ILoadPredictor
         var scaledFeatures = new float[features.Length];
         Array.Copy(features, scaledFeatures, features.Length);
 
-        for (int i = 0; i < features.Length; i++)
+        var scaledOnlyFeatures = _loadFeatureInfo.feature_names.Where(f => _loadFeatureInfo.numerical_features.Contains(f)).ToArray();
+        
+        for (int i = 0; i < scaledOnlyFeatures.Length; i++)
         {
-            // Skip categorical features
-            if (_loadFeatureInfo.categorical_features.Contains(_loadFeatureInfo.feature_names[i]))
-                continue;
-
-            scaledFeatures[i] = (features[i] - _loadFeatureInfo.means[i]) / _loadFeatureInfo.scales[i];
+            var scaledIndex = i;
+            var featureIndex = Array.IndexOf(_loadFeatureInfo.feature_names, scaledOnlyFeatures[i]);
+            scaledFeatures[featureIndex] = (features[scaledIndex] - _loadFeatureInfo.means[scaledIndex]) / _loadFeatureInfo.scales[scaledIndex];
         }
 
         return scaledFeatures;
