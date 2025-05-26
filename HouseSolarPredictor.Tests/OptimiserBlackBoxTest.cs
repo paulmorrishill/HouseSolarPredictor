@@ -58,6 +58,7 @@ public class OptimiserBlackBoxTests
             new("Genetic200", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 200)),
             new("Graph", () => new GraphBasedPlanOptimiser(_testBatteryPredictor, _houseSimulator, _fileLogger)),
             new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor)),
+            new("SimpleStacker", () => new ScoringOptimiser()),
             new("DoNothing", () => new DoNothingOptimiser())
         };
 

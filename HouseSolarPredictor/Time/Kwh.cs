@@ -3,7 +3,7 @@ using HouseSolarPredictor.Prediction;
 
 namespace HouseSolarPredictor.Time;
 
-public record Kwh(float Value)
+public record Kwh(float Value) : IComparable<Kwh>
 {
     public Kwh(Decimal value)
         : this((float)value)
@@ -112,5 +112,11 @@ public record Kwh(float Value)
         
         var discreteValue = Math.Round(Value / (float)@decimal) * (float)@decimal;
         return new Kwh(discreteValue);
+    }
+
+    public int CompareTo(Kwh? other)
+    {
+        if (other == null) return -1;
+        return Value.CompareTo(other.Value);
     }
 }
