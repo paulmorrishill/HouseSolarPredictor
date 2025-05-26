@@ -22,16 +22,6 @@ public class BatteryChargePlannerTests
     private ISupplier _supplier;
     private LocalDate _testDay;
 
-    private class TestBatteryPredictor : IBatteryPredictor
-    {
-        public Kwh Capacity => new Kwh(10m);
-        public Kwh GridChargePerSegment => new Kwh(2m);
-
-        public Kwh PredictNewBatteryStateAfter30Minutes(Kwh startCapacity, Kwh availablePowerToCharge)
-        {
-            return startCapacity + availablePowerToCharge;
-        }
-    }
     
     [SetUp]
     public void Setup()
@@ -40,21 +30,29 @@ public class BatteryChargePlannerTests
         _loadPredictor = Substitute.For<ILoadPredictor>();
         _supplier = Substitute.For<ISupplier>();
         _testDay = new LocalDate(2023, 1, 1);
-        
-        _batteryChargePlanner = new BatteryChargePlanner(_solarPredictor, _loadPredictor, _supplier, new TestBatteryPredictor());
+
+        var testBatteryPredictor = new TestBatteryPredictor();
+        var houseSimulator = new HouseSimulator(testBatteryPredictor);
+        _batteryChargePlanner = new BatteryChargePlanner(_solarPredictor, 
+            _loadPredictor, 
+            _supplier, 
+            testBatteryPredictor, 
+            houseSimulator);
     }
 
     [Test]
     public async Task GivenSolarWillBeHighAllDayChargesFromSolarOnly()
     {
-        GivenSolarGenerationForAnySegmentIs(10);
-        GivenLoadForAnySegmentIs(2);
-        GivenPriceForAnySegmentIs(4);
+        GivenSolarGenerationForAllSegmentsIs(10);
+        GivenLoadForAllSegmentsIs(2);
+        GivenPriceForAllSegmentsIs(4);
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        decimal optimalCost = 0m; // No grid electricity used, all from solar
+        // All 12 segments: 10kWh solar, 2kWh load = 8kWh excess solar per segment
+        // Total excess: 12 * 8 = 96kWh wasted solar
+        // Assuming £5 penalty per kWh wasted: 96 * £5 = £480
+        decimal optimalCost = 480m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -62,15 +60,14 @@ public class BatteryChargePlannerTests
     [Test]
     public async Task GivenGridWillBeSameAllDayKeepsBatteryNotCharging()
     {
-        GivenSolarGenerationForAnySegmentIs(0);
-        GivenLoadForAnySegmentIs(1);
-        GivenPriceForAnySegmentIs(4);
+        GivenSolarGenerationForAllSegmentsIs(0);
+        GivenLoadForAllSegmentsIs(1);
+        GivenPriceForAllSegmentsIs(4);
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 6 segments * 1 kWh load * £4 per kWh = £24
-        decimal optimalCost = 24m;
+        // 12 segments * 1 kWh load * £4 per kWh = £48
+        decimal optimalCost = 48m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -78,18 +75,18 @@ public class BatteryChargePlannerTests
     [Test]
     public async Task GivenGridWillBeExpensiveInAfternoonItChargesEarlyToCapacity()
     {
-        GivenSolarGenerationForAnySegmentIs(0);
-        GivenLoadForAnySegmentIs(1);
-        GivenPriceForAnySegmentIs(2);
-        GivenPriceForHours("5-10", 7);
+        GivenSolarGenerationForAllSegmentsIs(0);
+        GivenLoadForAllSegmentsIs(1);
+        GivenPriceForAllSegmentsIs(2);
+        GivenPriceForHours("10-12", 7);
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 10 segments * 1 kWh load * £2 per kWh = £20
-        // 2 segments * 1 kWh load * £7 per kWh = £14
-        // Total: £34
-        decimal optimalCost = 20m;  // Optimal would be to charge battery during cheap periods
+        // 10 segments * 1 kWh load * £2 per kWh = £20 (cheap periods)
+        // 2 segments * 1 kWh load * £7 per kWh = £14 (expensive periods)
+        // Optimal: charge 2kWh battery during cheap periods (costs £4) and use during expensive periods
+        // Cost: 8 segments * £2 + 2 segments charging * £2 + 2 segments from battery * £0 = £20
+        decimal optimalCost = 20m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -97,18 +94,17 @@ public class BatteryChargePlannerTests
     [Test]
     public async Task GivenSolarExceedsLoadItChargesBatteryWithExcess()
     {
-        GivenSolarGenerationForAnySegmentIs(5);
-        GivenLoadForAnySegmentIs(2);
-        GivenPriceForAnySegmentIs(4);
+        GivenSolarGenerationForAllSegmentsIs(5);
+        GivenLoadForAllSegmentsIs(2);
+        GivenPriceForAllSegmentsIs(4);
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // All load covered by solar, but some wasted solar
-        // 5 segments * 1 kWh wasted * £5 penalty = £25
-        // 1 segment * 3 kWh wasted * £5 penalty = £15
-        // Total: £40
-        decimal optimalCost = 40m;
+        // Each segment: 5kWh solar, 2kWh load = 3kWh excess
+        // Can charge battery with up to 10kWh total, so first ~3.33 segments charge battery
+        // Remaining ~8.67 segments have 3kWh excess each = ~26kWh wasted
+        // Total wasted: 26kWh * £5 penalty = £130
+        decimal optimalCost = 130m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -122,12 +118,13 @@ public class BatteryChargePlannerTests
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 3 segments * 1 kWh * £3 = £9 (first 3 segments)
-        // 5 segments * 1 kWh covered by solar = £0
-        // 4 segments * 3 kWh, with 10 kWh from battery and 2 kWh from grid * £8 = £16
-        // 6 kWh wasted solar * £5 penalty = £30
-        // Total: £55
+        // First 3 segments: 3 * 1kWh * £3 = £9 (no solar, buy from grid)
+        // Segments 4-8: Solar covers load, excess charges battery
+        // Solar excess: (3-1) + (5-1) + (5-1) + (5-1) + (3-1) = 2+4+4+4+2 = 16kWh
+        // Can charge 10kWh to battery, waste 6kWh: 6 * £5 = £30
+        // Last 4 segments: 4 * 3kWh = 12kWh needed, 10kWh from battery, 2kWh from grid
+        // Grid cost: 2kWh * £8 = £16
+        // Total: £9 + £30 + £16 = £55
         decimal optimalCost = 55m;
         
         AssertPlanCost(chargePlan, optimalCost);
@@ -142,12 +139,15 @@ public class BatteryChargePlannerTests
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 4 kWh from solar
-        // 4 kWh from battery charged during low price
-        // 16 kWh from grid (10 at £5, 2 at £1)
-        // Total: 10*5 + 2*1 + 0 = £52
-        decimal optimalCost = 52m;
+        // Total load: 12 * 2kWh = 24kWh
+        // Solar covers: 4 * 1kWh = 4kWh
+        // Remaining: 20kWh needed from grid/battery
+        // Optimal: charge 10kWh battery during segments 5-6 (£1 price), use during expensive periods
+        // Charging cost: 10kWh * £1 = £10
+        // Load during cheap segments: 2 * 2kWh * £1 = £4 (segments 5-6)
+        // Remaining load from expensive segments: 18kWh - 10kWh(battery) = 8kWh * £5 = £40
+        // Total: £10 + £4 + £40 = £54
+        decimal optimalCost = 54m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -155,19 +155,19 @@ public class BatteryChargePlannerTests
     [Test]
     public async Task GivenBatteryStartsFullItDischargesDuringHighPrices()
     {
-        // Implement test for starting with a full battery
         GivenBatteryStartsAt(10);
-        GivenSolarGenerationForAnySegmentIs(0);
-        GivenLoadForAnySegmentIs(2);
+        GivenSolarGenerationForAllSegmentsIs(0);
+        GivenLoadForAllSegmentsIs(2);
         GivenPriceIs(new[] { 2, 2, 2, 5, 5, 5, 5, 5, 5, 2, 2, 2 });
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 10 kWh from battery during high price periods
-        // 14 kWh from grid (6 at £5, 8 at £2)
-        // Total: 6*5 + 8*2 = £46
-        decimal optimalCost = 46m;
+        // Total load: 12 * 2kWh = 24kWh
+        // Battery provides: 10kWh during high price periods (segments 4-9)
+        // Remaining 14kWh from grid: 6 segments * 2kWh * £2 = £24 (low price segments)
+        // High price segments: 6 * 2kWh = 12kWh needed, 10kWh from battery, 2kWh * £5 = £10
+        // Total: £24 + £10 = £34
+        decimal optimalCost = 34m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -175,17 +175,14 @@ public class BatteryChargePlannerTests
     [Test]
     public async Task GivenNoSolarAndHigherPricesLaterItDoesNotCharge()
     {
-        GivenSolarGenerationForAnySegmentIs(0);
-        GivenLoadForAnySegmentIs(1);
+        GivenSolarGenerationForAllSegmentsIs(0);
+        GivenLoadForAllSegmentsIs(1);
         GivenPriceIs(new[] { 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6 });
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 5 segments * 1 kWh * £4 = £20
-        // 4 segments * 1 kWh * £5 = £20
-        // 3 segments * 1 kWh * £6 = £18
-        // Total: £58
+        // Since prices only increase gradually, charging battery early doesn't save money
+        // Total: 5 * 1kWh * £4 + 4 * 1kWh * £5 + 3 * 1kWh * £6 = £20 + £20 + £18 = £58
         decimal optimalCost = 58m;
         
         AssertPlanCost(chargePlan, optimalCost);
@@ -194,19 +191,17 @@ public class BatteryChargePlannerTests
     [Test]
     public async Task GivenExtremelyLowPriceFollowedByHighItChargesFullyDuringLowPrice()
     {
-        GivenSolarGenerationForAnySegmentIs(0);
-        GivenLoadForAnySegmentIs(1);
+        GivenSolarGenerationForAllSegmentsIs(0);
+        GivenLoadForAllSegmentsIs(1);
         GivenPriceIs(new[] { 10, 10, 1, 1, 10, 10, 10, 10, 10, 10, 10, 10 });
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 2 segments * 1 kWh * £10 = £20 (first two segments)
-        // 2 segments * 1 kWh * £1 = £2 (plus 8 kWh to charge battery)
-        // 4 segments * 1 kWh from battery = £0
-        // 4 segments * 1 kWh * £10 = £40 (last four segments)
-        // Total: £62
-        decimal optimalCost = 22m; // Optimal would be to charge battery during cheap periods
+        // First 2 segments: 2 * 1kWh * £10 = £20
+        // Segments 3-4: Load costs 2 * 1kWh * £1 = £2, plus charge 8kWh battery * £1 = £8
+        // Remaining 8 segments: 8 * 1kWh from battery = £0 (battery provides power)
+        // Total: £20 + £2 + £8 = £30
+        decimal optimalCost = 30m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -220,13 +215,13 @@ public class BatteryChargePlannerTests
 
         var chargePlan = await _batteryChargePlanner.CreateChargePlan(_testDay);
         
-        // Define optimal cost threshold
-        // 4 segments * 1 kWh * £2 = £8 (first four segments)
-        // 4 segments with solar covering load = £0
-        // 4 segments * 2 kWh with 8 kWh from battery and 0 from grid = £0
-        // 10 kWh wasted solar * £5 penalty = £50
-        // Total: £58
-        decimal optimalCost = 58m;
+        // First 4 segments: 4 * 1kWh * £2 = £8 (no solar)
+        // Segments 5-8: Solar covers load plus excess for battery
+        // Solar excess: (3-1) + (5-1) + (5-1) + (3-1) = 2+4+4+2 = 12kWh
+        // Can charge 10kWh to battery, waste 2kWh: 2 * £5 = £10
+        // Last 4 segments: 4 * 2kWh = 8kWh needed, all from battery = £0
+        // Total: £8 + £10 = £18
+        decimal optimalCost = 18m;
         
         AssertPlanCost(chargePlan, optimalCost);
     }
@@ -238,13 +233,13 @@ public class BatteryChargePlannerTests
 
     private void GivenPriceForHours(string range, decimal pricePerKwh)
     {
-        var startHour = int.Parse(range.Split('-')[0]);
-        var endHour = int.Parse(range.Split('-')[1]);
+        var parts = range.Split('-');
+        var startHour = int.Parse(parts[0]);
+        var endHour = int.Parse(parts[1]);
         
-        for (var hour = startHour; hour < endHour; hour++)
+        foreach (var segment in HalfHourSegments.AllSegments)
         {
-            var segment = HalfHourSegments.AllSegments.FirstOrDefault(s => s.HourStart == hour);
-            if (segment != null)
+            if (segment.HourStart >= startHour && segment.HourStart < endHour)
             {
                 _supplier.GetPrice(_testDay, segment).Returns(new ElectricityRate(new Gbp(pricePerKwh)));
             }
@@ -253,12 +248,14 @@ public class BatteryChargePlannerTests
 
     private void GivenSolarGenerationIs(decimal[] values)
     {
-        for (var i = 0; i < values.Length && i < HalfHourSegments.AllSegments.Count; i++)
+        for (var i = 0; i < HalfHourSegments.AllSegments.Count; i++)
         {
+            var value = i < values.Length ? values[i] : 0m;
             _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, HalfHourSegments.AllSegments[i])
-                .Returns(new Kwh(values[i]));
+                .Returns(new Kwh(value));
         }
     }
+    
     private void GivenSolarGenerationIs(int[] values)
     {
         GivenSolarGenerationIs(values.Select(v => (decimal)v).ToArray());
@@ -266,26 +263,26 @@ public class BatteryChargePlannerTests
 
     private void GivenLoadIs(decimal[] values)
     {
-        for (var i = 0; i < values.Length && i < HalfHourSegments.AllSegments.Count; i++)
+        for (var i = 0; i < HalfHourSegments.AllSegments.Count; i++)
         {
+            var value = i < values.Length ? values[i] : 0m;
             _loadPredictor.PredictLoad(_testDay.DayOfYear, HalfHourSegments.AllSegments[i])
-                .Returns(new Kwh(values[i]));
+                .Returns(new Kwh(value));
         }
     }
+    
     private void GivenLoadIs(int[] values)
     {
         GivenLoadIs(values.Select(v => (decimal)v).ToArray());
     }
-    
-    
-
 
     private void GivenPriceIs(decimal[] values)
     {
-        for (var i = 0; i < values.Length && i < HalfHourSegments.AllSegments.Count; i++)
+        for (var i = 0; i < HalfHourSegments.AllSegments.Count; i++)
         {
+            var value = i < values.Length ? values[i] : values.LastOrDefault();
             _supplier.GetPrice(_testDay, HalfHourSegments.AllSegments[i])
-                .Returns(new ElectricityRate(new Gbp(values[i])));
+                .Returns(new ElectricityRate(new Gbp(value)));
         }
     }
     
@@ -297,7 +294,7 @@ public class BatteryChargePlannerTests
     private void AssertPlanCost(List<TimeSegment> chargePlan, decimal optimalCost)
     {
         // Calculate the actual cost of the plan
-        var actualCost = CalculatePlanCost(chargePlan);
+        var actualCost = chargePlan.CalculatePlanCost().PoundsAmount;
         
         // Print a nicely formatted table of the plan
         PrintPlanTable(chargePlan);
@@ -331,23 +328,23 @@ public class BatteryChargePlannerTests
         Console.WriteLine(separator);
         
         // Print each row
-        decimal totalCost = 0;
-        decimal totalWastedSolar = 0;
+        Gbp totalCost = Gbp.Zero;
+        Kwh totalWastedSolar = Kwh.Zero;
         
         foreach (var segment in chargePlan)
         {
             var time = $"{segment.HalfHourSegment.HourStart:D2}:{segment.HalfHourSegment.MinuteStart:D2}-{segment.HalfHourSegment.HourEnd:D2}:{segment.HalfHourSegment.MinuteEnd:D2}";
-            var solar = segment.SolarGeneration;
-            var load = segment.EstimatedConsumption;
+            var solar = segment.ExpectedSolarGeneration;
+            var load = segment.ExpectedConsumption;
             var price = segment.GridPrice;
             var battStart = segment.StartBatteryChargeKwh;
             var battEnd = segment.EndBatteryChargeKwh;
             var wasted = segment.WastedSolarGeneration ?? Kwh.Zero;
             
             // Calculate segment cost
-            decimal segmentCost = CalculateSegmentCost(segment);
+            Gbp segmentCost = segment.Cost();
             totalCost += segmentCost;
-            totalWastedSolar += (decimal)wasted.Value;
+            totalWastedSolar += wasted;
             
             var row = $"| {time,-timeWidth} | {segment.Mode,-modeWidth} | {solar.Value,numberWidth:F2} | {load.Value,numberWidth:F2} | " +
                       $"{price.PricePerKwh.PoundsAmount,numberWidth:F2} | {battStart.Value,numberWidth:F2} | {battEnd.Value,numberWidth:F2} | " +
@@ -362,75 +359,28 @@ public class BatteryChargePlannerTests
                           $"{totalWastedSolar,numberWidth:F2} | {totalCost,numberWidth:F2} |");
         Console.WriteLine(separator);
     }
-    
-    private decimal CalculatePlanCost(List<TimeSegment> chargePlan)
+
+    private void GivenPriceForAllSegmentsIs(decimal price)
     {
-        decimal totalCost = 0;
-        
-        foreach (var segment in chargePlan)
+        foreach (var segment in HalfHourSegments.AllSegments)
         {
-            totalCost += CalculateSegmentCost(segment);
+            _supplier.GetPrice(_testDay, segment).Returns(new ElectricityRate(new Gbp(price)));
         }
-        
-        return totalCost;
     }
-    
-    private decimal CalculateSegmentCost(TimeSegment segment)
+
+    private void GivenLoadForAllSegmentsIs(decimal load)
     {
-        // Cost components:
-        // 1. Grid electricity used (price * amount)
-        // 2. Wasted solar (penalty per kWh)
-        var wastedSolarPenalty = new ElectricityRate(new Gbp(5.0m)); // Penalty for each kWh of wasted solar
-        
-        decimal gridCost = 0;
-        decimal wastedSolarCost = 0;
-        
-        // Calculate grid electricity used
-        Kwh solarUsed = Kwh.Min(segment.SolarGeneration, segment.EstimatedConsumption);
-        Kwh batteryContribution = Kwh.Zero;
-        
-        if (segment.Mode == OutputsMode.Discharge)
+        foreach (var segment in HalfHourSegments.AllSegments)
         {
-            // Battery is discharging
-            batteryContribution = segment.StartBatteryChargeKwh - segment.EndBatteryChargeKwh;
+            _loadPredictor.PredictLoad(_testDay.DayOfYear, segment).Returns(new Kwh(load));
         }
-        
-        // Calculate grid electricity used (load - solar - battery)
-        Kwh gridUsed = segment.EstimatedConsumption - solarUsed - batteryContribution;
-        if (gridUsed.Value < 0)
-            gridUsed = Kwh.Zero;
-            
-        // Calculate grid cost using the Kwh * ElectricityRate operator
-        Gbp gridCostGbp = gridUsed * segment.GridPrice;
-        gridCost = gridCostGbp.PoundsAmount;
-        
-        // Calculate wasted solar cost using the Kwh * ElectricityRate operator
-        Kwh wastedSolar = segment.WastedSolarGeneration ?? Kwh.Zero;
-        Gbp wastedSolarCostGbp = wastedSolar * wastedSolarPenalty;
-        wastedSolarCost = wastedSolarCostGbp.PoundsAmount;
-        
-        return gridCost + wastedSolarCost;
     }
-    
-    // CalculateOptimalCost method removed as it's no longer needed
 
-    private void GivenPriceForAnySegmentIs(int price)
+    private void GivenSolarGenerationForAllSegmentsIs(decimal solarGenForSegment)
     {
-        _supplier.GetPrice(_testDay, Arg.Any<HalfHourSegment>())
-            .Returns(new ElectricityRate(new Gbp(price)));
+        foreach (var segment in HalfHourSegments.AllSegments)
+        {
+            _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, segment).Returns(new Kwh(solarGenForSegment));
+        }
     }
-
-    private void GivenLoadForAnySegmentIs(decimal load)
-    {
-        _loadPredictor.PredictLoad(_testDay.DayOfYear, Arg.Any<HalfHourSegment>())
-            .Returns(new Kwh(load));
-    }
-
-    private void GivenSolarGenerationForAnySegmentIs(decimal solarGenForSegment)
-    {
-        _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, Arg.Any<HalfHourSegment>())
-            .Returns(new Kwh(solarGenForSegment));
-    }
-
-    // PlanAssertion class removed as it's no longer needed
 }

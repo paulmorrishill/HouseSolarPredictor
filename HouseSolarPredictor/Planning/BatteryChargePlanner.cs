@@ -8,15 +8,21 @@ namespace HouseSolarPredictor.Prediction;
 
 public class BatteryChargePlanner
 {
-    private ISolarPredictor _solarPredictor;
-    private ILoadPredictor _loadPredictor;
-    private ISupplier _supplier;
-    private IBatteryPredictor _BatteryPredictor;
+    private readonly ISolarPredictor _solarPredictor;
+    private readonly ILoadPredictor _loadPredictor;
+    private readonly ISupplier _supplier;
+    private IBatteryPredictor _batteryPredictor;
+    private IHouseSimulator _houseSimulator;
+    
+    // Cache for memoization: configuration -> (cost, optimal modes for remaining segments)
+    private Dictionary<string, (Gbp cost, List<OutputsMode> optimalModes)> _cache = 
+        new Dictionary<string, (Gbp cost, List<OutputsMode> optimalModes)>();
 
     public BatteryChargePlanner(ISolarPredictor solarPredictor, ILoadPredictor loadPredictor, ISupplier supplier,
-        IBatteryPredictor batteryPredictor)
+        IBatteryPredictor batteryPredictor, IHouseSimulator houseSimulator)
     {
-        _BatteryPredictor = batteryPredictor;
+        _houseSimulator = houseSimulator;
+        _batteryPredictor = batteryPredictor;
         _supplier = supplier;
         _loadPredictor = loadPredictor;
         _solarPredictor = solarPredictor;
@@ -24,97 +30,97 @@ public class BatteryChargePlanner
 
     public async Task<List<TimeSegment>> CreateChargePlan(LocalDate date)
     {
-        // find cheapest slots
-        // charge in those slots
-        // discharge in others
+        _cache.Clear(); // Clear cache for new day
+        
         var segments = HalfHourSegments.AllSegments;
         var workingSegments = new List<TimeSegment>();
         await InitialiseDefaultSegmentsLoadFirst(date, segments, workingSegments);
 
-        for(var i = 0; i < workingSegments.Count; i++)
+        // Find optimal configuration and apply it
+        var (cost, optimalModes) = await FindOptimalConfiguration(workingSegments, date, 0);
+        
+        // Apply the optimal modes
+        for (int i = 0; i < workingSegments.Count; i++)
         {
-            await FlipOneSegmentToChargeFromGrid(workingSegments);
-            // calculate losses and wasted solar generation
-            RunDaySimulation(workingSegments);
+            workingSegments[i].Mode = optimalModes[i];
         }
+        
+        // Run final simulation with optimal configuration
+        await _houseSimulator.RunSimulation(workingSegments, date);
         
         return workingSegments;
     }
 
-    public async Task FlipOneSegmentToChargeFromGrid(List<TimeSegment> workingSegments)
+    private async Task<(Gbp cost, List<OutputsMode> optimalModes)> FindOptimalConfiguration(
+        List<TimeSegment> workingSegments, LocalDate date, int segmentIndex)
     {
-        // find lowest price segment that is not already charging
-        var lowestPriceSegment = workingSegments
-            .Where(s => s.Mode != OutputsMode.ChargeFromGridAndSolar).MinBy(s => s.GridPrice);
+        await _houseSimulator.RunSimulation(workingSegments, date);
 
-        if (lowestPriceSegment == null)
+        if (segmentIndex >= workingSegments.Count)
         {
-            throw new Exception("No segments available to flip to charge from grid.");
+            var cost = workingSegments.CalculatePlanCost();
+            return (cost, new List<OutputsMode>());
         }
+
+        // Create cache key for current configuration
+        var cacheKey = CreateCacheKey(workingSegments, segmentIndex);
+        if (_cache.ContainsKey(cacheKey))
+        {
+            return _cache[cacheKey];
+        }
+
+        var possibleModes = new List<OutputsMode>
+        {
+            OutputsMode.ChargeFromGridAndSolar,
+            OutputsMode.Discharge,
+            OutputsMode.ChargeSolarOnly
+        };
+
+        var originalMode = workingSegments[segmentIndex].Mode;
+        var bestCost = Gbp.MaxValue;
+        var bestModeSequence = new List<OutputsMode>();
+
+        // Try each possible mode for this segment
+        foreach (var mode in possibleModes)
+        {
+            var modeHistory = workingSegments.Select(s => (int)s.Mode).ToList();
+            var modeString = string.Join("", modeHistory);
+            workingSegments[segmentIndex].Mode = mode;
+            
+            var (futureCost, futureModes) = await FindOptimalConfiguration(workingSegments, date, segmentIndex + 1);
+            Console.WriteLine($"Trying {modeString}: {futureCost:F2} £");
+
+            if (futureCost < bestCost)
+            {
+                bestCost = futureCost;
+                bestModeSequence = new List<OutputsMode> { mode };
+                bestModeSequence.AddRange(futureModes);
+            }
+        }
+
+        // Restore original mode (important for other branches of recursion)
+        workingSegments[segmentIndex].Mode = originalMode;
         
-        lowestPriceSegment.Mode = OutputsMode.ChargeFromGridAndSolar;
+        // Cache the result
+        var result = (bestCost, bestModeSequence);
+        _cache[cacheKey] = result;
+        
+        return result;
     }
 
-    private void RunDaySimulation(List<TimeSegment> workingSegments)
+    private string CreateCacheKey(List<TimeSegment> segments, int fromIndex)
     {
-        Kwh currentBatteryCharge = Kwh.Zero;
-
-        foreach (var segment in workingSegments)
-        {
-            segment.StartBatteryChargeKwh = currentBatteryCharge;
-            SimulateBatteryChargingAndWastage(segment);
-        }
-    }
-
-    private void SimulateBatteryChargingAndWastage(TimeSegment segment)
-    {
-        var solarCapacityForSegment = segment.SolarGeneration;
-        var gridCapacityForSegment = _BatteryPredictor.GridChargePerSegment;
-        var usage = segment.EstimatedConsumption;
+        // Create cache key from the current state at fromIndex
+        // Since we're exploring from this point forward, we need to include
+        // any state that might affect future decisions
         
-        if (segment.Mode == OutputsMode.ChargeSolarOnly)
-        {
-            var newCharge = _BatteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
-            // If the solar generation exceeds the battery capacity, we waste the excess
-            if (newCharge > _BatteryPredictor.Capacity)
-            {
-                segment.WastedSolarGeneration = Kwh.Min(Kwh.Zero, newCharge - _BatteryPredictor.Capacity);
-            }
-        }
-        
-        if (segment.Mode == OutputsMode.ChargeFromGridAndSolar)
-        {
-            var totalChargeCapacity = solarCapacityForSegment + gridCapacityForSegment;
-            var newCharge = _BatteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
-            // If the total charge exceeds the battery capacity assume 50% of solar is wasted
-            // as we don't know how much solar went to battery vs how much from grid
-            if (newCharge > _BatteryPredictor.Capacity)
-            {
-                segment.WastedSolarGeneration = Kwh.Min(Kwh.Zero, newCharge - _BatteryPredictor.Capacity);
-                if(segment.WastedSolarGeneration > Kwh.Zero)
-                {
-                    segment.WastedSolarGeneration /= 2; // Assume half of the wasted solar was used to charge the battery
-                }
-            }
-        }
-
-        if (segment.Mode == OutputsMode.Discharge)
-        {
-            var solarSurplus = segment.SolarGeneration - usage;
-            if (solarSurplus < Kwh.Zero)
-            {
-                var batteryDischarge = Kwh.Max(segment.StartBatteryChargeKwh, solarSurplus.AbsoluteValue());
-                segment.EndBatteryChargeKwh = Kwh.Max(Kwh.Zero, segment.StartBatteryChargeKwh - batteryDischarge);
-            }
-            else
-            {
-                // If solar generation is more than usage, we can charge the battery
-                var newCharge = _BatteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
-                segment.EndBatteryChargeKwh = newCharge;
-            }
-        }
-        
-        throw new InvalidOperationException($"Unexpected mode: {segment.Mode}");
+        if (fromIndex >= segments.Count)
+            return "END";
+            
+        // For now, just use the segment index as the key since the segments are fixed
+        // If battery state affects future decisions, you'd need to include that here
+        return fromIndex.ToString() + segments[fromIndex].EndBatteryChargeKwh + segments[fromIndex].StartBatteryChargeKwh 
+               + segments[fromIndex].Mode;
     }
 
     private async Task InitialiseDefaultSegmentsLoadFirst(LocalDate date, ReadOnlyCollection<HalfHourSegment> segments, List<TimeSegment> workingSegments)
@@ -125,12 +131,27 @@ public class BatteryChargePlanner
             var gridPrice = await _supplier.GetPrice(date, segment);
             var estimatedConsumption = _loadPredictor.PredictLoad(date.DayOfYear, segment);
 
+            if(gridPrice == null)
+            {
+                throw new InvalidOperationException($"No grid price found for {date} at segment {segment}");
+            }
+            
+            if (solarGeneration < Kwh.Zero)
+            {
+                throw new InvalidOperationException($"Solar generation cannot be negative for {date} at segment {segment}. Value: {solarGeneration}");
+            }
+            
+            if (estimatedConsumption < Kwh.Zero)
+            {
+                throw new InvalidOperationException($"Estimated consumption cannot be negative for {date} at segment {segment}. Value: {estimatedConsumption}");
+            }
+            
             var timeSegment = new TimeSegment
             {
                 HalfHourSegment = segment,
-                SolarGeneration = solarGeneration,
+                ExpectedSolarGeneration = solarGeneration,
                 GridPrice = gridPrice,
-                EstimatedConsumption = estimatedConsumption,
+                ExpectedConsumption = estimatedConsumption,
                 StartBatteryChargeKwh = Kwh.Zero,
                 EndBatteryChargeKwh = Kwh.Zero,
                 Mode = OutputsMode.Discharge,
