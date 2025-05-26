@@ -3,9 +3,20 @@ using NodaTime;
 
 namespace HouseSolarPredictor.EnergySupply.Octopus;
 
-public record CacheKey
+public struct CacheKey
 {
+    public LocalDate Date;
+    public HalfHourSegment HalfHourSegment;
+
     public CacheKey(LocalDate date, HalfHourSegment halfHourSegment)
     {
+        HalfHourSegment = halfHourSegment;
+        Date = date;
+    }
+    
+    // tostring
+    public override string ToString()
+    {
+        return $"{Date:yyyy-MM-dd} {HalfHourSegment}";
     }
 }

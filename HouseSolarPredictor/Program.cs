@@ -116,7 +116,7 @@ class Program
         var chargePlanner = new ChargePlanner(
             solarPredictor,
             _loadEnergyPredictor,
-            new OctopusSupplier(octopusClient),
+            new OctopusSupplier(octopusClient, fileLogger),
             lifePo4BatteryPredictor,
             houseSimulator,
             graphBasedPlanOptimiser);

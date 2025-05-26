@@ -22,6 +22,7 @@ public class FileLogger : ILogger
 
     public void Log(string message)
     {
+        Console.WriteLine(message);
         _logBuffer.AppendLine(message);
         
         // If buffer exceeds size, write to file
