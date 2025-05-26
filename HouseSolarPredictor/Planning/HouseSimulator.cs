@@ -43,8 +43,8 @@ public class HouseSimulator : IHouseSimulator
                     {
                         segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
                     }
-                    
-                    
+
+                    segment.ActualGridUsage = usage;
                     break;
                 }
             case OutputsMode.ChargeFromGridAndSolar:

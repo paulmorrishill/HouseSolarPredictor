@@ -26,7 +26,7 @@ public class HouseSimulatorTests
             {
                 Mode = OutputsMode.ChargeSolarOnly,
                 ExpectedSolarGeneration = 2.Kwh(),
-                ExpectedConsumption = 5.Kwh(), // More than solar
+                ExpectedConsumption = 5.Kwh(),
                 StartBatteryChargeKwh = 0.Kwh(),
                 EndBatteryChargeKwh = 0.Kwh(),
             }
@@ -37,7 +37,7 @@ public class HouseSimulatorTests
         segments[0].StartBatteryChargeKwh.Should().Be(0.Kwh());
         segments[0].EndBatteryChargeKwh.Should().Be(2.Kwh()); // Battery charged with available solar
         segments[0].WastedSolarGeneration.Should().Be(0.Kwh()); // No excess solar wasted
-        segments[0].ActualGridUsage.Should().Be(3.Kwh()); // 5 - 2 (solar) = 3kWh from grid
+        segments[0].ActualGridUsage.Should().Be(5.Kwh()); // 5 kwh, solar goes to battery only
     }
     
     [Test]

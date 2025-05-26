@@ -117,8 +117,6 @@ public class BatteryChargePlanner
         if (fromIndex >= segments.Count)
             return "END";
             
-        // For now, just use the segment index as the key since the segments are fixed
-        // If battery state affects future decisions, you'd need to include that here
         return fromIndex.ToString() + segments[fromIndex].EndBatteryChargeKwh + segments[fromIndex].StartBatteryChargeKwh 
                + segments[fromIndex].Mode;
     }
