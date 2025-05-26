@@ -1,8 +1,10 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using HouseSolarPredictor.Load;
 using HouseSolarPredictor.Prediction;
+using NodaTime;
 
 namespace HouseSolarPredictor.EnergySupply.Octopus;
 
@@ -319,11 +321,15 @@ public class OctopusApiClient
     }
 
     // Method to fetch consumption data if needed
-    public async Task<List<EnergyConsumption>> GetElectricityConsumptionAsync(DateTime fromDate, DateTime toDate)
+    public async Task<List<EnergyConsumption>> GetElectricityConsumptionAsync(LocalDate fromDate, LocalDate toDate)
     {
         // Format the dates for the API
-        string fromDateStr = fromDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
-        string toDateStr = toDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var ukTimeZone = DateTimeZoneProviders.Tzdb["Europe/London"];
+        var fromDateTime = fromDate.AtStartOfDayInZone(ukTimeZone).ToDateTimeUtc();
+        var toDateTime = toDate.PlusDays(1).AtStartOfDayInZone(ukTimeZone).ToDateTimeUtc();
+        
+        string fromDateStr = fromDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        string toDateStr = toDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
 
         // Check if we have MPAN and meter serial number
         if (string.IsNullOrEmpty(_mpan) || string.IsNullOrEmpty(_meterSerialNumber))
@@ -369,8 +375,8 @@ public class OctopusApiClient
                     {
                         consumptions.Add(new EnergyConsumption
                         {
-                            IntervalStart = intervalStart,
-                            IntervalEnd = intervalEnd,
+                            IntervalStart = LocalDateTime.FromDateTime(intervalStart),
+                            IntervalEnd = LocalDateTime.FromDateTime(intervalEnd),
                             ConsumptionKwh = result.ConsumptionValue
                         });
                     }
@@ -392,21 +398,21 @@ public class OctopusApiClient
     /// </summary>
     /// <param name="targetDate">The date for which to predict load</param>
     /// <returns>Dictionary mapping timestamps to consumption values</returns>
-    public async Task<Dictionary<DateTime, float>> GetHistoricalConsumptionForPredictionAsync(DateTime targetDate)
+    public async Task<Dictionary<LocalDateTime, float>> GetHistoricalConsumptionForPredictionAsync(LocalDate targetDate)
     {
         Console.WriteLine("Fetching historical consumption data from Octopus API for load prediction...");
 
-        var historicalConsumption = new Dictionary<DateTime, float>();
+        var historicalConsumption = new Dictionary<LocalDateTime, float>();
 
         // Get previous day's consumption
-        DateTime previousDay = targetDate.AddDays(-1);
+        LocalDate previousDay = targetDate.PlusDays(-1);
         var previousDayConsumption = await GetElectricityConsumptionAsync(
-            previousDay, previousDay.AddDays(1));
+            previousDay, previousDay.PlusDays(1));
 
         // Get previous week's consumption
-        DateTime previousWeek = targetDate.AddDays(-7);
+        LocalDate previousWeek = targetDate.PlusDays(-7);
         var previousWeekConsumption = await GetElectricityConsumptionAsync(
-            previousWeek, previousWeek.AddDays(1));
+            previousWeek, previousWeek.PlusDays(1));
 
         // Store consumption data in the dictionary
         foreach (var consumption in previousDayConsumption)
@@ -418,13 +424,13 @@ public class OctopusApiClient
         foreach (var consumption in previousWeekConsumption)
         {
             // For previous week data, adjust the date to match the target date's day
-            DateTime adjustedTime = new DateTime(
+            LocalDateTime adjustedTime = new LocalDateTime(
                 targetDate.Year,
                 targetDate.Month,
                 targetDate.Day,
                 consumption.IntervalStart.Hour,
                 consumption.IntervalStart.Minute,
-                0).AddDays(-7);
+                0).PlusDays(-7);
 
             historicalConsumption[adjustedTime] = consumption.ConsumptionKwh;
         }

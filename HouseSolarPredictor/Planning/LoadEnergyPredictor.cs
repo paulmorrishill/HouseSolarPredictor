@@ -4,6 +4,7 @@ using HouseSolarPredictor.Solar;
 using HouseSolarPredictor.Time;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using NodaTime;
 
 namespace HouseSolarPredictor.Prediction;
 
@@ -80,7 +81,7 @@ public class LoadEnergyPredictor : ILoadPredictor
     /// </summary>
     private float PredictLoadEnergyInternal(
         float temperature,
-        DateTime dateTime,
+        LocalDateTime dateTime,
         float dailyHighTemp,
         float dailyLowTemp,
         float prevDayLoad,
@@ -104,7 +105,7 @@ public class LoadEnergyPredictor : ILoadPredictor
     /// </summary>
     private Dictionary<string, float> CreateFeatures(
         float temperature,
-        DateTime dateTime,
+        LocalDateTime dateTime,
         float dailyHighTemp,
         float dailyLowTemp,
         float prevDayLoad,
@@ -338,7 +339,7 @@ public class LoadEnergyPredictor : ILoadPredictor
         {
             int hour = i / 2;
             int minute = (i % 2) * 30;
-            DateTime timestamp = new DateTime(date.Year, date.Month, date.Day, hour, minute, 0);
+            LocalDateTime timestamp = new LocalDateTime(date.Year, date.Month, date.Day, hour, minute, 0);
 
             predictions[i] = PredictLoadEnergyInternal(
                 temperaturePredictions[i],
@@ -389,7 +390,7 @@ public class LoadEnergyPredictor : ILoadPredictor
     }
 
     // Method to help debug preprocessing issues
-    public void DebugPreprocessing(float temperature, DateTime dateTime, float dailyHighTemp, float dailyLowTemp)
+    public void DebugPreprocessing(float temperature, LocalDateTime dateTime, float dailyHighTemp, float dailyLowTemp)
     {
         Console.WriteLine("\n===== DEBUG PREPROCESSING =====");
         

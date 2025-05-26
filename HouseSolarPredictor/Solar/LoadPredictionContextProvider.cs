@@ -1,5 +1,6 @@
 ﻿using HouseSolarPredictor.Time;
 using HouseSolarPredictor.Weather;
+using NodaTime;
 
 namespace HouseSolarPredictor.Solar;
 
@@ -11,15 +12,15 @@ public class LoadPredictionContextProvider : ILoadPredictionContextProvider
     private readonly Dictionary<int, WeatherData> _weatherDataCache;
     private readonly float _dailyHighTemp;
     private readonly float _dailyLowTemp;
-    private readonly Dictionary<DateTime, float> _historicalConsumption;
-    private readonly DateTime _targetDate;
+    private readonly Dictionary<LocalDateTime, float> _historicalConsumption;
+    private readonly LocalDate _targetDate;
 
     public LoadPredictionContextProvider(
         Dictionary<int, WeatherData> weatherDataCache,
         float dailyHighTemp,
         float dailyLowTemp,
-        Dictionary<DateTime, float> historicalConsumption,
-        DateTime targetDate)
+        Dictionary<LocalDateTime, float> historicalConsumption,
+        LocalDate targetDate)
     {
         _weatherDataCache = weatherDataCache;
         _dailyHighTemp = dailyHighTemp;
@@ -31,15 +32,15 @@ public class LoadPredictionContextProvider : ILoadPredictionContextProvider
     public LoadPredictionContext GetContext(int dayOfYear, HalfHourSegment halfHourSegment)
     {
         // Create the date time for this segment
-        var dateTime = new DateTime(_targetDate.Year, _targetDate.Month, _targetDate.Day, 
+        var dateTime = new LocalDateTime(_targetDate.Year, _targetDate.Month, _targetDate.Day, 
             halfHourSegment.HourStart, halfHourSegment.MinuteStart, 0);
 
         // Get the weather data for the hour
         var weatherData = _weatherDataCache[halfHourSegment.HourStart];
 
         // Get historical load data with defaults
-        _historicalConsumption.TryGetValue(dateTime.AddDays(-1), out var prevDayLoad);
-        _historicalConsumption.TryGetValue(dateTime.AddDays(-7), out var prevWeekLoad);
+        _historicalConsumption.TryGetValue(dateTime.PlusDays(-1), out var prevDayLoad);
+        _historicalConsumption.TryGetValue(dateTime.PlusDays(-7), out var prevWeekLoad);
 
         return new LoadPredictionContext
         {

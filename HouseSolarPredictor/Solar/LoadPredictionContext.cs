@@ -1,4 +1,6 @@
-﻿namespace HouseSolarPredictor.Solar;
+﻿using NodaTime;
+
+namespace HouseSolarPredictor.Solar;
 
 /// <summary>
 /// Context data for load prediction
@@ -13,7 +15,7 @@ public class LoadPredictionContext
     /// <summary>
     /// Date and time for the prediction
     /// </summary>
-    public DateTime DateTime { get; set; }
+    public LocalDateTime DateTime { get; set; }
         
     /// <summary>
     /// Daily high temperature

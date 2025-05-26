@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
+using NodaTime;
 
 namespace HouseSolarPredictor.Weather;
 
@@ -129,10 +131,10 @@ public class OpenMeteoClient
         }
     }
         
-    public async Task<DayInfo> GetDayInfoAsync(DateTime date)
+    public async Task<DayInfo> GetDayInfoAsync(LocalDate date)
     {
         // Construct API URL to get sun times
-        string formattedDate = date.ToString("yyyy-MM-dd");
+        string formattedDate = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         string apiUrl = $"{API_BASE_URL}forecast?latitude={LATITUDE}&longitude={LONGITUDE}&daily=sunrise,sunset,daylight_duration,sunshine_duration&timezone=auto&start_date={formattedDate}&end_date={formattedDate}";
             
         try

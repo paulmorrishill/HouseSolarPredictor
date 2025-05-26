@@ -1,8 +1,10 @@
-﻿namespace HouseSolarPredictor.Load;
+﻿using NodaTime;
+
+namespace HouseSolarPredictor.Load;
 
 public class EnergyConsumption
 {
-    public DateTime IntervalStart { get; set; }
-    public DateTime IntervalEnd { get; set; }
+    public LocalDateTime IntervalStart { get; set; }
+    public LocalDateTime IntervalEnd { get; set; }
     public float ConsumptionKwh { get; set; }
 }
