@@ -58,8 +58,15 @@ public class HouseSimulator : IHouseSimulator
                     // as we don't know how much solar went to battery vs how much from grid
                     if (newCharge > _batteryPredictor.Capacity)
                     {
-                        segment.WastedSolarGeneration = solarCapacityForSegment - (capacityRemaining / 2);
-                        segment.ActualGridUsage = capacityRemaining / 2 + load;
+                        var batteryLeftToCharge = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
+                        var halfCharge = batteryLeftToCharge / 2;
+
+                        var amountChargedFromSolar = Kwh.Min(halfCharge, solarCapacityForSegment);
+                        batteryLeftToCharge -= amountChargedFromSolar;
+                        
+                        var amountChargedFromGrid = Kwh.Min(batteryLeftToCharge, gridCapacityForSegment);
+                        segment.WastedSolarGeneration = solarCapacityForSegment - amountChargedFromSolar;
+                        segment.ActualGridUsage = amountChargedFromGrid + load;
                         break;
                     }
 

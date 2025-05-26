@@ -174,6 +174,27 @@ public class HouseSimulatorTests
     }
 
     [Test]
+    public async Task ChargeFromGridAndSolar_SolarWasteIsNeverNegative()
+    {
+        var segments = new List<TimeSegment>
+        {
+            new()
+            {
+                Mode = OutputsMode.ChargeFromGridAndSolar,
+                ExpectedSolarGeneration = 0.Kwh(),
+                ExpectedConsumption = 1.Kwh(),
+                StartBatteryChargeKwh = 9.Kwh()
+            }
+        };
+        
+        await _houseSimulator.RunSimulation(segments, new LocalDate(2025, 1, 1));
+        
+        segments[0].EndBatteryChargeKwh.Should().Be(FullBattery);
+        segments[0].WastedSolarGeneration.Should().Be(0.Kwh());
+        segments[0].ActualGridUsage.Should().Be(2.Kwh()); 
+    }
+
+    [Test]
     public async Task Discharge_SolarDeficit_DischargesBattery()
     {
         var segments = new List<TimeSegment>

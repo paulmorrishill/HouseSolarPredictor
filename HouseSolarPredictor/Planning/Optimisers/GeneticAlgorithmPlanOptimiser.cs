@@ -1,4 +1,3 @@
-﻿using System.Collections.ObjectModel;
 using HouseSolarPredictor.EnergySupply;
 using HouseSolarPredictor.Load;
 using HouseSolarPredictor.Time;
@@ -6,65 +5,54 @@ using NodaTime;
 
 namespace HouseSolarPredictor.Prediction;
 
-public interface IBatteryChargePlanner
+public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
 {
-    Task<List<TimeSegment>> CreateChargePlan(LocalDate date);
-}
-
-public class GeneticAlgorithmBatteryChargePlanner : IBatteryChargePlanner
-{
-    private readonly ISolarPredictor _solarPredictor;
-    private readonly ILoadPredictor _loadPredictor;
-    private readonly ISupplier _supplier;
-    private readonly IBatteryPredictor _batteryPredictor;
     private readonly IHouseSimulator _houseSimulator;
+
     private readonly ILogger _logger;
 
+
     // GA Parameters
+
     private const int POPULATION_SIZE = 100;
+
     private const int GENERATIONS = 200;
+
     private const double MUTATION_RATE = 0.15;
+
     private const double CROSSOVER_RATE = 0.8;
+
     private const int TOURNAMENT_SIZE = 5;
+
     private const int ELITE_SIZE = 10; // Number of best solutions to keep each generation
 
     private readonly Random _random = new Random();
 
-    public GeneticAlgorithmBatteryChargePlanner(
-        ISolarPredictor solarPredictor, 
-        ILoadPredictor loadPredictor, 
-        ISupplier supplier,
-        IBatteryPredictor batteryPredictor, 
+    public GeneticAlgorithmPlanOptimiser(
         IHouseSimulator houseSimulator, 
         ILogger logger)
     {
-        _solarPredictor = solarPredictor;
-        _loadPredictor = loadPredictor;
-        _supplier = supplier;
-        _batteryPredictor = batteryPredictor;
         _houseSimulator = houseSimulator;
         _logger = logger;
     }
 
-    public async Task<List<TimeSegment>> CreateChargePlan(LocalDate date)
+    public async Task<List<TimeSegment>> CreateChargePlan(List<TimeSegment> segments, LocalDate date)
     {
-        // Initialize base segments with solar, load, and price data
-        var baseSegments = await InitializeBaseSegments(date);
-        
         // Run genetic algorithm to find optimal charging strategy
-        var optimalChromosome = await RunGeneticAlgorithm(baseSegments, date);
+        var optimalChromosome = await RunGeneticAlgorithm(segments, date);
         
         // Apply optimal strategy to segments
-        ApplyChromosomeToSegments(optimalChromosome, baseSegments);
+        ApplyChromosomeToSegments(optimalChromosome, segments);
         
         // Run final simulation to populate all fields
-        await _houseSimulator.RunSimulation(baseSegments, date);
+        await _houseSimulator.RunSimulation(segments, date);
         
-        var totalCost = baseSegments.CalculatePlanCost();
+        var totalCost = segments.CalculatePlanCost();
         _logger.Log($"GA found optimal charge plan for {date} with total cost: {totalCost}");
         
-        return baseSegments;
+        return segments;
     }
+
 
     private async Task<Chromosome> RunGeneticAlgorithm(List<TimeSegment> baseSegments, LocalDate date)
     {
@@ -229,13 +217,6 @@ public class GeneticAlgorithmBatteryChargePlanner : IBatteryChargePlanner
             }
         }
         
-        // Penalty for battery going to extreme states too often
-        var lowBatteryCount = segments.Count(s => s.EndBatteryChargeKwh.Value < 1.0f);
-        var highBatteryCount = segments.Count(s => s.EndBatteryChargeKwh.Value > 9.0f);
-        
-        penalty += lowBatteryCount * 0.001;
-        penalty += highBatteryCount * 0.001;
-        
         return penalty;
     }
 
@@ -358,50 +339,6 @@ public class GeneticAlgorithmBatteryChargePlanner : IBatteryChargePlanner
             chromosome.Genes[centerIndex] = OutputsMode.ChargeSolarOnly;
             chromosome.Genes[centerIndex + 1] = OutputsMode.ChargeSolarOnly;
         }
-    }
-
-    private async Task<List<TimeSegment>> InitializeBaseSegments(LocalDate date)
-    {
-        var segments = HalfHourSegments.AllSegments;
-        var baseSegments = new List<TimeSegment>();
-
-        foreach (var segment in segments)
-        {
-            var solarGeneration = _solarPredictor.PredictSolarEnergy(date.DayOfYear, segment);
-            var gridPrice = await _supplier.GetPrice(date, segment);
-            var estimatedConsumption = _loadPredictor.PredictLoad(date.DayOfYear, segment);
-
-            if (gridPrice == null)
-            {
-                throw new InvalidOperationException($"No grid price found for {date} at segment {segment}");
-            }
-
-            if (solarGeneration < Kwh.Zero)
-            {
-                throw new InvalidOperationException($"Solar generation cannot be negative for {date} at segment {segment}. Value: {solarGeneration}");
-            }
-
-            if (estimatedConsumption < Kwh.Zero)
-            {
-                throw new InvalidOperationException($"Estimated consumption cannot be negative for {date} at segment {segment}. Value: {estimatedConsumption}");
-            }
-
-            var timeSegment = new TimeSegment
-            {
-                HalfHourSegment = segment,
-                ExpectedSolarGeneration = solarGeneration,
-                GridPrice = gridPrice,
-                ExpectedConsumption = estimatedConsumption,
-                StartBatteryChargeKwh = Kwh.Zero,
-                EndBatteryChargeKwh = Kwh.Zero,
-                Mode = OutputsMode.ChargeSolarOnly,
-                WastedSolarGeneration = Kwh.Zero
-            };
-
-            baseSegments.Add(timeSegment);
-        }
-
-        return baseSegments;
     }
 
     private List<TimeSegment> CloneSegments(List<TimeSegment> segments)

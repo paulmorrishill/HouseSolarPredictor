@@ -1,0 +1,308 @@
+﻿using System.Collections.ObjectModel;
+using HouseSolarPredictor.EnergySupply;
+using HouseSolarPredictor.Load;
+using HouseSolarPredictor.Time;
+using NodaTime;
+
+namespace HouseSolarPredictor.Prediction;
+
+/// <summary>
+/// Battery charge planner using graph-based shortest path algorithm (Dijkstra's)
+/// Leverages .NET 8 built-in PriorityQueue for optimal performance
+/// Now uses the existing TimeSegment.Cost() and simulation logic instead of duplicating it
+/// </summary>
+public class GraphBasedPlanOptimiser : IPlanOptimiser
+{
+    private readonly IHouseSimulator _houseSimulator;
+    private readonly ILogger _logger;
+
+    // Graph discretization parameters
+    private const decimal BATTERY_STEP = 0.5m; // Discretize battery in 0.5 kWh steps
+    private readonly int _maxBatterySteps;
+    private readonly decimal _batteryCapacity;
+
+    public GraphBasedPlanOptimiser(
+        IBatteryPredictor batteryPredictor,
+        IHouseSimulator houseSimulator,
+        ILogger logger)
+    {
+        _houseSimulator = houseSimulator;
+        _logger = logger;
+
+        _batteryCapacity = (decimal)batteryPredictor.Capacity.Value;
+        _maxBatterySteps = (int)Math.Ceiling(_batteryCapacity / BATTERY_STEP);
+    }
+
+    public async Task<List<TimeSegment>> CreateChargePlan(List<TimeSegment> segments, LocalDate date)
+    {
+        // Build the graph and find optimal path
+        var optimalPath = await FindOptimalPathDijkstra(segments, date);
+        
+        // Apply optimal path to segments
+        ApplyOptimalPathToSegments(optimalPath, segments);
+        
+        // Run final simulation to populate all fields
+        await _houseSimulator.RunSimulation(segments, date);
+        
+        var totalCost = segments.CalculatePlanCost();
+        _logger.Log($"Graph-based planner found optimal charge plan for {date} with total cost: {totalCost}");
+        
+        return segments;
+    }
+    
+    private async Task<List<GraphEdge>> FindOptimalPathDijkstra(List<TimeSegment> segments, LocalDate date)
+    {
+        const int NUM_SEGMENTS = 48;
+        
+        // Priority queue for Dijkstra's algorithm (.NET 6+)
+        var priorityQueue = new PriorityQueue<GraphNode, decimal>();
+        
+        // Distance tracking: [segment][batteryStep] -> minimum cost to reach this state
+        var distances = new decimal[NUM_SEGMENTS + 1][];
+        var previous = new GraphEdge[NUM_SEGMENTS + 1][];
+        
+        for (int i = 0; i <= NUM_SEGMENTS; i++)
+        {
+            distances[i] = new decimal[_maxBatterySteps + 1];
+            previous[i] = new GraphEdge[_maxBatterySteps + 1];
+            
+            Array.Fill(distances[i], decimal.MaxValue);
+        }
+
+        var startCharge = segments[0].StartBatteryChargeKwh.Value;
+        var startNode = new GraphNode(0, 0);
+        distances[0][0] = 0;
+        priorityQueue.Enqueue(startNode, 0);
+
+        _logger.Log($"Starting Dijkstra's algorithm with {_maxBatterySteps + 1} battery levels per segment");
+
+        while (priorityQueue.Count > 0)
+        {
+            var currentNode = priorityQueue.Dequeue();
+            
+            // Skip if we've already found a better path to this node
+            if (distances[currentNode.Segment][currentNode.BatteryStep] < currentNode.Cost)
+                continue;
+
+            // If we've reached the final segment, we can stop exploring this path
+            if (currentNode.Segment == NUM_SEGMENTS)
+                continue;
+
+            // Generate all possible transitions from current node
+            var transitions = await GenerateTransitions(currentNode, segments[currentNode.Segment]);
+            
+            foreach (var transition in transitions)
+            {
+                var newCost = distances[currentNode.Segment][currentNode.BatteryStep] + transition.Cost;
+                var nextSegment = transition.ToNode.Segment;
+                var nextBatteryStep = transition.ToNode.BatteryStep;
+                
+                if (newCost < distances[nextSegment][nextBatteryStep])
+                {
+                    distances[nextSegment][nextBatteryStep] = newCost;
+                    previous[nextSegment][nextBatteryStep] = transition;
+                    
+                    var nextNode = new GraphNode(nextSegment, nextBatteryStep, newCost);
+                    priorityQueue.Enqueue(nextNode, newCost);
+                }
+            }
+        }
+
+        // Find the best final state (any battery level at the end)
+        var bestFinalCost = decimal.MaxValue;
+        var bestFinalBatteryStep = 0;
+        
+        for (int batteryStep = 0; batteryStep <= _maxBatterySteps; batteryStep++)
+        {
+            if (distances[NUM_SEGMENTS][batteryStep] < bestFinalCost)
+            {
+                bestFinalCost = distances[NUM_SEGMENTS][batteryStep];
+                bestFinalBatteryStep = batteryStep;
+            }
+        }
+
+        if (bestFinalCost == decimal.MaxValue)
+        {
+            throw new InvalidOperationException("No valid path found through the graph");
+        }
+
+        _logger.Log($"Optimal path found with cost: £{bestFinalCost:F4}, ending battery level: {bestFinalBatteryStep * BATTERY_STEP:F1} kWh");
+
+        // Reconstruct the optimal path
+        return ReconstructPath(previous, NUM_SEGMENTS, bestFinalBatteryStep);
+    }
+
+    private async Task<List<GraphEdge>> GenerateTransitions(GraphNode currentNode, TimeSegment segment)
+    {
+        var currentBatteryLevel = currentNode.BatteryStep * BATTERY_STEP;
+        
+        // Try each possible charging mode using the actual simulation
+        var transitions = new List<GraphEdge>();
+        
+        foreach (var mode in Enum.GetValues<OutputsMode>())
+        {
+            var transition = await CalculateTransitionUsingSimulation(currentNode, segment, mode);
+            if (transition != null)
+            {
+                transitions.Add(transition);
+            }
+        }
+        
+        return transitions;
+    }
+
+    private async Task<GraphEdge?> CalculateTransitionUsingSimulation(GraphNode fromNode, TimeSegment baseSegment, OutputsMode mode)
+    {
+        var currentBatteryKwh = fromNode.BatteryStep * BATTERY_STEP;
+        
+        // Create a temporary segment for simulation
+        var tempSegment = CloneSegment(baseSegment);
+        tempSegment.Mode = mode;
+        tempSegment.StartBatteryChargeKwh = new Kwh(currentBatteryKwh);
+        
+        // Simulate this single segment using the existing simulation logic
+        await SimulateSingleSegment(tempSegment);
+        
+        // Calculate the cost using the existing Cost() method
+        var cost = tempSegment.Cost();
+        
+        // Convert end battery state to discrete step
+        var newBatteryStep = (int)Math.Round(tempSegment.EndBatteryChargeKwh.Value / (float)BATTERY_STEP);
+        newBatteryStep = Math.Max(0, Math.Min(_maxBatterySteps, newBatteryStep));
+
+        var toNode = new GraphNode(fromNode.Segment + 1, newBatteryStep);
+        
+        return new GraphEdge(
+            fromNode, 
+            toNode, 
+            mode, 
+            cost.PoundsAmount, 
+            (decimal)tempSegment.ActualGridUsage.Value, 
+            (decimal)(tempSegment.WastedSolarGeneration?.Value ?? 0)
+        );
+    }
+
+    /// <summary>
+    /// Simulates a single segment using the same logic as HouseSimulator
+    /// This ensures consistency with the main simulation
+    /// </summary>
+    private async Task SimulateSingleSegment(TimeSegment segment)
+    {
+        // Create a single-item list and run the simulation
+        var singleSegmentList = new List<TimeSegment> { segment };
+        await _houseSimulator.RunSimulation(singleSegmentList, new LocalDate(2025, 1, 1)); // Date doesn't matter for single segment
+    }
+
+    private TimeSegment CloneSegment(TimeSegment original)
+    {
+        return new TimeSegment
+        {
+            HalfHourSegment = original.HalfHourSegment,
+            ExpectedSolarGeneration = original.ExpectedSolarGeneration,
+            GridPrice = original.GridPrice,
+            ExpectedConsumption = original.ExpectedConsumption,
+            StartBatteryChargeKwh = original.StartBatteryChargeKwh,
+            EndBatteryChargeKwh = original.EndBatteryChargeKwh,
+            Mode = original.Mode,
+            WastedSolarGeneration = original.WastedSolarGeneration,
+            ActualGridUsage = original.ActualGridUsage
+        };
+    }
+
+    private List<GraphEdge> ReconstructPath(GraphEdge[][] previous, int finalSegment, int finalBatteryStep)
+    {
+        var path = new List<GraphEdge>();
+        var currentSegment = finalSegment;
+        var currentBatteryStep = finalBatteryStep;
+
+        while (currentSegment > 0)
+        {
+            var edge = previous[currentSegment][currentBatteryStep];
+            if (edge == null)
+            {
+                throw new InvalidOperationException($"Path reconstruction failed at segment {currentSegment}, battery step {currentBatteryStep}");
+            }
+            
+            path.Add(edge);
+            currentSegment = edge.FromNode.Segment;
+            currentBatteryStep = edge.FromNode.BatteryStep;
+        }
+
+        path.Reverse();
+        return path;
+    }
+
+    private void ApplyOptimalPathToSegments(List<GraphEdge> optimalPath, List<TimeSegment> segments)
+    {
+        for (int i = 0; i < optimalPath.Count && i < segments.Count; i++)
+        {
+            segments[i].Mode = optimalPath[i].Mode;
+        }
+    }
+}
+
+/// <summary>
+/// Represents a node in the battery optimization graph
+/// </summary>
+public class GraphNode
+{
+    public int Segment { get; }
+    public int BatteryStep { get; }
+    public decimal Cost { get; }
+
+    public GraphNode(int segment, int batteryStep, decimal cost = 0)
+    {
+        Segment = segment;
+        BatteryStep = batteryStep;
+        Cost = cost;
+    }
+
+    public override string ToString()
+    {
+        return $"Segment: {Segment}, BatteryStep: {BatteryStep}, Cost: £{Cost:F4}";
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is GraphNode other)
+        {
+            return Segment == other.Segment && BatteryStep == other.BatteryStep;
+        }
+        return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Segment, BatteryStep);
+    }
+}
+
+/// <summary>
+/// Represents an edge in the battery optimization graph
+/// </summary>
+public class GraphEdge
+{
+    public GraphNode FromNode { get; }
+    public GraphNode ToNode { get; }
+    public OutputsMode Mode { get; }
+    public decimal Cost { get; }
+    public decimal GridUsage { get; }
+    public decimal WastedSolar { get; }
+
+    public GraphEdge(GraphNode fromNode, GraphNode toNode, OutputsMode mode, decimal cost, decimal gridUsage, decimal wastedSolar)
+    {
+        FromNode = fromNode;
+        ToNode = toNode;
+        Mode = mode;
+        Cost = cost;
+        GridUsage = gridUsage;
+        WastedSolar = wastedSolar;
+    }
+
+    public override string ToString()
+    {
+        var fromBattery = FromNode.BatteryStep * 0.5m;
+        var toBattery = ToNode.BatteryStep * 0.5m;
+        return $"Segment {FromNode.Segment}: {fromBattery:F1}→{toBattery:F1} kWh via {Mode}, Cost: £{Cost:F4}";
+    }
+}
