@@ -41,9 +41,8 @@ public class HouseSimulator : IHouseSimulator
 
                     bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
                     if (overchargedBattery)
-                    {
                         segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
-                    }
+                    
 
                     segment.ActualGridUsage = load;
                     break;
