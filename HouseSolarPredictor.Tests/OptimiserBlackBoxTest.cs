@@ -56,16 +56,14 @@ public class OptimiserBlackBoxTests
             new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor)),
             new("Genetic400", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 400)),
             new("Genetic200", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 200)),
-            new("Graph", () => new GraphBasedPlanOptimiser(_testBatteryPredictor, _houseSimulator, _fileLogger)),
-            new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor)),
-            new("SimpleStacker", () => new ScoringOptimiser()),
+            new("SimpleStacker", () => new ScoringOptimiser(_houseSimulator, _testBatteryPredictor.Capacity)),
             new("DoNothing", () => new DoNothingOptimiser())
         };
 
         var results = await RunScenarioComparison(optimizers);
 
-        var scenario = "High Solar All Day";
-        var scenarioResult = results["Graph"][scenario];
+        var scenario = "Expensive Afternoon";
+        var scenarioResult = results["SimpleStacker"][scenario];
         var scenarioInstance = GetAllScenarios().First(s => s.Name == scenario);
         PrintSegmentTable(scenarioResult.ChargePlan, scenarioInstance);
     }
@@ -76,12 +74,15 @@ public class OptimiserBlackBoxTests
 
         var printer = new TablePrinter<TimeSegment>()
             .AddColumn("Time", s => $"{s.HalfHourSegment.HourStart:D2}:{s.HalfHourSegment.MinuteStart:D2}")
+            .AddColumn("Price", s => $"{s.GridPrice:D2}")
+            .AddColumn("Segment Cost", s => $"{s.GridPrice * s.ActualGridUsage:D2}")
             .AddColumn("Solar (kWh)", s => $"{s.ExpectedSolarGeneration.Value:F1}")
             .AddColumn("Load (kWh)", s => $"{s.ExpectedConsumption.Value:F1}")
             .AddColumn("Battery Start (kWh)", s => $"{s.StartBatteryChargeKwh.Value:F1}")
             .AddColumn("Battery End (kWh)", s => $"{s.EndBatteryChargeKwh.Value:F1}")
             .AddColumn("Grid Usage (kWh)", s => $"{s.ActualGridUsage.Value:F1}")
-            .AddColumn("Wasted Solar (kWh)", s => $"{s.WastedSolarGeneration.Value:F1}");
+            .AddColumn("Wasted Solar (kWh)", s => $"{s.WastedSolarGeneration.Value:F1}")
+            .AddColumn("Mode", s => $"{s.Mode}");
 
         printer.Print(chargePlan);
     }

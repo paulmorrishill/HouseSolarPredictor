@@ -1,4 +1,5 @@
 ﻿using HouseSolarPredictor.Prediction;
+using HouseSolarPredictor.Time;
 
 namespace HouseSolarPredictor.EnergySupply;
 
@@ -41,7 +42,12 @@ public record ElectricityRate(Gbp PricePerKwh) : IComparable<ElectricityRate>
     {
         return a.PricePerKwh.PoundsAmount < b.PricePerKwh.PoundsAmount;
     }
-    
+
+    public static Gbp operator *(ElectricityRate a, Kwh b)
+    {
+        return new Gbp(a.PricePerKwh.PoundsAmount * (decimal)b.Value);
+    }
+
     // max and min
     public static ElectricityRate Max(ElectricityRate a, ElectricityRate b)
     {
