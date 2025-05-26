@@ -29,7 +29,8 @@ public class HouseSimulator : IHouseSimulator
     {
         var solarCapacityForSegment = segment.ExpectedSolarGeneration;
         var gridCapacityForSegment = _batteryPredictor.GridChargePerSegment;
-        var usage = segment.ExpectedConsumption;
+        var load = segment.ExpectedConsumption;
+        var capacityRemaining = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
         
         switch (segment.Mode)
         {
@@ -44,7 +45,7 @@ public class HouseSimulator : IHouseSimulator
                         segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
                     }
 
-                    segment.ActualGridUsage = usage;
+                    segment.ActualGridUsage = load;
                     break;
                 }
             case OutputsMode.ChargeFromGridAndSolar:
@@ -57,18 +58,17 @@ public class HouseSimulator : IHouseSimulator
                     // as we don't know how much solar went to battery vs how much from grid
                     if (newCharge > _batteryPredictor.Capacity)
                     {
-                        var excessCharge = newCharge - _batteryPredictor.Capacity;
-                        segment.WastedSolarGeneration = excessCharge / 2; // Assume half of the wasted charge was from solar
-                        segment.ActualGridUsage = gridCapacityForSegment; // Assume half of the excess charge was from grid
+                        segment.WastedSolarGeneration = solarCapacityForSegment - (capacityRemaining / 2);
+                        segment.ActualGridUsage = capacityRemaining / 2;
                         break;
                     }
-                    
-                    
+
+                    segment.ActualGridUsage = gridCapacityForSegment + load; // All grid charge is used
                     break;
                 }
             case OutputsMode.Discharge:
                 {
-                    var solarSurplus = segment.ExpectedSolarGeneration - usage;
+                    var solarSurplus = segment.ExpectedSolarGeneration - load;
                     if (solarSurplus < Kwh.Zero)
                     {
                         var solarDeficit = solarSurplus.AbsoluteValue();

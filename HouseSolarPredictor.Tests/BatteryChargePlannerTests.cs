@@ -296,7 +296,7 @@ public class BatteryChargePlannerTests
     {
         // Calculate the actual cost of the plan
         var actualCost = chargePlan.CalculatePlanCost().PoundsAmount;
-        
+        actualCost.Should().NotBe(0, "the plan cost should not be zero, something has gone wrong somewhere");
         // Print a nicely formatted table of the plan
         PrintPlanTable(chargePlan);
         

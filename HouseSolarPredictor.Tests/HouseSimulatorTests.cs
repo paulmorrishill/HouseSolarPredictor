@@ -93,9 +93,8 @@ public class HouseSimulatorTests
             {
                 Mode = OutputsMode.ChargeFromGridAndSolar,
                 ExpectedSolarGeneration = 3.Kwh(),
-                ExpectedConsumption = 1.5m.Kwh(),
-                StartBatteryChargeKwh = 4.5m.Kwh(),
-                EndBatteryChargeKwh = 0.Kwh(),
+                ExpectedConsumption = 1m.Kwh(),
+                StartBatteryChargeKwh = 2m.Kwh()
             }
         };
         
@@ -104,11 +103,13 @@ public class HouseSimulatorTests
         segments[0].StartBatteryChargeKwh.Should().Be(2.Kwh());
         segments[0].EndBatteryChargeKwh.Should().Be(7.Kwh()); // 2 + 3 + 2 (grid charge)
         segments[0].WastedSolarGeneration.Should().Be(0.Kwh());
+        segments[0].ActualGridUsage.Should().Be(3.Kwh()); // 2kw charge + 1kw load
     }
 
     [Test]
     public async Task ChargeFromGridAndSolar_ExceedsCapacity_WastesSolarGeneration()
     {
+        // In charge from ChargeFromGridAndSolar no energy is used on the loads
         var segments = new List<TimeSegment>
         {
             new()
@@ -116,18 +117,20 @@ public class HouseSimulatorTests
                 Mode = OutputsMode.ChargeFromGridAndSolar,
                 ExpectedSolarGeneration = 12.Kwh(),
                 ExpectedConsumption = 0.Kwh(),
-                StartBatteryChargeKwh = 5.Kwh(),
+                StartBatteryChargeKwh = 7.Kwh(),
                 EndBatteryChargeKwh = 0.Kwh(),
             }
         };
         
         await _houseSimulator.RunSimulation(segments, new LocalDate(2025, 1, 1));
         
-        segments[0].StartBatteryChargeKwh.Should().Be(5.Kwh());
+        segments[0].StartBatteryChargeKwh.Should().Be(7.Kwh());
         segments[0].EndBatteryChargeKwh.Should().Be(10.Kwh()); // Capped at battery capacity
-        // Total charge would be 5 + 12 + 2 = 19kWh, excess is 9kWh, half assumed from solar
-        segments[0].WastedSolarGeneration.Should().Be(4.5m.Kwh()); // 9 / 2 = 4.5kWh wasted solar
-        segments[0].ActualGridUsage.Should().Be(2.Kwh()); // 2kWh from grid
+        // battery has 3kw left to charge
+        // We don't know how much of that was from solar vs grid, so we assume 50% of each
+        // Amount left to charge is 3kWh, so 1.5kWh from solar 1.5kWh from grid
+        segments[0].WastedSolarGeneration.Should().Be(10.5m.Kwh()); // 12 - 1.5 (solar used for battery) - 0 (grid)
+        segments[0].ActualGridUsage.Should().Be(1.5.Kwh()); 
     }
 
     [Test]
