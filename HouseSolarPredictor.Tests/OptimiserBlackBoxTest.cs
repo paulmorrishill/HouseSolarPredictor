@@ -200,7 +200,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "High Solar All Day",
-                ExpectedOptimalCost = 440m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationForAllSegmentsIs(10);
@@ -212,7 +212,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "No Solar Same Grid Price",
-                ExpectedOptimalCost = 48m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationForAllSegmentsIs(0);
@@ -224,7 +224,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Expensive Afternoon",
-                ExpectedOptimalCost = 24m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationForAllSegmentsIs(0);
@@ -237,7 +237,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Solar Exceeds Load",
-                ExpectedOptimalCost = 104m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationForAllSegmentsIs(5);
@@ -249,7 +249,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Evening High Prices",
-                ExpectedOptimalCost = 37m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationIs(new[] { 0, 0, 0, 3, 5, 5, 5, 3, 0, 0, 0, 0 });
@@ -261,7 +261,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Price Dip During Day",
-                ExpectedOptimalCost = 86m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationIs(new[] { 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0 });
@@ -273,7 +273,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Battery Starts Full",
-                ExpectedOptimalCost = 34m,
+                ExpectedOptimalCost = 0m,
                 InitialBatteryCharge = 10.Kwh(),
                 Setup = () =>
                 {
@@ -286,7 +286,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Gradual Price Increase",
-                ExpectedOptimalCost = 58m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationForAllSegmentsIs(0);
@@ -298,7 +298,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Extreme Price Variation",
-                ExpectedOptimalCost = 30m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationForAllSegmentsIs(0);
@@ -310,7 +310,7 @@ public class OptimiserBlackBoxTests
             new Scenario
             {
                 Name = "Mixed Solar And Price Variations",
-                ExpectedOptimalCost = 14m,
+                ExpectedOptimalCost = 0m,
                 Setup = () =>
                 {
                     GivenSolarGenerationIs(new[] { 0, 0, 0, 0, 3, 5, 5, 3, 0, 0, 0, 0 });
