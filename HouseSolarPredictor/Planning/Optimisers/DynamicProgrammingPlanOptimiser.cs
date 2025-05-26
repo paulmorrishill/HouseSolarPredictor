@@ -27,7 +27,7 @@ public class DynamicProgrammingPlanOptimiser : IPlanOptimiser
     public async Task<List<TimeSegment>> CreateChargePlan(List<TimeSegment> segments, LocalDate date)
     {
         _cache.Clear();
-        _baseSegments = new List<TimeSegment>();
+        _baseSegments = segments;
         // Start optimization from segment 0 with initial battery charge
         var initialBatteryCharge = _baseSegments.First().StartBatteryChargeKwh;
         var (cost, optimalModes) = await FindOptimalConfigurationIterative(_baseSegments, date, initialBatteryCharge);

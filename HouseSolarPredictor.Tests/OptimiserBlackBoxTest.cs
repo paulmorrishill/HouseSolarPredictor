@@ -82,25 +82,12 @@ public class OptimiserBlackBoxTests
             
             foreach (var optimizerConfig in optimizers)
             {
-                try
-                {
-                    var optimiser = optimizerConfig.OptimizerFactory();
-                    var chargePlanner = new ChargePlanner(_solarPredictor, _loadPredictor, _supplier,
-                        _testBatteryPredictor, _houseSimulator, optimiser);
-                    var result = await RunScenario(scenario, chargePlanner);
-                    results[optimizerConfig.Name][scenario.Name] = result;
-                    Console.WriteLine($"  {optimizerConfig.Name}: £{result.ActualCost:F2} (Target: £{scenario.ExpectedOptimalCost:F2})");
-                }
-                catch (Exception ex)
-                {
-                    results[optimizerConfig.Name][scenario.Name] = new ScenarioResult
-                    {
-                        ActualCost = decimal.MaxValue,
-                        ExecutionTime = TimeSpan.Zero,
-                        Error = ex.Message
-                    };
-                    Console.WriteLine($"  {optimizerConfig.Name}: ERROR - {ex.Message}");
-                }
+                var optimiser = optimizerConfig.OptimizerFactory();
+                var chargePlanner = new ChargePlanner(_solarPredictor, _loadPredictor, _supplier,
+                    _testBatteryPredictor, _houseSimulator, optimiser);
+                var result = await RunScenario(scenario, chargePlanner);
+                results[optimizerConfig.Name][scenario.Name] = result;
+                Console.WriteLine($"  {optimizerConfig.Name}: £{result.ActualCost:F2} (Target: £{scenario.ExpectedOptimalCost:F2})");
             }
             Console.WriteLine();
         }
