@@ -1,16 +1,9 @@
-﻿using FluentAssertions;
-using HouseSolarPredictor.EnergySupply;
+﻿using HouseSolarPredictor.EnergySupply;
 using HouseSolarPredictor.Load;
 using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 using NodaTime;
 using NSubstitute;
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using HouseSolarPredictor.Planning.Optimisers;
 
 namespace HouseSolarPredictor.Tests;
