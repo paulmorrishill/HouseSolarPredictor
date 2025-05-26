@@ -12,9 +12,10 @@ public class HouseSimulator : IHouseSimulator
     {
         _batteryPredictor = batteryPredictor;
     }
-    
-    private void RunDaySimulation(List<TimeSegment> workingSegments)
+
+    public async Task RunSimulation(List<TimeSegment> segments, LocalDate date)
     {
+        var workingSegments = segments;
         Kwh currentBatteryCharge = workingSegments.First().StartBatteryChargeKwh;
 
         foreach (var segment in workingSegments)
@@ -94,10 +95,5 @@ public class HouseSimulator : IHouseSimulator
             default:
                 throw new InvalidOperationException($"Unexpected mode: {segment.Mode}");
         }
-    }
-
-    public async Task RunSimulation(List<TimeSegment> segments, LocalDate date)
-    {
-        RunDaySimulation(segments);
     }
 }
