@@ -11,10 +11,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using HouseSolarPredictor.Planning.Optimisers;
 
 namespace HouseSolarPredictor.Tests;
 
-public class BatteryChargePlannerScenarioTests
+public class OptimiserBlackBoxTests
 {
     private ISolarPredictor _solarPredictor;
     private ILoadPredictor _loadPredictor;
