@@ -1,6 +1,7 @@
 using FluentAssertions;
 using HouseSolarPredictor.EnergySupply;
 using HouseSolarPredictor.Load;
+using HouseSolarPredictor.Planning.Optimisers;
 using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 using NodaTime;

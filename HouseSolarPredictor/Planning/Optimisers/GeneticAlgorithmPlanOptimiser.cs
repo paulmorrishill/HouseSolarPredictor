@@ -1,9 +1,8 @@
-using HouseSolarPredictor.EnergySupply;
-using HouseSolarPredictor.Load;
+using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 using NodaTime;
 
-namespace HouseSolarPredictor.Prediction;
+namespace HouseSolarPredictor.Planning.Optimisers;
 
 public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
 {
@@ -210,8 +209,8 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
             var currentMode = segments[i].Mode;
             
             // Small penalty for switching from charge to discharge or vice versa
-            if ((prevMode != OutputsMode.Discharge && currentMode == OutputsMode.Discharge) ||
-                (prevMode == OutputsMode.Discharge && currentMode != OutputsMode.Discharge))
+            if (prevMode != OutputsMode.Discharge && currentMode == OutputsMode.Discharge ||
+                prevMode == OutputsMode.Discharge && currentMode != OutputsMode.Discharge)
             {
                 penalty += 0.001; // Small penalty to encourage smoother transitions
             }

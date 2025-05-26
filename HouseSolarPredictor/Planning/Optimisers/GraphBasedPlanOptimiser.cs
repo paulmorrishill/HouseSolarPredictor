@@ -1,10 +1,9 @@
-﻿using System.Collections.ObjectModel;
-using HouseSolarPredictor.EnergySupply;
-using HouseSolarPredictor.Load;
+﻿using HouseSolarPredictor.Load;
+using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 using NodaTime;
 
-namespace HouseSolarPredictor.Prediction;
+namespace HouseSolarPredictor.Planning.Optimisers;
 
 /// <summary>
 /// Battery charge planner using graph-based shortest path algorithm (Dijkstra's)
