@@ -31,7 +31,6 @@ public class HouseSimulator : IHouseSimulator
         var solarCapacityForSegment = segment.ExpectedSolarGeneration;
         var gridCapacityForSegment = _batteryPredictor.GridChargePerSegment;
         var load = segment.ExpectedConsumption;
-        var capacityRemaining = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
         
         switch (segment.Mode)
         {
@@ -39,8 +38,9 @@ public class HouseSimulator : IHouseSimulator
                 {
                     var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    if (newCharge > _batteryPredictor.Capacity)
+
+                    bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
+                    if (overchargedBattery)
                     {
                         segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
                     }
@@ -53,8 +53,9 @@ public class HouseSimulator : IHouseSimulator
                     var totalChargeCapacity = solarCapacityForSegment + gridCapacityForSegment;
                     var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    if (newCharge > _batteryPredictor.Capacity)
+
+                    bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
+                    if (overchargedBattery)
                     {
                         var batteryLeftToCharge = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
                         var halfCharge = batteryLeftToCharge / 2;
