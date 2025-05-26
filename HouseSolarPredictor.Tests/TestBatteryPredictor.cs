@@ -7,9 +7,13 @@ class TestBatteryPredictor : IBatteryPredictor
 {
     public Kwh Capacity => new Kwh(10m);
     public Kwh GridChargePerSegment => new Kwh(2m);
-
-    public Kwh PredictNewBatteryStateAfter30Minutes(Kwh startCapacity, Kwh availablePowerToCharge)
+    public (Kwh NewCharge, Kwh Wastage) PredictNewBatteryStateAfter30Minutes(Kwh startCapacity, Kwh availablePowerToCharge)
     {
-        return startCapacity + availablePowerToCharge;
+        var newCharge = startCapacity + availablePowerToCharge;
+        if (newCharge > Capacity)
+        {
+            return (Capacity, newCharge - Capacity);
+        }
+        return (newCharge, Kwh.Zero);
     }
 }

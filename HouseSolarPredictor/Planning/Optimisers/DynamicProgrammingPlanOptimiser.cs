@@ -222,60 +222,7 @@ public class DynamicProgrammingPlanOptimiser : IPlanOptimiser
 
     private void SimulateSingleSegment(TimeSegment segment)
     {
-        // Extract simulation logic from HouseSimulator for single segment
-        var solarCapacityForSegment = segment.ExpectedSolarGeneration;
-        var gridCapacityForSegment = _batteryPredictor.GridChargePerSegment;
-        var usage = segment.ExpectedConsumption;
-        
-        switch (segment.Mode)
-        {
-            case OutputsMode.ChargeSolarOnly:
-                {
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
-                    segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    if (newCharge > _batteryPredictor.Capacity)
-                    {
-                        segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
-                    }
-
-                    segment.ActualGridUsage = usage;
-                    break;
-                }
-            case OutputsMode.ChargeFromGridAndSolar:
-                {
-                    var totalChargeCapacity = solarCapacityForSegment + gridCapacityForSegment;
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
-                    segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    if (newCharge > _batteryPredictor.Capacity)
-                    {
-                        var excessCharge = newCharge - _batteryPredictor.Capacity;
-                        segment.WastedSolarGeneration = excessCharge / 2;
-                        segment.ActualGridUsage = gridCapacityForSegment;
-                    }
-                    break;
-                }
-            case OutputsMode.Discharge:
-                {
-                    var solarSurplus = segment.ExpectedSolarGeneration - usage;
-                    if (solarSurplus < Kwh.Zero)
-                    {
-                        var solarDeficit = solarSurplus.AbsoluteValue();
-                        var batteryDischarge = Kwh.Min(segment.StartBatteryChargeKwh, solarDeficit);
-                        segment.EndBatteryChargeKwh = segment.StartBatteryChargeKwh - batteryDischarge;
-                        segment.ActualGridUsage = solarDeficit - batteryDischarge;
-                    }
-                    else
-                    {
-                        var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
-                        segment.EndBatteryChargeKwh = newCharge;
-                    }
-                    break;
-                }
-                            default:
-                throw new InvalidOperationException($"Unexpected mode: {segment.Mode}");
-        }
+        _houseSimulator.SimulateBatteryChargingAndWastage(segment);
     }
 
     private Kwh RoundBatteryCharge(Kwh batteryCharge)

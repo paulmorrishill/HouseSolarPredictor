@@ -10,12 +10,11 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
 
     private readonly ILogger _logger;
 
-
     // GA Parameters
 
     private const int POPULATION_SIZE = 100;
 
-    private const int GENERATIONS = 200;
+    private int _generations = 200;
 
     private const double MUTATION_RATE = 0.15;
 
@@ -33,6 +32,7 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
     {
         _houseSimulator = houseSimulator;
         _logger = logger;
+        _generations = generations;
     }
 
     public async Task<List<TimeSegment>> CreateChargePlan(List<TimeSegment> segments, LocalDate date)
@@ -62,7 +62,7 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
         var generationsWithoutImprovement = 0;
         const int MAX_GENERATIONS_WITHOUT_IMPROVEMENT = 50;
 
-        for (int generation = 0; generation < GENERATIONS; generation++)
+        for (int generation = 0; generation < _generations; generation++)
         {
             // Evaluate fitness for all chromosomes
             var evaluatedPopulation = await EvaluatePopulation(population, baseSegments, date);

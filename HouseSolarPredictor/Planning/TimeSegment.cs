@@ -11,7 +11,21 @@ public class TimeSegment
     public Kwh ExpectedConsumption { get; set; } = 0.Kwh();
     
     public Kwh StartBatteryChargeKwh { get; set; } = 0.Kwh();
-    public Kwh EndBatteryChargeKwh { get; set; } = 0.Kwh();
+    private Kwh _endBatteryChargeKwh = 0.Kwh();
+    public Kwh EndBatteryChargeKwh
+    {
+        get
+        {
+            return _endBatteryChargeKwh;
+        }
+        set
+        {
+            if (value > new Kwh(30m))
+                throw new ArgumentOutOfRangeException(nameof(value), "End battery charge seems to be over 30 kWh, which is not expected for a home battery.");
+            _endBatteryChargeKwh = value;
+        }
+    }
+
     public OutputsMode Mode { get; set; } = OutputsMode.ChargeSolarOnly;
     public Kwh WastedSolarGeneration { get; set; } = 0.Kwh();
     public Kwh ActualGridUsage { get; set; } = 0.Kwh();

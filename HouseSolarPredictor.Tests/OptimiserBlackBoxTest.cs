@@ -30,7 +30,6 @@ public class OptimiserBlackBoxTests
         _testBatteryPredictor = new TestBatteryPredictor();
         _houseSimulator = new HouseSimulator(_testBatteryPredictor);
         
-        // Set up default returns to prevent null reference exceptions
         SetupDefaultSubstituteBehavior();
     }
 
@@ -51,19 +50,40 @@ public class OptimiserBlackBoxTests
     [Test]
     public async Task CompareOptimizers()
     {
-        // Define the optimizers to test
         var optimizers = new List<OptimizerConfig>
         {
+            new("Graph", () => new GraphBasedPlanOptimiser(_testBatteryPredictor, _houseSimulator, _fileLogger)),
+            new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor)),
             new("Genetic400", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 400)),
             new("Genetic200", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 200)),
-            new("Graph", () => new GraphBasedPlanOptimiser(_testBatteryPredictor, _houseSimulator, _fileLogger)),
-            new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor))
         };
 
-        await RunScenarioComparison(optimizers);
+        var results = await RunScenarioComparison(optimizers);
+
+        var scenario = "High Solar All Day";
+        var scenarioResult = results["Graph"][scenario];
+        var scenarioInstance = GetAllScenarios().First(s => s.Name == scenario);
+        PrintSegmentTable(scenarioResult.ChargePlan, scenarioInstance);
+    }
+    
+    private void PrintSegmentTable(List<TimeSegment> chargePlan, Scenario scenario)
+    {
+        Console.WriteLine("=== SEGMENT BREAKDOWN ===");
+
+        var printer = new TablePrinter<TimeSegment>()
+            .AddColumn("Time", s => $"{s.HalfHourSegment.HourStart:D2}:{s.HalfHourSegment.MinuteStart:D2}")
+            .AddColumn("Solar (kWh)", s => $"{s.ExpectedSolarGeneration.Value:F1}")
+            .AddColumn("Load (kWh)", s => $"{s.ExpectedConsumption.Value:F1}")
+            .AddColumn("Battery Start (kWh)", s => $"{s.StartBatteryChargeKwh.Value:F1}")
+            .AddColumn("Battery End (kWh)", s => $"{s.EndBatteryChargeKwh.Value:F1}")
+            .AddColumn("Grid Usage (kWh)", s => $"{s.ActualGridUsage.Value:F1}")
+            .AddColumn("Wasted Solar (kWh)", s => $"{s.WastedSolarGeneration.Value:F1}");
+
+        printer.Print(chargePlan);
     }
 
-    private async Task RunScenarioComparison(List<OptimizerConfig> optimizers)
+
+    private async Task<Dictionary<string, Dictionary<string, ScenarioResult>>> RunScenarioComparison(List<OptimizerConfig> optimizers)
     {
         var scenarios = GetAllScenarios();
         var results = new Dictionary<string, Dictionary<string, ScenarioResult>>();
@@ -96,6 +116,7 @@ public class OptimiserBlackBoxTests
         // Generate and print comparison table
         PrintComparisonTable(scenarios, optimizers, results);
         PrintSummaryScores(scenarios, optimizers, results);
+        return results;
     }
 
     private async Task<ScenarioResult> RunScenario(Scenario scenario, ChargePlanner planner)
@@ -112,6 +133,21 @@ public class OptimiserBlackBoxTests
 
         var actualCost = chargePlan.CalculatePlanCost().PoundsAmount;
 
+        // validate the charge plan
+        var batteryErrors = chargePlan.Any(c => c.StartBatteryChargeKwh < 0m || c.EndBatteryChargeKwh < 0m);
+        var overCharge = chargePlan.Any(c => c.EndBatteryChargeKwh > _testBatteryPredictor.Capacity);
+        if (batteryErrors)
+        {
+            throw new InvalidOperationException($"{planner.Optimiser.GetType()} Charge plan contains invalid battery states (negative charge).");
+        }
+        
+        if (overCharge)
+        {
+            var overchargedSegments = chargePlan.Where(c => c.EndBatteryChargeKwh > _testBatteryPredictor.Capacity).ToList();
+            var overchargedHours = string.Join(", ", overchargedSegments.Select(c => $"{c.HalfHourSegment.HourStart:D2}:{c.HalfHourSegment.MinuteStart:D2} - {c.HalfHourSegment.HourEnd:D2}:{c.HalfHourSegment.MinuteEnd:D2} ({c.EndBatteryChargeKwh:F2} kWh)"));
+            throw new InvalidOperationException($"{planner.Optimiser.GetType()} Charge plan contains overcharged battery states. Maximum capacity: {_testBatteryPredictor.Capacity} kWh. Overcharged segments: {overchargedHours}");
+        }
+        
         return new ScenarioResult
         {
             ActualCost = actualCost,
@@ -129,7 +165,6 @@ public class OptimiserBlackBoxTests
             .AddColumn("Scenario", s => s.Name)
             .AddColumn("Target", s => $"£{s.ExpectedOptimalCost:F2}");
 
-        // Dynamically add columns for each optimizer (cost and score)
         foreach (var optimizer in optimizers)
         {
             printer
@@ -142,6 +177,31 @@ public class OptimiserBlackBoxTests
                 });
         }
 
+        // add winner column, if scores are equal, show all optimizers, if all are same then show "Equal"
+        printer
+            .AddColumn("Winner", scenario =>
+            {
+                var bestCost = decimal.MaxValue;
+                var winners = new List<string>();
+
+                foreach (var optimizer in optimizers)
+                {
+                    var result = results[optimizer.Name][scenario.Name];
+                    if (string.IsNullOrEmpty(result.Error) && result.ActualCost < bestCost)
+                    {
+                        bestCost = result.ActualCost;
+                        winners.Clear();
+                        winners.Add(optimizer.Name);
+                    }
+                    else if (result.ActualCost == bestCost)
+                    {
+                        winners.Add(optimizer.Name);
+                    }
+                }
+
+                return winners.Count == optimizers.Count ? "Equal" : string.Join(", ", winners);
+            });
+        
         printer.Print(scenarios);
         Console.WriteLine();
     }

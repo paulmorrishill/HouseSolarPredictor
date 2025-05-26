@@ -16,7 +16,7 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
     private readonly ILogger _logger;
 
     // Graph discretization parameters
-    private const decimal BATTERY_STEP = 0.5m; // Discretize battery in 0.5 kWh steps
+    private const decimal BATTERY_STEP = 0.1m; // Discretize battery in 0.5 kWh steps
     private readonly int _maxBatterySteps;
     private readonly decimal _batteryCapacity;
 
@@ -68,9 +68,10 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
             Array.Fill(distances[i], decimal.MaxValue);
         }
 
-        var startCharge = segments[0].StartBatteryChargeKwh.Value;
-        var startNode = new GraphNode(0, 0);
-        distances[0][0] = 0;
+        var startCharge = segments[0].StartBatteryChargeKwh;
+        var startBatteryStep = GetStepFromBatteryState(startCharge);
+        var startNode = new GraphNode(0, startBatteryStep);
+        distances[0][startBatteryStep] = 0;
         priorityQueue.Enqueue(startNode, 0);
 
         _logger.Log($"Starting Dijkstra's algorithm with {_maxBatterySteps + 1} battery levels per segment");
@@ -92,7 +93,8 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
             
             foreach (var transition in transitions)
             {
-                var newCost = distances[currentNode.Segment][currentNode.BatteryStep] + transition.Cost;
+                var @decimal = distances[currentNode.Segment][currentNode.BatteryStep];
+                var newCost = @decimal + transition.Cost;
                 var nextSegment = transition.ToNode.Segment;
                 var nextBatteryStep = transition.ToNode.BatteryStep;
                 
@@ -140,7 +142,7 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
         
         foreach (var mode in Enum.GetValues<OutputsMode>())
         {
-            var transition = await CalculateTransitionUsingSimulation(currentNode, segment, mode);
+            var transition = CalculateTransition(currentNode, segment, mode);
             if (transition != null)
             {
                 transitions.Add(transition);
@@ -150,35 +152,46 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
         return transitions;
     }
 
-    private async Task<GraphEdge?> CalculateTransitionUsingSimulation(GraphNode fromNode, TimeSegment baseSegment, OutputsMode mode)
+    private GraphEdge? CalculateTransition(GraphNode fromNode, TimeSegment segment, OutputsMode mode)
     {
         var currentBatteryKwh = fromNode.BatteryStep * BATTERY_STEP;
         
         // Create a temporary segment for simulation
-        var tempSegment = CloneSegment(baseSegment);
-        tempSegment.Mode = mode;
-        tempSegment.StartBatteryChargeKwh = new Kwh(currentBatteryKwh);
+        var tempSegment = new TimeSegment
+        {
+            HalfHourSegment = segment.HalfHourSegment,
+            ExpectedSolarGeneration = segment.ExpectedSolarGeneration,
+            GridPrice = segment.GridPrice,
+            ExpectedConsumption = segment.ExpectedConsumption,
+            StartBatteryChargeKwh = new Kwh((decimal)currentBatteryKwh),
+            EndBatteryChargeKwh = Kwh.Zero,
+            Mode = mode,
+            WastedSolarGeneration = Kwh.Zero,
+            ActualGridUsage = Kwh.Zero
+        };
+
+        // Use the shared simulation service - same logic as HouseSimulator!
+        _houseSimulator.SimulateBatteryChargingAndWastage(tempSegment);
         
-        // Simulate this single segment using the existing simulation logic
-        await SimulateSingleSegment(tempSegment);
-        
-        // Calculate the cost using the existing Cost() method
-        var cost = tempSegment.Cost();
-        
-        // Convert end battery state to discrete step
-        var newBatteryStep = (int)Math.Round(tempSegment.EndBatteryChargeKwh.Value / (float)BATTERY_STEP);
+        // Convert final battery level to discrete step
+        var newBatteryStep = (int)Math.Round((double)tempSegment.EndBatteryChargeKwh.Value / (double)BATTERY_STEP);
         newBatteryStep = Math.Max(0, Math.Min(_maxBatterySteps, newBatteryStep));
 
+        // Use the existing cost calculation method - same as everywhere else!
+        var cost = tempSegment.Cost().PoundsAmount;
+
         var toNode = new GraphNode(fromNode.Segment + 1, newBatteryStep);
-        
-        return new GraphEdge(
-            fromNode, 
-            toNode, 
-            mode, 
-            cost.PoundsAmount, 
+        return new GraphEdge(fromNode, toNode, mode, cost, 
             (decimal)tempSegment.ActualGridUsage.Value, 
-            (decimal)(tempSegment.WastedSolarGeneration?.Value ?? 0)
-        );
+            (decimal)(tempSegment.WastedSolarGeneration?.Value ?? 0));
+    }
+
+
+    private int GetStepFromBatteryState(Kwh batteryCharge)
+    {
+        var newBatteryStep = (int)Math.Round(batteryCharge.Value / (float)BATTERY_STEP);
+        var batteryStep1 = Math.Max(0, Math.Min(_maxBatterySteps, newBatteryStep));
+        return batteryStep1;
     }
 
     /// <summary>

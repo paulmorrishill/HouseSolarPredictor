@@ -170,7 +170,7 @@ public class HouseSimulatorTests
         // We don't know how much of that was from solar vs grid, so we assume 50% of each
         // Amount left to charge is 3kWh, so 1.5kWh from solar 1.5kWh from grid
         segments[0].WastedSolarGeneration.Should().Be(10.5m.Kwh()); // 12 - 1.5 (solar used for battery) - 0 (grid)
-        segments[0].ActualGridUsage.Should().Be(1.5.Kwh()); 
+        segments[0].ActualGridUsage.Should().Be(1.5.Kwh());
     }
 
     [Test]
@@ -260,6 +260,27 @@ public class HouseSimulatorTests
         segments[0].StartBatteryChargeKwh.Should().Be(2.Kwh());
         // Surplus is 5kWh, so battery gets charged
         segments[0].EndBatteryChargeKwh.Should().Be(7.Kwh()); // 2 + 5
+    }
+
+    [Test]
+    public async Task DischargeDoesNotOverchargeBattery()
+    {
+        var segments = new List<TimeSegment>
+        {
+            new()
+            {
+                Mode = OutputsMode.Discharge,
+                ExpectedSolarGeneration = 14.Kwh(),
+                ExpectedConsumption = 0.Kwh(),
+                StartBatteryChargeKwh = 0.Kwh(),
+                EndBatteryChargeKwh = 0.Kwh(),
+            }
+        };
+        
+        await _houseSimulator.RunSimulation(segments, new LocalDate(2025, 1, 1));
+        
+        segments[0].EndBatteryChargeKwh.Should().Be(10.Kwh());
+        segments[0].WastedSolarGeneration.Should().Be(4.Kwh());
     }
 
     [Test]

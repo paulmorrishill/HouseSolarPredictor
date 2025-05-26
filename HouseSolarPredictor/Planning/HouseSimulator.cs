@@ -26,7 +26,7 @@ public class HouseSimulator : IHouseSimulator
         }
     }
 
-    private void SimulateBatteryChargingAndWastage(TimeSegment segment)
+    public void SimulateBatteryChargingAndWastage(TimeSegment segment)
     {
         var solarCapacityForSegment = segment.ExpectedSolarGeneration;
         var gridCapacityForSegment = _batteryPredictor.GridChargePerSegment;
@@ -36,25 +36,19 @@ public class HouseSimulator : IHouseSimulator
         {
             case OutputsMode.ChargeSolarOnly:
                 {
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
+                    var (newCharge, wastage) = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-
-                    bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
-                    if (overchargedBattery)
-                        segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
-                    
-
+                    segment.WastedSolarGeneration = wastage;
                     segment.ActualGridUsage = load;
                     break;
                 }
             case OutputsMode.ChargeFromGridAndSolar:
                 {
                     var totalChargeCapacity = solarCapacityForSegment + gridCapacityForSegment;
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
+                    var (newCharge, wastage) = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
 
-                    bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
-                    if (overchargedBattery)
+                    if (wastage > Kwh.Zero)
                     {
                         var batteryLeftToCharge = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
                         var halfCharge = batteryLeftToCharge / 2;
@@ -82,9 +76,11 @@ public class HouseSimulator : IHouseSimulator
                         segment.ActualGridUsage = solarDeficit - batteryDischarge;
                         break;
                     }
+
+                    var (newCharge, wastage) = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
                     
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
                     segment.EndBatteryChargeKwh = newCharge;
+                    segment.WastedSolarGeneration = wastage;
                     break;
                 }
             default:

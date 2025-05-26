@@ -13,13 +13,13 @@ public class ChargePlanner
     private readonly ISupplier _supplier;
     private IBatteryPredictor _batteryPredictor;
     private IHouseSimulator _houseSimulator;
-    private IPlanOptimiser _planOptimiser;
+    public readonly IPlanOptimiser Optimiser;
 
     public ChargePlanner(ISolarPredictor solarPredictor, ILoadPredictor loadPredictor, 
         ISupplier supplier, IBatteryPredictor batteryPredictor, IHouseSimulator houseSimulator, 
-        IPlanOptimiser planOptimiser)
+        IPlanOptimiser optimiser)
     {
-        _planOptimiser = planOptimiser;
+        Optimiser = optimiser;
         _houseSimulator = houseSimulator;
         _batteryPredictor = batteryPredictor;
         _supplier = supplier;
@@ -34,7 +34,7 @@ public class ChargePlanner
         await InitialiseDefaultSegmentsLoadFirst(date, segments, baseSegments);
         // Set initial battery charge for the first segment
         baseSegments.First().StartBatteryChargeKwh = startCharge;
-        await _planOptimiser.CreateChargePlan(baseSegments, date);
+        await Optimiser.CreateChargePlan(baseSegments, date);
         
         await _houseSimulator.RunSimulation(baseSegments, date);
         return baseSegments;
