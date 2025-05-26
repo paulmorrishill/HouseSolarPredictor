@@ -21,6 +21,9 @@ public class OptimiserBlackBoxTests
     private ILoadPredictor _loadPredictor;
     private ISupplier _supplier;
     private LocalDate _testDay;
+    private FileLogger _fileLogger;
+    private TestBatteryPredictor _testBatteryPredictor;
+    private HouseSimulator _houseSimulator;
 
     [SetUp]
     public void Setup()
@@ -29,7 +32,11 @@ public class OptimiserBlackBoxTests
         _loadPredictor = Substitute.For<ILoadPredictor>();
         _supplier = Substitute.For<ISupplier>();
         _testDay = new LocalDate(2023, 1, 1);
+        _fileLogger = new FileLogger("genetic_test.log");
 
+        _testBatteryPredictor = new TestBatteryPredictor();
+        _houseSimulator = new HouseSimulator(_testBatteryPredictor);
+        
         // Set up default returns to prevent null reference exceptions
         SetupDefaultSubstituteBehavior();
     }
@@ -54,9 +61,9 @@ public class OptimiserBlackBoxTests
         // Define the optimizers to test
         var optimizers = new List<OptimizerConfig>
         {
-            new("Genetic", () => CreateGeneticAlgorithmOptimizer()),
-            new("Graph", () => CreateGraphBasedOptimizer()),
-            // Add more optimizers here as needed
+            new("Genetic", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger)),
+            new("Graph", () => new GraphBasedPlanOptimiser(_testBatteryPredictor, _houseSimulator, _fileLogger)),
+            new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor))
         };
 
         await RunScenarioComparison(optimizers);
@@ -84,7 +91,10 @@ public class OptimiserBlackBoxTests
             {
                 try
                 {
-                    var result = await RunScenario(scenario, optimizerConfig.OptimizerFactory);
+                    var optimiser = optimizerConfig.OptimizerFactory();
+                    var chargePlanner = new ChargePlanner(_solarPredictor, _loadPredictor, _supplier,
+                        _testBatteryPredictor, _houseSimulator, optimiser);
+                    var result = await RunScenario(scenario, chargePlanner);
                     results[optimizerConfig.Name][scenario.Name] = result;
                     Console.WriteLine($"  {optimizerConfig.Name}: £{result.ActualCost:F2} (Target: £{scenario.ExpectedOptimalCost:F2})");
                 }
@@ -107,7 +117,7 @@ public class OptimiserBlackBoxTests
         PrintSummaryScores(scenarios, optimizers, results);
     }
 
-    private async Task<ScenarioResult> RunScenario(Scenario scenario, Func<ChargePlanner> optimizerFactory)
+    private async Task<ScenarioResult> RunScenario(Scenario scenario, ChargePlanner planner)
     {
         // Reset substitutes to default state
         SetupDefaultSubstituteBehavior();
@@ -115,8 +125,6 @@ public class OptimiserBlackBoxTests
         // Apply scenario setup using the shared fields
         scenario.Setup();
 
-        var planner = optimizerFactory();
-        
         var startTime = DateTime.UtcNow;
         var chargePlan = await planner.CreateChargePlan(_testDay, scenario.InitialBatteryCharge);
         var executionTime = DateTime.UtcNow - startTime;
@@ -339,30 +347,6 @@ public class OptimiserBlackBoxTests
         };
     }
 
-    // Factory methods for different optimizers
-    private ChargePlanner CreateGeneticAlgorithmOptimizer()
-    {
-        var testBatteryPredictor = new TestBatteryPredictor();
-        var houseSimulator = new HouseSimulator(testBatteryPredictor);
-        var fileLogger = new FileLogger("genetic_test.log");
-        var geneticPlanOptimiser = new GeneticAlgorithmPlanOptimiser(houseSimulator, fileLogger);
-        
-        return new ChargePlanner(_solarPredictor, _loadPredictor, _supplier, 
-            testBatteryPredictor, houseSimulator, geneticPlanOptimiser);
-    }
-
-    private ChargePlanner CreateGraphBasedOptimizer()
-    {
-        var testBatteryPredictor = new TestBatteryPredictor();
-        var houseSimulator = new HouseSimulator(testBatteryPredictor);
-        var fileLogger = new FileLogger("graph_test.log");
-        var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(testBatteryPredictor, houseSimulator, fileLogger);
-        
-        return new ChargePlanner(_solarPredictor, _loadPredictor, _supplier, 
-            testBatteryPredictor, houseSimulator, graphBasedPlanOptimiser);
-    }
-
-    // Helper methods for scenario setup - now using the shared fields
     private void GivenPriceForHours(string range, decimal pricePerKwh)
     {
         var parts = range.Split('-');
@@ -459,9 +443,9 @@ public class Scenario
 public class OptimizerConfig
 {
     public string Name { get; }
-    public Func<ChargePlanner> OptimizerFactory { get; }
+    public Func<IPlanOptimiser> OptimizerFactory { get; }
 
-    public OptimizerConfig(string name, Func<ChargePlanner> optimizerFactory)
+    public OptimizerConfig(string name, Func<IPlanOptimiser> optimizerFactory)
     {
         Name = name;
         OptimizerFactory = optimizerFactory;
