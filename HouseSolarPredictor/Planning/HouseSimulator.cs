@@ -40,7 +40,6 @@ public class HouseSimulator : IHouseSimulator
                     var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
                     
-                    // If the solar generation exceeds the battery capacity, we waste the excess
                     if (newCharge > _batteryPredictor.Capacity)
                     {
                         segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
@@ -55,8 +54,6 @@ public class HouseSimulator : IHouseSimulator
                     var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
                     
-                    // If the total charge exceeds the battery capacity assume 50% of solar is wasted
-                    // as we don't know how much solar went to battery vs how much from grid
                     if (newCharge > _batteryPredictor.Capacity)
                     {
                         var batteryLeftToCharge = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
@@ -71,7 +68,7 @@ public class HouseSimulator : IHouseSimulator
                         break;
                     }
 
-                    segment.ActualGridUsage = gridCapacityForSegment + load; // All grid charge is used
+                    segment.ActualGridUsage = gridCapacityForSegment + load;
                     break;
                 }
             case OutputsMode.Discharge:
