@@ -60,7 +60,10 @@ public class HouseSimulator : IHouseSimulator
                         var excessCharge = newCharge - _batteryPredictor.Capacity;
                         segment.WastedSolarGeneration = excessCharge / 2; // Assume half of the wasted charge was from solar
                         segment.ActualGridUsage = gridCapacityForSegment; // Assume half of the excess charge was from grid
+                        break;
                     }
+                    
+                    
                     break;
                 }
             case OutputsMode.Discharge:

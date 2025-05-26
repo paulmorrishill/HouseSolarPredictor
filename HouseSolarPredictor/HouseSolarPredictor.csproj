@@ -16,8 +16,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Google.OrTools" Version="9.12.4544" />
-      <PackageReference Include="Google.OrTools.runtime.win-x64" Version="9.12.4544" />
       <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
       <PackageReference Include="NodaTime" Version="3.2.2" />
