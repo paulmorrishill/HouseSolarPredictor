@@ -1,0 +1,477 @@
+﻿using FluentAssertions;
+using HouseSolarPredictor.EnergySupply;
+using HouseSolarPredictor.Load;
+using HouseSolarPredictor.Prediction;
+using HouseSolarPredictor.Time;
+using NodaTime;
+using NSubstitute;
+using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace HouseSolarPredictor.Tests;
+
+public class BatteryChargePlannerScenarioTests
+{
+    private ISolarPredictor _solarPredictor;
+    private ILoadPredictor _loadPredictor;
+    private ISupplier _supplier;
+    private LocalDate _testDay;
+
+    [SetUp]
+    public void Setup()
+    {
+        _solarPredictor = Substitute.For<ISolarPredictor>();
+        _loadPredictor = Substitute.For<ILoadPredictor>();
+        _supplier = Substitute.For<ISupplier>();
+        _testDay = new LocalDate(2023, 1, 1);
+
+        // Set up default returns to prevent null reference exceptions
+        SetupDefaultSubstituteBehavior();
+    }
+
+    private void SetupDefaultSubstituteBehavior()
+    {
+        // Default solar generation of 0 for all segments
+        foreach (var segment in HalfHourSegments.AllSegments)
+        {
+            _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, segment)
+                .Returns(Kwh.Zero);
+            _loadPredictor.PredictLoad(_testDay.DayOfYear, segment)
+                .Returns(Kwh.Zero);
+            _supplier.GetPrice(_testDay, segment)
+                .Returns(new ElectricityRate(new Gbp(0)));
+        }
+    }
+
+    [Test]
+    public async Task CompareOptimizers()
+    {
+        // Define the optimizers to test
+        var optimizers = new List<OptimizerConfig>
+        {
+            new("Genetic", () => CreateGeneticAlgorithmOptimizer()),
+            new("Graph", () => CreateGraphBasedOptimizer()),
+            // Add more optimizers here as needed
+        };
+
+        await RunScenarioComparison(optimizers);
+    }
+
+    private async Task RunScenarioComparison(List<OptimizerConfig> optimizers)
+    {
+        var scenarios = GetAllScenarios();
+        var results = new Dictionary<string, Dictionary<string, ScenarioResult>>();
+
+        // Initialize results structure
+        foreach (var optimizer in optimizers)
+        {
+            results[optimizer.Name] = new Dictionary<string, ScenarioResult>();
+        }
+
+        Console.WriteLine($"Running {scenarios.Count} scenarios against {optimizers.Count} optimizers...\n");
+
+        // Run each scenario against each optimizer
+        foreach (var scenario in scenarios)
+        {
+            Console.WriteLine($"Running scenario: {scenario.Name}");
+            
+            foreach (var optimizerConfig in optimizers)
+            {
+                try
+                {
+                    var result = await RunScenario(scenario, optimizerConfig.OptimizerFactory);
+                    results[optimizerConfig.Name][scenario.Name] = result;
+                    Console.WriteLine($"  {optimizerConfig.Name}: £{result.ActualCost:F2} (Target: £{scenario.ExpectedOptimalCost:F2})");
+                }
+                catch (Exception ex)
+                {
+                    results[optimizerConfig.Name][scenario.Name] = new ScenarioResult
+                    {
+                        ActualCost = decimal.MaxValue,
+                        ExecutionTime = TimeSpan.Zero,
+                        Error = ex.Message
+                    };
+                    Console.WriteLine($"  {optimizerConfig.Name}: ERROR - {ex.Message}");
+                }
+            }
+            Console.WriteLine();
+        }
+
+        // Generate and print comparison table
+        PrintComparisonTable(scenarios, optimizers, results);
+        PrintSummaryScores(scenarios, optimizers, results);
+    }
+
+    private async Task<ScenarioResult> RunScenario(Scenario scenario, Func<ChargePlanner> optimizerFactory)
+    {
+        // Reset substitutes to default state
+        SetupDefaultSubstituteBehavior();
+        
+        // Apply scenario setup using the shared fields
+        scenario.Setup();
+
+        var planner = optimizerFactory();
+        
+        var startTime = DateTime.UtcNow;
+        var chargePlan = await planner.CreateChargePlan(_testDay, scenario.InitialBatteryCharge);
+        var executionTime = DateTime.UtcNow - startTime;
+
+        var actualCost = chargePlan.CalculatePlanCost().PoundsAmount;
+
+        return new ScenarioResult
+        {
+            ActualCost = actualCost,
+            ExecutionTime = executionTime,
+            ChargePlan = chargePlan
+        };
+    }
+
+    private void PrintComparisonTable(List<Scenario> scenarios, List<OptimizerConfig> optimizers, 
+        Dictionary<string, Dictionary<string, ScenarioResult>> results)
+    {
+        Console.WriteLine("=== DETAILED RESULTS ===");
+    
+        var printer = new TablePrinter<Scenario>()
+            .AddColumn("Scenario", s => s.Name)
+            .AddColumn("Target", s => $"£{s.ExpectedOptimalCost:F2}");
+
+        // Dynamically add columns for each optimizer (cost and score)
+        foreach (var optimizer in optimizers)
+        {
+            printer
+                .AddColumn($"{optimizer.Name} Cost", scenario => 
+                {
+                    var result = results[optimizer.Name][scenario.Name];
+                    return !string.IsNullOrEmpty(result.Error) 
+                        ? "ERROR" 
+                        : $"£{result.ActualCost:F2}";
+                })
+                .AddColumn($"{optimizer.Name} Score", scenario => 
+                {
+                    var result = results[optimizer.Name][scenario.Name];
+                    return !string.IsNullOrEmpty(result.Error) 
+                        ? "0" 
+                        : $"{CalculateScore(scenario.ExpectedOptimalCost, result.ActualCost):F1}";
+                });
+        }
+
+        printer.Print(scenarios);
+        Console.WriteLine();
+    }
+
+    private void PrintSummaryScores(List<Scenario> scenarios, List<OptimizerConfig> optimizers,
+        Dictionary<string, Dictionary<string, ScenarioResult>> results)
+    {
+        Console.WriteLine("=== SUMMARY SCORES ===");
+        
+        foreach (var optimizer in optimizers)
+        {
+            var totalScore = 0.0;
+            var successfulScenarios = 0;
+            var totalExecutionTime = TimeSpan.Zero;
+
+            foreach (var scenario in scenarios)
+            {
+                var result = results[optimizer.Name][scenario.Name];
+                if (string.IsNullOrEmpty(result.Error))
+                {
+                    totalScore += CalculateScore(scenario.ExpectedOptimalCost, result.ActualCost);
+                    successfulScenarios++;
+                    totalExecutionTime = totalExecutionTime.Add(result.ExecutionTime);
+                }
+            }
+
+            var averageScore = successfulScenarios > 0 ? totalScore / successfulScenarios : 0;
+            var averageExecutionTime = successfulScenarios > 0 ? 
+                TimeSpan.FromMilliseconds(totalExecutionTime.TotalMilliseconds / successfulScenarios) : 
+                TimeSpan.Zero;
+
+            Console.WriteLine($"{optimizer.Name}:");
+            Console.WriteLine($"  Average Score: {averageScore:F1}");
+            Console.WriteLine($"  Successful Scenarios: {successfulScenarios}/{scenarios.Count}");
+            Console.WriteLine($"  Average Execution Time: {averageExecutionTime.TotalMilliseconds:F0}ms");
+            Console.WriteLine();
+        }
+    }
+
+    private double CalculateScore(decimal expectedCost, decimal actualCost)
+    {
+        if (expectedCost == 0) return actualCost == 0 ? 100 : 0;
+        
+        var ratio = (double)(actualCost / expectedCost);
+        
+        // Perfect score (100) for matching expected cost exactly
+        // Decreasing score as cost increases above expected
+        // 0 score for costs 50% or more above expected
+        return Math.Max(0, 100 - Math.Max(0, (ratio - 1) * 200));
+    }
+
+    private List<Scenario> GetAllScenarios()
+    {
+        return new List<Scenario>
+        {
+            new Scenario
+            {
+                Name = "High Solar All Day",
+                ExpectedOptimalCost = 440m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(10);
+                    GivenLoadForAllSegmentsIs(2);
+                    GivenPriceForAllSegmentsIs(4);
+                }
+            },
+
+            new Scenario
+            {
+                Name = "No Solar Same Grid Price",
+                ExpectedOptimalCost = 48m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(0);
+                    GivenLoadForAllSegmentsIs(1);
+                    GivenPriceForAllSegmentsIs(4);
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Expensive Afternoon",
+                ExpectedOptimalCost = 24m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(0);
+                    GivenLoadForAllSegmentsIs(1);
+                    GivenPriceForAllSegmentsIs(2);
+                    GivenPriceForHours("10-12", 7);
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Solar Exceeds Load",
+                ExpectedOptimalCost = 104m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(5);
+                    GivenLoadForAllSegmentsIs(2);
+                    GivenPriceForAllSegmentsIs(4);
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Evening High Prices",
+                ExpectedOptimalCost = 37m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationIs(new[] { 0, 0, 0, 3, 5, 5, 5, 3, 0, 0, 0, 0 });
+                    GivenLoadIs(new[] { 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3 });
+                    GivenPriceIs(new[] { 3, 3, 3, 2, 2, 2, 2, 2, 8, 8, 8, 8 });
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Price Dip During Day",
+                ExpectedOptimalCost = 86m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationIs(new[] { 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0 });
+                    GivenLoadIs(new[] { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 });
+                    GivenPriceIs(new[] { 5, 5, 5, 5, 1, 1, 5, 5, 5, 5, 5, 5 });
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Battery Starts Full",
+                ExpectedOptimalCost = 34m,
+                InitialBatteryCharge = 10.Kwh(),
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(0);
+                    GivenLoadForAllSegmentsIs(2);
+                    GivenPriceIs(new[] { 2, 2, 2, 5, 5, 5, 5, 5, 5, 2, 2, 2 });
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Gradual Price Increase",
+                ExpectedOptimalCost = 58m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(0);
+                    GivenLoadForAllSegmentsIs(1);
+                    GivenPriceIs(new[] { 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6 });
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Extreme Price Variation",
+                ExpectedOptimalCost = 30m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationForAllSegmentsIs(0);
+                    GivenLoadForAllSegmentsIs(1);
+                    GivenPriceIs(new[] { 10, 10, 1, 1, 10, 10, 10, 10, 10, 10, 10, 10 });
+                }
+            },
+
+            new Scenario
+            {
+                Name = "Mixed Solar And Price Variations",
+                ExpectedOptimalCost = 14m,
+                Setup = () =>
+                {
+                    GivenSolarGenerationIs(new[] { 0, 0, 0, 0, 3, 5, 5, 3, 0, 0, 0, 0 });
+                    GivenLoadIs(new[] { 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2 });
+                    GivenPriceIs(new[] { 2, 2, 2, 2, 2, 2, 2, 3, 8, 8, 8, 8 });
+                }
+            }
+        };
+    }
+
+    // Factory methods for different optimizers
+    private ChargePlanner CreateGeneticAlgorithmOptimizer()
+    {
+        var testBatteryPredictor = new TestBatteryPredictor();
+        var houseSimulator = new HouseSimulator(testBatteryPredictor);
+        var fileLogger = new FileLogger("genetic_test.log");
+        var geneticPlanOptimiser = new GeneticAlgorithmPlanOptimiser(houseSimulator, fileLogger);
+        
+        return new ChargePlanner(_solarPredictor, _loadPredictor, _supplier, 
+            testBatteryPredictor, houseSimulator, geneticPlanOptimiser);
+    }
+
+    private ChargePlanner CreateGraphBasedOptimizer()
+    {
+        var testBatteryPredictor = new TestBatteryPredictor();
+        var houseSimulator = new HouseSimulator(testBatteryPredictor);
+        var fileLogger = new FileLogger("graph_test.log");
+        var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(testBatteryPredictor, houseSimulator, fileLogger);
+        
+        return new ChargePlanner(_solarPredictor, _loadPredictor, _supplier, 
+            testBatteryPredictor, houseSimulator, graphBasedPlanOptimiser);
+    }
+
+    // Helper methods for scenario setup - now using the shared fields
+    private void GivenPriceForHours(string range, decimal pricePerKwh)
+    {
+        var parts = range.Split('-');
+        var startHour = int.Parse(parts[0]);
+        var endHour = int.Parse(parts[1]);
+        
+        foreach (var segment in HalfHourSegments.AllSegments)
+        {
+            if (segment.HourStart >= startHour && segment.HourStart < endHour)
+            {
+                _supplier.GetPrice(_testDay, segment).Returns(new ElectricityRate(new Gbp(pricePerKwh)));
+            }
+        }
+    }
+
+    private void GivenSolarGenerationIs(decimal[] values)
+    {
+        for (var i = 0; i < HalfHourSegments.AllSegments.Count; i++)
+        {
+            var value = i < values.Length ? values[i] : 0m;
+            _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, HalfHourSegments.AllSegments[i])
+                .Returns(new Kwh(value));
+        }
+    }
+    
+    private void GivenSolarGenerationIs(int[] values)
+    {
+        GivenSolarGenerationIs(values.Select(v => (decimal)v).ToArray());
+    }
+
+    private void GivenLoadIs(decimal[] values)
+    {
+        for (var i = 0; i < HalfHourSegments.AllSegments.Count; i++)
+        {
+            var value = i < values.Length ? values[i] : 0m;
+            _loadPredictor.PredictLoad(_testDay.DayOfYear, HalfHourSegments.AllSegments[i])
+                .Returns(new Kwh(value));
+        }
+    }
+    
+    private void GivenLoadIs(int[] values)
+    {
+        GivenLoadIs(values.Select(v => (decimal)v).ToArray());
+    }
+
+    private void GivenPriceIs(decimal[] values)
+    {
+        for (var i = 0; i < HalfHourSegments.AllSegments.Count; i++)
+        {
+            var value = i < values.Length ? values[i] : values.LastOrDefault();
+            _supplier.GetPrice(_testDay, HalfHourSegments.AllSegments[i]).Returns(new ElectricityRate(new Gbp(value)));
+        }
+    }
+    
+    private void GivenPriceIs(int[] values)
+    {
+        GivenPriceIs(values.Select(v => (decimal)v).ToArray());
+    }
+
+    private void GivenPriceForAllSegmentsIs(decimal price)
+    {
+        foreach (var segment in HalfHourSegments.AllSegments)
+        {
+            _supplier.GetPrice(_testDay, segment).Returns(new ElectricityRate(new Gbp(price)));
+        }
+    }
+
+    private void GivenLoadForAllSegmentsIs(decimal load)
+    {
+        foreach (var segment in HalfHourSegments.AllSegments)
+        {
+            _loadPredictor.PredictLoad(_testDay.DayOfYear, segment).Returns(new Kwh(load));
+        }
+    }
+
+    private void GivenSolarGenerationForAllSegmentsIs(decimal solarGenForSegment)
+    {
+        foreach (var segment in HalfHourSegments.AllSegments)
+        {
+            _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, segment).Returns(new Kwh(solarGenForSegment));
+        }
+    }
+}
+
+// Supporting classes
+public class Scenario
+{
+    public string Name { get; set; }
+    public decimal ExpectedOptimalCost { get; set; }
+    public Action Setup { get; set; }
+    public Kwh InitialBatteryCharge { get; set; } = 0.Kwh();
+}
+
+public class OptimizerConfig
+{
+    public string Name { get; }
+    public Func<ChargePlanner> OptimizerFactory { get; }
+
+    public OptimizerConfig(string name, Func<ChargePlanner> optimizerFactory)
+    {
+        Name = name;
+        OptimizerFactory = optimizerFactory;
+    }
+}
+
+public class ScenarioResult
+{
+    public decimal ActualCost { get; set; }
+    public TimeSpan ExecutionTime { get; set; }
+    public List<TimeSegment> ChargePlan { get; set; }
+    public string Error { get; set; }
+}
+
