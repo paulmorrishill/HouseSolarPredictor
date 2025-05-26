@@ -12,9 +12,10 @@ public class HouseSimulator : IHouseSimulator
     {
         _batteryPredictor = batteryPredictor;
     }
-    
-    private void RunDaySimulation(List<TimeSegment> workingSegments)
+
+    public async Task RunSimulation(List<TimeSegment> segments, LocalDate date)
     {
+        var workingSegments = segments;
         Kwh currentBatteryCharge = workingSegments.First().StartBatteryChargeKwh;
 
         foreach (var segment in workingSegments)
@@ -30,7 +31,6 @@ public class HouseSimulator : IHouseSimulator
         var solarCapacityForSegment = segment.ExpectedSolarGeneration;
         var gridCapacityForSegment = _batteryPredictor.GridChargePerSegment;
         var load = segment.ExpectedConsumption;
-        var capacityRemaining = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
         
         switch (segment.Mode)
         {
@@ -38,12 +38,11 @@ public class HouseSimulator : IHouseSimulator
                 {
                     var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    // If the solar generation exceeds the battery capacity, we waste the excess
-                    if (newCharge > _batteryPredictor.Capacity)
-                    {
+
+                    bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
+                    if (overchargedBattery)
                         segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
-                    }
+                    
 
                     segment.ActualGridUsage = load;
                     break;
@@ -53,10 +52,9 @@ public class HouseSimulator : IHouseSimulator
                     var totalChargeCapacity = solarCapacityForSegment + gridCapacityForSegment;
                     var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
                     segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    // If the total charge exceeds the battery capacity assume 50% of solar is wasted
-                    // as we don't know how much solar went to battery vs how much from grid
-                    if (newCharge > _batteryPredictor.Capacity)
+
+                    bool overchargedBattery = newCharge > _batteryPredictor.Capacity;
+                    if (overchargedBattery)
                     {
                         var batteryLeftToCharge = _batteryPredictor.Capacity - segment.StartBatteryChargeKwh;
                         var halfCharge = batteryLeftToCharge / 2;
@@ -70,7 +68,7 @@ public class HouseSimulator : IHouseSimulator
                         break;
                     }
 
-                    segment.ActualGridUsage = gridCapacityForSegment + load; // All grid charge is used
+                    segment.ActualGridUsage = gridCapacityForSegment + load;
                     break;
                 }
             case OutputsMode.Discharge:
@@ -82,22 +80,15 @@ public class HouseSimulator : IHouseSimulator
                         var batteryDischarge = Kwh.Min(segment.StartBatteryChargeKwh, solarDeficit);
                         segment.EndBatteryChargeKwh = segment.StartBatteryChargeKwh - batteryDischarge;
                         segment.ActualGridUsage = solarDeficit - batteryDischarge;
+                        break;
                     }
-                    else
-                    {
-                        // If solar generation is more than usage, we can charge the battery
-                        var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
-                        segment.EndBatteryChargeKwh = newCharge;
-                    }
+                    
+                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
+                    segment.EndBatteryChargeKwh = newCharge;
                     break;
                 }
             default:
                 throw new InvalidOperationException($"Unexpected mode: {segment.Mode}");
         }
-    }
-
-    public async Task RunSimulation(List<TimeSegment> segments, LocalDate date)
-    {
-        RunDaySimulation(segments);
     }
 }

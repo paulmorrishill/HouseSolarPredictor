@@ -1,10 +1,9 @@
-﻿using System.Text;
-using HouseSolarPredictor.EnergySupply;
-using HouseSolarPredictor.Load;
+﻿using HouseSolarPredictor.Load;
+using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 using NodaTime;
 
-namespace HouseSolarPredictor.Prediction;
+namespace HouseSolarPredictor.Planning.Optimisers;
 
 public class DynamicProgrammingPlanOptimiser : IPlanOptimiser
 {
