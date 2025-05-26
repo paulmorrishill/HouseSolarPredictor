@@ -83,13 +83,11 @@ public class HouseSimulator : IHouseSimulator
                         var batteryDischarge = Kwh.Min(segment.StartBatteryChargeKwh, solarDeficit);
                         segment.EndBatteryChargeKwh = segment.StartBatteryChargeKwh - batteryDischarge;
                         segment.ActualGridUsage = solarDeficit - batteryDischarge;
+                        break;
                     }
-                    else
-                    {
-                        // If solar generation is more than usage, we can charge the battery
-                        var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
-                        segment.EndBatteryChargeKwh = newCharge;
-                    }
+                    
+                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
+                    segment.EndBatteryChargeKwh = newCharge;
                     break;
                 }
             default:
