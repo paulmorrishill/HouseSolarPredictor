@@ -6,12 +6,7 @@ using HouseSolarPredictor.Prediction;
 using HouseSolarPredictor.Time;
 using NodaTime;
 using NSubstitute;
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace HouseSolarPredictor.Tests;
 
