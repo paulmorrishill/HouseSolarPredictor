@@ -292,6 +292,27 @@ public class TimeSegmentCostTests
     }
 
     [Test]
+    public void BatteryNotDischaringMeansGridIsUsed()
+    {
+        // Arrange
+        var segment = CreateTimeSegment(
+            solarGeneration: 0,
+            gridConsumed: 5,
+            gridPricePence: 20,
+            wastedSolar: 0,
+            startBatteryCharge: 10,
+            endBatteryCharge: 10,
+            mode: OutputsMode.ChargeFromGridAndSolar
+        );
+
+        // Act
+        var cost = segment.Cost();
+
+        // Assert
+        cost.Should().Be(new Gbp(1.00m)); // 5 kWh * £0.20 = £1.00
+    }
+
+    [Test]
     public void Cost_NegativeGridUsageCalculation_TreatedAsZero()
     {
         // Arrange - scenario where solar + battery > consumption

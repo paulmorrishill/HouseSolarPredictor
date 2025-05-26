@@ -36,4 +36,14 @@ public record Gbp(decimal PoundsAmount)
     {
         return $"{PoundsAmount:C2}";
     }
+
+    public static Gbp Sum<T>(IEnumerable<T> items, Func<T, Gbp> selector)
+    {
+        Gbp total = Gbp.Zero;
+        foreach (var item in items)
+        {
+            total += selector(item);
+        }
+        return total;
+    }
 }

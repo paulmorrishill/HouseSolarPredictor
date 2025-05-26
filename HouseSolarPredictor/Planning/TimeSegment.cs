@@ -42,7 +42,7 @@ public class TimeSegment
         // Calculate grid electricity used (load - solar - battery)
         var gridUsed = segment.ActualGridUsage - solarUsed - batteryContribution;
         if (gridUsed.Value < 0)
-            gridUsed = Time.Kwh.Zero;
+            gridUsed = Kwh.Zero;
             
         // Calculate grid cost using the Kwh * ElectricityRate operator
         gridCost = gridUsed * segment.GridPrice;

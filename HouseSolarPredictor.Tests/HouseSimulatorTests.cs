@@ -9,6 +9,7 @@ public class HouseSimulatorTests
 {
     private TestBatteryPredictor _batteryPredictor;
     private HouseSimulator _houseSimulator;
+    private Kwh FullBattery = 10m.Kwh();
 
     [SetUp]
     public void SetUp()
@@ -107,9 +108,48 @@ public class HouseSimulatorTests
     }
 
     [Test]
+    public async Task ChargeFromGridAndSolar_LoadsGoToGrid()
+    {
+        var segments = new List<TimeSegment>
+        {
+            new()
+            {
+                Mode = OutputsMode.ChargeFromGridAndSolar,
+                ExpectedSolarGeneration = 0.Kwh(),
+                ExpectedConsumption = 5m.Kwh(),
+                StartBatteryChargeKwh = 0m.Kwh()
+            }
+        };
+        
+        await _houseSimulator.RunSimulation(segments, new LocalDate(2025, 1, 1));
+        
+        segments[0].WastedSolarGeneration.Should().Be(0.Kwh());
+        segments[0].ActualGridUsage.Should().Be(7.Kwh());
+    }
+
+    [Test]
+    public async Task ChargeFromGridAndSolarWithHighBattery_LoadsGoToGrid()
+    {
+        var segments = new List<TimeSegment>
+        {
+            new()
+            {
+                Mode = OutputsMode.ChargeFromGridAndSolar,
+                ExpectedSolarGeneration = 0.Kwh(),
+                ExpectedConsumption = 5m.Kwh(),
+                StartBatteryChargeKwh = FullBattery
+            }
+        };
+        
+        await _houseSimulator.RunSimulation(segments, new LocalDate(2025, 1, 1));
+        
+        segments[0].WastedSolarGeneration.Should().Be(0.Kwh());
+        segments[0].ActualGridUsage.Should().Be(5.Kwh());
+    }
+
+    [Test]
     public async Task ChargeFromGridAndSolar_ExceedsCapacity_WastesSolarGeneration()
     {
-        // In charge from ChargeFromGridAndSolar no energy is used on the loads
         var segments = new List<TimeSegment>
         {
             new()

@@ -104,4 +104,13 @@ public record Kwh(float Value)
     {
         return new Kwh(Math.Abs(Value));
     }
+
+    public Kwh Discrete(decimal @decimal)
+    {
+        if (@decimal <= 0)
+            throw new ArgumentException("Decimal must be greater than zero for discretization.");
+        
+        var discreteValue = Math.Round(Value / (float)@decimal) * (float)@decimal;
+        return new Kwh(discreteValue);
+    }
 }

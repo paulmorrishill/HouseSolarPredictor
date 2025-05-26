@@ -59,7 +59,7 @@ public class HouseSimulator : IHouseSimulator
                     if (newCharge > _batteryPredictor.Capacity)
                     {
                         segment.WastedSolarGeneration = solarCapacityForSegment - (capacityRemaining / 2);
-                        segment.ActualGridUsage = capacityRemaining / 2;
+                        segment.ActualGridUsage = capacityRemaining / 2 + load;
                         break;
                     }
 

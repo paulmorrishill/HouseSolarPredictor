@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.Text;
 using HouseSolarPredictor.EnergySupply;
 using HouseSolarPredictor.Load;
 using HouseSolarPredictor.Time;
@@ -7,320 +6,386 @@ using NodaTime;
 
 namespace HouseSolarPredictor.Prediction;
 
-public class BatteryChargePlanner
+public interface IBatteryChargePlanner
+{
+    Task<List<TimeSegment>> CreateChargePlan(LocalDate date);
+}
+
+public class GeneticAlgorithmBatteryChargePlanner : IBatteryChargePlanner
 {
     private readonly ISolarPredictor _solarPredictor;
     private readonly ILoadPredictor _loadPredictor;
     private readonly ISupplier _supplier;
-    private IBatteryPredictor _batteryPredictor;
-    private IHouseSimulator _houseSimulator;
-    
-    // More efficient cache structure - using battery state as key  
-    private Dictionary<(int segmentIndex, Kwh batteryCharge), (Gbp cost, List<OutputsMode> optimalModes)> _cache = 
-        new ();
+    private readonly IBatteryPredictor _batteryPredictor;
+    private readonly IHouseSimulator _houseSimulator;
+    private readonly ILogger _logger;
 
-    private ILogger _logger;
-    private List<TimeSegment> _baseSegments; // Cache base segments to avoid recreation
+    // GA Parameters
+    private const int POPULATION_SIZE = 100;
+    private const int GENERATIONS = 200;
+    private const double MUTATION_RATE = 0.15;
+    private const double CROSSOVER_RATE = 0.8;
+    private const int TOURNAMENT_SIZE = 5;
+    private const int ELITE_SIZE = 10; // Number of best solutions to keep each generation
 
-    public BatteryChargePlanner(ISolarPredictor solarPredictor, ILoadPredictor loadPredictor, 
-        ISupplier supplier, IBatteryPredictor batteryPredictor, IHouseSimulator houseSimulator, ILogger logger)
+    private readonly Random _random = new Random();
+
+    public GeneticAlgorithmBatteryChargePlanner(
+        ISolarPredictor solarPredictor, 
+        ILoadPredictor loadPredictor, 
+        ISupplier supplier,
+        IBatteryPredictor batteryPredictor, 
+        IHouseSimulator houseSimulator, 
+        ILogger logger)
     {
-        _logger = logger;
-        _houseSimulator = houseSimulator;
-        _batteryPredictor = batteryPredictor;
-        _supplier = supplier;
-        _loadPredictor = loadPredictor;
         _solarPredictor = solarPredictor;
+        _loadPredictor = loadPredictor;
+        _supplier = supplier;
+        _batteryPredictor = batteryPredictor;
+        _houseSimulator = houseSimulator;
+        _logger = logger;
     }
 
     public async Task<List<TimeSegment>> CreateChargePlan(LocalDate date)
     {
-        _cache.Clear();
+        // Initialize base segments with solar, load, and price data
+        var baseSegments = await InitializeBaseSegments(date);
         
-        var segments = HalfHourSegments.AllSegments;
-        _baseSegments = new List<TimeSegment>();
-        await InitialiseDefaultSegmentsLoadFirst(date, segments, _baseSegments);
-
-        // Start optimization from segment 0 with initial battery charge
-        var initialBatteryCharge = _baseSegments.First().StartBatteryChargeKwh;
-        var (cost, optimalModes) = await FindOptimalConfigurationIterative(_baseSegments, date, initialBatteryCharge);
+        // Run genetic algorithm to find optimal charging strategy
+        var optimalChromosome = await RunGeneticAlgorithm(baseSegments, date);
         
-        // Apply optimal modes
-        for (int i = 0; i < _baseSegments.Count; i++)
-        {
-            _baseSegments[i].Mode = optimalModes[i];
-        }
+        // Apply optimal strategy to segments
+        ApplyChromosomeToSegments(optimalChromosome, baseSegments);
         
-        // Final simulation
-        await _houseSimulator.RunSimulation(_baseSegments, date);
+        // Run final simulation to populate all fields
+        await _houseSimulator.RunSimulation(baseSegments, date);
         
-        _logger.Log($"Optimal solution found with cost: {cost:F2} £");
-        return _baseSegments;
+        var totalCost = baseSegments.CalculatePlanCost();
+        _logger.Log($"GA found optimal charge plan for {date} with total cost: {totalCost}");
+        
+        return baseSegments;
     }
 
-    private async Task<(Gbp cost, List<OutputsMode> optimalModes)> FindOptimalConfigurationIterative(
-        List<TimeSegment> baseSegments, LocalDate date, Kwh initialBatteryCharge)
+    private async Task<Chromosome> RunGeneticAlgorithm(List<TimeSegment> baseSegments, LocalDate date)
     {
-        // Use dynamic programming with forward iteration instead of recursion
-        var dp = new Dictionary<(int segmentIndex, Kwh batteryCharge), (Gbp cost, OutputsMode mode)>();
+        // Initialize population
+        var population = InitializePopulation();
         
-        // Initialize DP table for the last segment
-        var lastSegmentIndex = baseSegments.Count - 1;
-        var possibleModes = GetPossibleModes();
-        
-        // Work backwards from the last segment
-        for (int segmentIndex = lastSegmentIndex; segmentIndex >= 0; segmentIndex--)
+        var bestFitness = double.MaxValue;
+        var generationsWithoutImprovement = 0;
+        const int MAX_GENERATIONS_WITHOUT_IMPROVEMENT = 50;
+
+        for (int generation = 0; generation < GENERATIONS; generation++)
         {
-            var possibleBatteryStates = GetPossibleBatteryStates(segmentIndex, baseSegments);
+            // Evaluate fitness for all chromosomes
+            var evaluatedPopulation = await EvaluatePopulation(population, baseSegments, date);
             
-            foreach (var batteryState in possibleBatteryStates)
+            // Sort by fitness (lower cost = better fitness)
+            evaluatedPopulation.Sort((a, b) => a.Fitness.CompareTo(b.Fitness));
+            
+            var currentBestFitness = evaluatedPopulation[0].Fitness;
+            
+            // Check for improvement
+            if (currentBestFitness < bestFitness)
             {
-                var bestCost = Gbp.MaxValue;
-                var bestMode = OutputsMode.Discharge;
-                
-                foreach (var mode in possibleModes)
-                {
-                    var cost = await CalculateCostForModeAndState(baseSegments, segmentIndex, batteryState, mode, dp, date);
-                    
-                    if (cost < bestCost)
-                    {
-                        bestCost = cost;
-                        bestMode = mode;
-                    }
-                }
-                
-                dp[(segmentIndex, batteryState)] = (bestCost, bestMode);
-            }
-        }
-        
-        // Reconstruct optimal path
-        var optimalModes = new List<OutputsMode>();
-        var currentBatteryCharge = initialBatteryCharge;
-        var totalCost = Gbp.Zero;
-        
-        for (int i = 0; i < baseSegments.Count; i++)
-        {
-            var key = (i, RoundBatteryCharge(currentBatteryCharge));
-            if (dp.ContainsKey(key))
-            {
-                var (cost, mode) = dp[key];
-                optimalModes.Add(mode);
-                
-                // Simulate to get next battery state
-                var tempSegment = CloneSegment(baseSegments[i]);
-                tempSegment.Mode = mode;
-                tempSegment.StartBatteryChargeKwh = currentBatteryCharge;
-                
-                SimulateSingleSegment(tempSegment);
-                currentBatteryCharge = tempSegment.EndBatteryChargeKwh;
-                
-                if (i == 0) totalCost = cost;
+                bestFitness = currentBestFitness;
+                generationsWithoutImprovement = 0;
+                _logger.Log($"Generation {generation}: New best fitness = £{bestFitness:F4}");
             }
             else
             {
-                // Fallback to default mode if state not in DP table
-                optimalModes.Add(OutputsMode.Discharge);
+                generationsWithoutImprovement++;
+            }
+            
+            // Early stopping if no improvement
+            if (generationsWithoutImprovement >= MAX_GENERATIONS_WITHOUT_IMPROVEMENT)
+            {
+                _logger.Log($"Early stopping at generation {generation} - no improvement for {MAX_GENERATIONS_WITHOUT_IMPROVEMENT} generations");
+                break;
+            }
+
+            // Create next generation
+            var nextGeneration = CreateNextGeneration(evaluatedPopulation);
+            population = nextGeneration;
+        }
+
+        // Return the best chromosome from final evaluation
+        var finalEvaluation = await EvaluatePopulation(population, baseSegments, date);
+        finalEvaluation.Sort((a, b) => a.Fitness.CompareTo(b.Fitness));
+        
+        _logger.Log($"GA completed with best fitness: £{finalEvaluation[0].Fitness:F4}");
+        return finalEvaluation[0];
+    }
+
+    private List<Chromosome> InitializePopulation()
+    {
+        var population = new List<Chromosome>(POPULATION_SIZE);
+        
+        for (int i = 0; i < POPULATION_SIZE; i++)
+        {
+            var chromosome = new Chromosome();
+            
+            if (i < POPULATION_SIZE / 3)
+            {
+                // Random initialization
+                for (int j = 0; j < 48; j++)
+                {
+                    chromosome.Genes[j] = (OutputsMode)_random.Next(0, 3);
+                }
+            }
+            else if (i < 2 * POPULATION_SIZE / 3)
+            {
+                // Initialize with greedy heuristic - prefer discharge during expensive periods
+                InitializeWithGreedyHeuristic(chromosome);
+            }
+            else
+            {
+                // Initialize with conservative strategy - mostly charge solar only
+                for (int j = 0; j < 48; j++)
+                {
+                    chromosome.Genes[j] = OutputsMode.ChargeSolarOnly;
+                }
+            }
+            
+            population.Add(chromosome);
+        }
+        
+        return population;
+    }
+
+    private void InitializeWithGreedyHeuristic(Chromosome chromosome)
+    {
+        // Simple heuristic: charge during cheap periods, discharge during expensive periods
+        // This gives the GA a good starting point
+        for (int i = 0; i < 48; i++)
+        {
+            // Night hours (cheap electricity) - charge from grid
+            if (i < 16 || i > 42) // Before 8 AM or after 9:30 PM
+            {
+                chromosome.Genes[i] = _random.NextDouble() < 0.7 ? OutputsMode.ChargeFromGridAndSolar : OutputsMode.ChargeSolarOnly;
+            }
+            // Peak hours (expensive electricity) - discharge
+            else if (i >= 32 && i <= 38) // 4 PM to 7 PM
+            {
+                chromosome.Genes[i] = OutputsMode.Discharge;
+            }
+            // Other hours - mixed strategy
+            else
+            {
+                chromosome.Genes[i] = (OutputsMode)_random.Next(0, 3);
+            }
+        }
+    }
+
+    private async Task<List<Chromosome>> EvaluatePopulation(List<Chromosome> population, List<TimeSegment> baseSegments, LocalDate date)
+    {
+        var evaluatedPopulation = new List<Chromosome>();
+        
+        foreach (var chromosome in population)
+        {
+            var fitness = await EvaluateChromosome(chromosome, baseSegments, date);
+            chromosome.Fitness = fitness;
+            evaluatedPopulation.Add(chromosome);
+        }
+        
+        return evaluatedPopulation;
+    }
+
+    private async Task<double> EvaluateChromosome(Chromosome chromosome, List<TimeSegment> baseSegments, LocalDate date)
+    {
+        // Create a copy of segments for this evaluation
+        var testSegments = CloneSegments(baseSegments);
+        
+        // Apply chromosome to segments
+        ApplyChromosomeToSegments(chromosome, testSegments);
+        
+        // Run simulation
+        await _houseSimulator.RunSimulation(testSegments, date);
+        
+        // Calculate total cost (fitness = cost, lower is better)
+        var totalCost = testSegments.CalculatePlanCost();
+        
+        // Add penalty for constraint violations (e.g., excessive battery cycling)
+        var penalty = CalculatePenalty(testSegments);
+        
+        return (double)totalCost.PoundsAmount + penalty;
+    }
+
+    private double CalculatePenalty(List<TimeSegment> segments)
+    {
+        double penalty = 0;
+        
+        // Penalty for excessive battery cycling (rapid charge/discharge changes)
+        for (int i = 1; i < segments.Count; i++)
+        {
+            var prevMode = segments[i - 1].Mode;
+            var currentMode = segments[i].Mode;
+            
+            // Small penalty for switching from charge to discharge or vice versa
+            if ((prevMode != OutputsMode.Discharge && currentMode == OutputsMode.Discharge) ||
+                (prevMode == OutputsMode.Discharge && currentMode != OutputsMode.Discharge))
+            {
+                penalty += 0.001; // Small penalty to encourage smoother transitions
             }
         }
         
-        return (totalCost, optimalModes);
+        // Penalty for battery going to extreme states too often
+        var lowBatteryCount = segments.Count(s => s.EndBatteryChargeKwh.Value < 1.0f);
+        var highBatteryCount = segments.Count(s => s.EndBatteryChargeKwh.Value > 9.0f);
+        
+        penalty += lowBatteryCount * 0.001;
+        penalty += highBatteryCount * 0.001;
+        
+        return penalty;
     }
 
-    private List<OutputsMode> GetPossibleModes()
+    private List<Chromosome> CreateNextGeneration(List<Chromosome> evaluatedPopulation)
     {
-        return new List<OutputsMode>
-        {
-            OutputsMode.Discharge,
-            OutputsMode.ChargeSolarOnly,
-            OutputsMode.ChargeFromGridAndSolar
-        };
-    }
-
-    private IEnumerable<Kwh> GetPossibleBatteryStates(int segmentIndex, List<TimeSegment> segments)
-    {
-        // Discretize battery states to reduce state space
-        // Use 0.5 kWh increments for reasonable precision vs performance trade-off
-        var increment = 0.5m.Kwh();
-        var maxCapacity = _batteryPredictor.Capacity;
+        var nextGeneration = new List<Chromosome>(POPULATION_SIZE);
         
-        var states = new List<Kwh>();
-        for (var state = Kwh.Zero; state <= maxCapacity; state += increment)
+        // Elitism - keep the best chromosomes
+        for (int i = 0; i < ELITE_SIZE; i++)
         {
-            states.Add(state);
+            nextGeneration.Add(new Chromosome(evaluatedPopulation[i]));
         }
         
-        // Add exact capacity value if not already included
-        if (!states.Any(s => s == maxCapacity))
+        // Fill the rest with offspring from crossover and mutation
+        while (nextGeneration.Count < POPULATION_SIZE)
         {
-            states.Add(maxCapacity);
-        }
-        
-        return states;
-    }
-
-    private async Task<Gbp> CalculateCostForModeAndState(
-        List<TimeSegment> baseSegments, 
-        int segmentIndex, 
-        Kwh batteryState, 
-        OutputsMode mode,
-        Dictionary<(int, Kwh), (Gbp, OutputsMode)> dp,
-        LocalDate date)
-    {
-        // Create temporary segment for cost calculation
-        var tempSegment = CloneSegment(baseSegments[segmentIndex]);
-        tempSegment.Mode = mode;
-        tempSegment.StartBatteryChargeKwh = batteryState;
-        
-        // Simulate this segment
-        SimulateSingleSegment(tempSegment);
-        
-        // Calculate immediate cost
-        var immediateCost = tempSegment.Cost();
-        
-        // If this is the last segment, return immediate cost
-        if (segmentIndex == baseSegments.Count - 1)
-        {
-            return immediateCost;
-        }
-        
-        // Look up future cost from DP table
-        var nextBatteryState = RoundBatteryCharge(tempSegment.EndBatteryChargeKwh);
-        var nextSegmentIndex = segmentIndex + 1;
-        
-        if (dp.ContainsKey((nextSegmentIndex, nextBatteryState)))
-        {
-            var futureCost = dp[(nextSegmentIndex, nextBatteryState)].Item1;
-            return immediateCost + futureCost;
-        }
-        
-        // If future state not in DP table, estimate with default mode
-        return immediateCost + await EstimateFutureCost(baseSegments, nextSegmentIndex, nextBatteryState, date);
-    }
-
-    private async Task<Gbp> EstimateFutureCost(List<TimeSegment> baseSegments, int fromSegmentIndex, Kwh batteryState, LocalDate date)
-    {
-        // Simple heuristic: assume discharge mode for remaining segments
-        var estimatedCost = Gbp.Zero;
-        var currentBatteryCharge = batteryState;
-        
-        for (int i = fromSegmentIndex; i < baseSegments.Count; i++)
-        {
-            var tempSegment = CloneSegment(baseSegments[i]);
-            tempSegment.Mode = OutputsMode.Discharge;
-            tempSegment.StartBatteryChargeKwh = currentBatteryCharge;
+            var parent1 = TournamentSelection(evaluatedPopulation);
+            var parent2 = TournamentSelection(evaluatedPopulation);
             
-            SimulateSingleSegment(tempSegment);
-            estimatedCost += tempSegment.Cost();
-            currentBatteryCharge = tempSegment.EndBatteryChargeKwh;
+            Chromosome offspring1, offspring2;
+            
+            if (_random.NextDouble() < CROSSOVER_RATE)
+            {
+                (offspring1, offspring2) = Crossover(parent1, parent2);
+            }
+            else
+            {
+                offspring1 = new Chromosome(parent1);
+                offspring2 = new Chromosome(parent2);
+            }
+            
+            Mutate(offspring1);
+            Mutate(offspring2);
+            
+            nextGeneration.Add(offspring1);
+            if (nextGeneration.Count < POPULATION_SIZE)
+            {
+                nextGeneration.Add(offspring2);
+            }
         }
         
-        return estimatedCost;
+        return nextGeneration;
     }
 
-    private TimeSegment CloneSegment(TimeSegment original)
+    private Chromosome TournamentSelection(List<Chromosome> population)
     {
-        return new TimeSegment
-        {
-            HalfHourSegment = original.HalfHourSegment,
-            ExpectedSolarGeneration = original.ExpectedSolarGeneration,
-            GridPrice = original.GridPrice,
-            ExpectedConsumption = original.ExpectedConsumption,
-            StartBatteryChargeKwh = original.StartBatteryChargeKwh,
-            EndBatteryChargeKwh = original.EndBatteryChargeKwh,
-            Mode = original.Mode,
-            WastedSolarGeneration = original.WastedSolarGeneration,
-            ActualGridUsage = original.ActualGridUsage
-        };
-    }
-
-    private void SimulateSingleSegment(TimeSegment segment)
-    {
-        // Extract simulation logic from HouseSimulator for single segment
-        var solarCapacityForSegment = segment.ExpectedSolarGeneration;
-        var gridCapacityForSegment = _batteryPredictor.GridChargePerSegment;
-        var usage = segment.ExpectedConsumption;
+        var tournament = new List<Chromosome>();
         
-        switch (segment.Mode)
+        for (int i = 0; i < TOURNAMENT_SIZE; i++)
         {
-            case OutputsMode.ChargeSolarOnly:
-                {
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarCapacityForSegment);
-                    segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    if (newCharge > _batteryPredictor.Capacity)
-                    {
-                        segment.WastedSolarGeneration = newCharge - _batteryPredictor.Capacity;
-                    }
+            var randomIndex = _random.Next(population.Count);
+            tournament.Add(population[randomIndex]);
+        }
+        
+        // Return the best chromosome from tournament
+        return tournament.OrderBy(c => c.Fitness).First();
+    }
 
-                    segment.ActualGridUsage = usage;
-                    break;
-                }
-            case OutputsMode.ChargeFromGridAndSolar:
-                {
-                    var totalChargeCapacity = solarCapacityForSegment + gridCapacityForSegment;
-                    var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, totalChargeCapacity);
-                    segment.EndBatteryChargeKwh = Kwh.Min(newCharge, _batteryPredictor.Capacity);
-                    
-                    if (newCharge > _batteryPredictor.Capacity)
-                    {
-                        var excessCharge = newCharge - _batteryPredictor.Capacity;
-                        segment.WastedSolarGeneration = excessCharge / 2;
-                        segment.ActualGridUsage = gridCapacityForSegment;
-                    }
-                    break;
-                }
-            case OutputsMode.Discharge:
-                {
-                    var solarSurplus = segment.ExpectedSolarGeneration - usage;
-                    if (solarSurplus < Kwh.Zero)
-                    {
-                        var solarDeficit = solarSurplus.AbsoluteValue();
-                        var batteryDischarge = Kwh.Min(segment.StartBatteryChargeKwh, solarDeficit);
-                        segment.EndBatteryChargeKwh = segment.StartBatteryChargeKwh - batteryDischarge;
-                        segment.ActualGridUsage = solarDeficit - batteryDischarge;
-                    }
-                    else
-                    {
-                        var newCharge = _batteryPredictor.PredictNewBatteryStateAfter30Minutes(segment.StartBatteryChargeKwh, solarSurplus);
-                        segment.EndBatteryChargeKwh = newCharge;
-                    }
-                    break;
-                }
-                            default:
-                throw new InvalidOperationException($"Unexpected mode: {segment.Mode}");
+    private (Chromosome, Chromosome) Crossover(Chromosome parent1, Chromosome parent2)
+    {
+        var offspring1 = new Chromosome();
+        var offspring2 = new Chromosome();
+        
+        // Two-point crossover
+        var point1 = _random.Next(1, 47);
+        var point2 = _random.Next(point1 + 1, 48);
+        
+        for (int i = 0; i < 48; i++)
+        {
+            if (i < point1 || i >= point2)
+            {
+                offspring1.Genes[i] = parent1.Genes[i];
+                offspring2.Genes[i] = parent2.Genes[i];
+            }
+            else
+            {
+                offspring1.Genes[i] = parent2.Genes[i];
+                offspring2.Genes[i] = parent1.Genes[i];
+            }
+        }
+        
+        return (offspring1, offspring2);
+    }
+
+    private void Mutate(Chromosome chromosome)
+    {
+        for (int i = 0; i < 48; i++)
+        {
+            if (_random.NextDouble() < MUTATION_RATE)
+            {
+                // Random mutation
+                chromosome.Genes[i] = (OutputsMode)_random.Next(0, 3);
+            }
+        }
+        
+        // Smart mutation - occasionally apply local optimization
+        if (_random.NextDouble() < 0.1) // 10% chance
+        {
+            ApplySmartMutation(chromosome);
         }
     }
 
-    private Kwh RoundBatteryCharge(Kwh batteryCharge)
+    private void ApplySmartMutation(Chromosome chromosome)
     {
-        // Round to nearest 0.5 kWh for consistency with discretized states
-        var roundedValue = Math.Round(batteryCharge.Value * 2, MidpointRounding.ToEven) / 2;
-        return new Kwh((decimal)roundedValue);
+        // Smart mutation: find a random segment and optimize its neighbors
+        var centerIndex = _random.Next(2, 46); // Avoid edges
+        
+        // Try to create beneficial patterns
+        if (_random.NextDouble() < 0.5)
+        {
+            // Create a charging sequence followed by discharge
+            chromosome.Genes[centerIndex - 1] = OutputsMode.ChargeFromGridAndSolar;
+            chromosome.Genes[centerIndex] = OutputsMode.ChargeFromGridAndSolar;
+            chromosome.Genes[centerIndex + 1] = OutputsMode.Discharge;
+        }
+        else
+        {
+            // Create a solar-only charging sequence
+            chromosome.Genes[centerIndex - 1] = OutputsMode.ChargeSolarOnly;
+            chromosome.Genes[centerIndex] = OutputsMode.ChargeSolarOnly;
+            chromosome.Genes[centerIndex + 1] = OutputsMode.ChargeSolarOnly;
+        }
     }
 
-    private async Task InitialiseDefaultSegmentsLoadFirst(LocalDate date, ReadOnlyCollection<HalfHourSegment> segments, List<TimeSegment> workingSegments)
+    private async Task<List<TimeSegment>> InitializeBaseSegments(LocalDate date)
     {
+        var segments = HalfHourSegments.AllSegments;
+        var baseSegments = new List<TimeSegment>();
+
         foreach (var segment in segments)
         {
             var solarGeneration = _solarPredictor.PredictSolarEnergy(date.DayOfYear, segment);
             var gridPrice = await _supplier.GetPrice(date, segment);
             var estimatedConsumption = _loadPredictor.PredictLoad(date.DayOfYear, segment);
 
-            if(gridPrice == null)
+            if (gridPrice == null)
             {
                 throw new InvalidOperationException($"No grid price found for {date} at segment {segment}");
             }
-            
+
             if (solarGeneration < Kwh.Zero)
             {
                 throw new InvalidOperationException($"Solar generation cannot be negative for {date} at segment {segment}. Value: {solarGeneration}");
             }
-            
+
             if (estimatedConsumption < Kwh.Zero)
             {
                 throw new InvalidOperationException($"Estimated consumption cannot be negative for {date} at segment {segment}. Value: {estimatedConsumption}");
             }
-            
+
             var timeSegment = new TimeSegment
             {
                 HalfHourSegment = segment,
@@ -329,11 +394,70 @@ public class BatteryChargePlanner
                 ExpectedConsumption = estimatedConsumption,
                 StartBatteryChargeKwh = Kwh.Zero,
                 EndBatteryChargeKwh = Kwh.Zero,
-                Mode = OutputsMode.Discharge,
+                Mode = OutputsMode.ChargeSolarOnly,
                 WastedSolarGeneration = Kwh.Zero
             };
 
-            workingSegments.Add(timeSegment);
+            baseSegments.Add(timeSegment);
         }
+
+        return baseSegments;
+    }
+
+    private List<TimeSegment> CloneSegments(List<TimeSegment> segments)
+    {
+        return segments.Select(s => new TimeSegment
+        {
+            HalfHourSegment = s.HalfHourSegment,
+            ExpectedSolarGeneration = s.ExpectedSolarGeneration,
+            GridPrice = s.GridPrice,
+            ExpectedConsumption = s.ExpectedConsumption,
+            StartBatteryChargeKwh = Kwh.Zero,
+            EndBatteryChargeKwh = Kwh.Zero,
+            Mode = OutputsMode.ChargeSolarOnly,
+            WastedSolarGeneration = Kwh.Zero
+        }).ToList();
+    }
+
+    private void ApplyChromosomeToSegments(Chromosome chromosome, List<TimeSegment> segments)
+    {
+        for (int i = 0; i < segments.Count && i < chromosome.Genes.Length; i++)
+        {
+            segments[i].Mode = chromosome.Genes[i];
+        }
+    }
+}
+
+/// <summary>
+/// Represents a solution candidate in the genetic algorithm
+/// Each chromosome encodes the charging mode for all 48 half-hour segments
+/// </summary>
+public class Chromosome
+{
+    public OutputsMode[] Genes { get; private set; }
+    public double Fitness { get; set; } = double.MaxValue;
+
+    public Chromosome()
+    {
+        Genes = new OutputsMode[48]; // 48 half-hour segments in a day
+    }
+
+    public Chromosome(Chromosome other)
+    {
+        Genes = new OutputsMode[48];
+        Array.Copy(other.Genes, Genes, 48);
+        Fitness = other.Fitness;
+    }
+
+    public override string ToString()
+    {
+        var modes = Genes.Select(g => g switch
+        {
+            OutputsMode.ChargeSolarOnly => "S",
+            OutputsMode.ChargeFromGridAndSolar => "G",
+            OutputsMode.Discharge => "D",
+            _ => "?"
+        });
+        return string.Join("", modes) + $" (Fitness: £{Fitness:F4})";
     }
 }

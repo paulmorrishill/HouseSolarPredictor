@@ -16,7 +16,7 @@ namespace HouseSolarPredictor.Tests;
 
 public class BatteryChargePlannerTests
 {
-    private BatteryChargePlanner _batteryChargePlanner;
+    private GeneticAlgorithmBatteryChargePlanner _batteryChargePlanner;
     private ISolarPredictor _solarPredictor;
     private ILoadPredictor _loadPredictor;
     private ISupplier _supplier;
@@ -33,7 +33,7 @@ public class BatteryChargePlannerTests
 
         var testBatteryPredictor = new TestBatteryPredictor();
         var houseSimulator = new HouseSimulator(testBatteryPredictor);
-        _batteryChargePlanner = new BatteryChargePlanner(_solarPredictor, 
+        _batteryChargePlanner = new GeneticAlgorithmBatteryChargePlanner(_solarPredictor, 
             _loadPredictor, 
             _supplier, 
             testBatteryPredictor, 
@@ -309,58 +309,105 @@ public class BatteryChargePlannerTests
         actualCost.Should().BeLessThanOrEqualTo(costThreshold,
             $"The plan cost (£{actualCost:F2}) should not exceed the threshold (£{costThreshold:F2})");
     }
-    
     private void PrintPlanTable(List<TimeSegment> chargePlan)
     {
-        // Define column widths
-        const int timeWidth = 12;
-        const int modeWidth = 30;
-        const int numberWidth = 10;
-        
-        // Print header
-        var header = $"| {"Time",-timeWidth} | {"Mode",-modeWidth} | {"Solar",-numberWidth} | {"Load",-numberWidth} | " +
-                     $"{"Price",-numberWidth} | {"Batt Start",-numberWidth} | {"Batt End",-numberWidth} | " +
-                     $"{"Wasted",-numberWidth} | {"Cost",-numberWidth} |";
-        
-        var separator = new string('-', header.Length);
-        
-        Console.WriteLine(separator);
-        Console.WriteLine(header);
-        Console.WriteLine(separator);
-        
-        // Print each row
-        Gbp totalCost = Gbp.Zero;
-        Kwh totalWastedSolar = Kwh.Zero;
+        if (!chargePlan.Any())
+        {
+            Console.WriteLine("No charge plan data to display.");
+            return;
+        }
+
+        // Define column configurations
+        var columns = new List<ColumnConfig>
+        {
+            new("Time", c => FormatTime(c.HalfHourSegment)),
+            new("Mode", c => c.Mode.ToString()),
+            new("Solar", c => c.ExpectedSolarGeneration.Value.ToString("F2")),
+            new("Load", c => c.ExpectedConsumption.Value.ToString("F2")),
+            new("Grid", c => c.ActualGridUsage.Value.ToString("F2")),
+            new("Price", c => c.GridPrice.PricePerKwh.PoundsAmount.ToString("F2")),
+            new("Batt Start", c => c.StartBatteryChargeKwh.Value.ToString("F2")),
+            new("Batt End", c => c.EndBatteryChargeKwh.Value.ToString("F2")),
+            new("Wasted", c => (c.WastedSolarGeneration ?? Kwh.Zero).Value.ToString("F2")),
+            new("Cost", c => c.Cost().ToString())
+        };
+
+        // Calculate column widths based on content
+        foreach (var column in columns)
+        {
+            // Start with header width
+            column.Width = column.Header.Length;
+            
+            // Check all data rows
+            foreach (var segment in chargePlan)
+            {
+                var cellValue = column.ValueSelector(segment);
+                column.Width = Math.Max(column.Width, cellValue.Length);
+            }
+            
+            // Add padding
+            column.Width += 2;
+        }
+
+        // Calculate totals
+        var totalCost = chargePlan.CalculatePlanCost();
+        var totalWastedSolar = chargePlan.Sum(s => (s.WastedSolarGeneration ?? Kwh.Zero).Value);
+
+        // Print table
+        PrintSeparator(columns);
+        PrintRow(columns, columns.Select(c => c.Header));
+        PrintSeparator(columns);
         
         foreach (var segment in chargePlan)
         {
-            var time = $"{segment.HalfHourSegment.HourStart:D2}:{segment.HalfHourSegment.MinuteStart:D2}-{segment.HalfHourSegment.HourEnd:D2}:{segment.HalfHourSegment.MinuteEnd:D2}";
-            var solar = segment.ExpectedSolarGeneration;
-            var load = segment.ExpectedConsumption;
-            var price = segment.GridPrice;
-            var battStart = segment.StartBatteryChargeKwh;
-            var battEnd = segment.EndBatteryChargeKwh;
-            var wasted = segment.WastedSolarGeneration ?? Kwh.Zero;
-            
-            // Calculate segment cost
-            Gbp segmentCost = segment.Cost();
-            totalCost += segmentCost;
-            totalWastedSolar += wasted;
-            
-            var row = $"| {time,-timeWidth} | {segment.Mode,-modeWidth} | {solar.Value,numberWidth:F2} | {load.Value,numberWidth:F2} | " +
-                      $"{price.PricePerKwh.PoundsAmount,numberWidth:F2} | {battStart.Value,numberWidth:F2} | {battEnd.Value,numberWidth:F2} | " +
-                      $"{wasted.Value,numberWidth:F2} | {segmentCost,numberWidth:F2} |";
-            
-            Console.WriteLine(row);
+            PrintRow(columns, columns.Select(c => c.ValueSelector(segment)));
         }
         
-        Console.WriteLine(separator);
-        Console.WriteLine($"| {"TOTAL",-timeWidth} | {"",-modeWidth} | {"",-numberWidth} | {"",-numberWidth} | " +
-                          $"{"",-numberWidth} | {"",-numberWidth} | {"",-numberWidth} | " +
-                          $"{totalWastedSolar,numberWidth:F2} | {totalCost,numberWidth:F2} |");
-        Console.WriteLine(separator);
+        PrintSeparator(columns);
+        
+        // Print totals row
+        var totalRowValues = columns.Select((c, i) => i switch
+        {
+            0 => "TOTAL",
+            8 => totalWastedSolar.ToString("F2"), // Wasted column
+            9 => totalCost.ToString(),        // Cost column
+            _ => ""
+        });
+        
+        PrintRow(columns, totalRowValues);
+        PrintSeparator(columns);
     }
 
+    private static string FormatTime(HalfHourSegment segment)
+    {
+        return $"{segment.HourStart:D2}:{segment.MinuteStart:D2}-{segment.HourEnd:D2}:{segment.MinuteEnd:D2}";
+    }
+
+    private static void PrintSeparator(List<ColumnConfig> columns)
+    {
+        var separator = string.Join("+", columns.Select(c => new string('-', c.Width + 2)));
+        Console.WriteLine("+" + separator + "+");
+    }
+
+    private static void PrintRow(List<ColumnConfig> columns, IEnumerable<string> values)
+    {
+        var cells = columns.Zip(values, (col, val) => $" {val.PadRight(col.Width)} ");
+        Console.WriteLine("|" + string.Join("|", cells) + "|");
+    }
+
+    private class ColumnConfig
+    {
+        public string Header { get; }
+        public Func<TimeSegment, string> ValueSelector { get; }
+        public int Width { get; set; }
+
+        public ColumnConfig(string header, Func<TimeSegment, string> valueSelector)
+        {
+            Header = header;
+            ValueSelector = valueSelector;
+            Width = header.Length;
+        }
+    }
     private void GivenPriceForAllSegmentsIs(decimal price)
     {
         foreach (var segment in HalfHourSegments.AllSegments)
