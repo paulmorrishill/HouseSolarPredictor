@@ -141,10 +141,3 @@ class Program
     }
 
 }
-
-internal class ElectricitySupplierException : Exception
-{
-    public ElectricitySupplierException(string s) : base(s)
-    {
-    }
-}

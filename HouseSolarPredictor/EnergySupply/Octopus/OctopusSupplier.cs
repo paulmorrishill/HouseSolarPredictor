@@ -35,10 +35,3 @@ public class OctopusSupplier: ISupplier
          return new ElectricityRate(pricePerKwh);
     }
 }
-
-public record CacheKey
-{
-    public CacheKey(LocalDate date, HalfHourSegment halfHourSegment)
-    {
-    }
-}
