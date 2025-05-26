@@ -32,7 +32,7 @@ public class BatteryChargePlannerTests
         var houseSimulator = new HouseSimulator(testBatteryPredictor);
         var fileLogger = new FileLogger("test.log");
         var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(testBatteryPredictor, houseSimulator, fileLogger);
-        var geneticPlanOptimiser = new GeneticAlgorithmPlanOptimiser(houseSimulator, fileLogger);
+        var geneticPlanOptimiser = new GeneticAlgorithmPlanOptimiser(houseSimulator, fileLogger, 200);
         _planOptimiser = new ChargePlanner(_solarPredictor,
             _loadPredictor,
             _supplier,

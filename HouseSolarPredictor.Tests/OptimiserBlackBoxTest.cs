@@ -54,7 +54,8 @@ public class OptimiserBlackBoxTests
         // Define the optimizers to test
         var optimizers = new List<OptimizerConfig>
         {
-            new("Genetic", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger)),
+            new("Genetic400", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 400)),
+            new("Genetic200", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 200)),
             new("Graph", () => new GraphBasedPlanOptimiser(_testBatteryPredictor, _houseSimulator, _fileLogger)),
             new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor))
         };
@@ -132,19 +133,12 @@ public class OptimiserBlackBoxTests
         foreach (var optimizer in optimizers)
         {
             printer
-                .AddColumn($"{optimizer.Name} Cost", scenario => 
+                .AddColumn($"{optimizer.Name} Cost", scenario =>
                 {
                     var result = results[optimizer.Name][scenario.Name];
-                    return !string.IsNullOrEmpty(result.Error) 
-                        ? "ERROR" 
+                    return !string.IsNullOrEmpty(result.Error)
+                        ? "ERROR"
                         : $"£{result.ActualCost:F2}";
-                })
-                .AddColumn($"{optimizer.Name} Score", scenario => 
-                {
-                    var result = results[optimizer.Name][scenario.Name];
-                    return !string.IsNullOrEmpty(result.Error) 
-                        ? "0" 
-                        : $"{CalculateScore(scenario.ExpectedOptimalCost, result.ActualCost):F1}";
                 });
         }
 

@@ -29,7 +29,7 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
 
     public GeneticAlgorithmPlanOptimiser(
         IHouseSimulator houseSimulator, 
-        ILogger logger)
+        ILogger logger, int generations)
     {
         _houseSimulator = houseSimulator;
         _logger = logger;
