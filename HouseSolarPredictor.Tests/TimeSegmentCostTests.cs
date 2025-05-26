@@ -274,7 +274,7 @@ public class TimeSegmentCostTests
     }
 
     [Test]
-    public void Cost_ZeroGridPrice_ReturnsZero()
+    public void GridAndSolarItIncreasesActualGridUsage()
     {
         // Arrange
         var segment = CreateTimeSegment(

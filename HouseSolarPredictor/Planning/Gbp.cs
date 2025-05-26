@@ -30,4 +30,10 @@ public record Gbp(decimal PoundsAmount)
     // Zero
     public static Gbp Zero => new Gbp(0);
     public static Gbp MaxValue => new Gbp(decimal.MaxValue);
+    
+    // tostring
+    public override string ToString()
+    {
+        return $"{PoundsAmount:C2}";
+    }
 }

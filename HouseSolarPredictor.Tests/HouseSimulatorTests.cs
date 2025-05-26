@@ -93,8 +93,8 @@ public class HouseSimulatorTests
             {
                 Mode = OutputsMode.ChargeFromGridAndSolar,
                 ExpectedSolarGeneration = 3.Kwh(),
-                ExpectedConsumption = 0.Kwh(),
-                StartBatteryChargeKwh = 2.Kwh(),
+                ExpectedConsumption = 1.5m.Kwh(),
+                StartBatteryChargeKwh = 4.5m.Kwh(),
                 EndBatteryChargeKwh = 0.Kwh(),
             }
         };

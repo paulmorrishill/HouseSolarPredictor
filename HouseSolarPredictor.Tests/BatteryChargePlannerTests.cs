@@ -37,7 +37,8 @@ public class BatteryChargePlannerTests
             _loadPredictor, 
             _supplier, 
             testBatteryPredictor, 
-            houseSimulator);
+            houseSimulator,
+            new FileLogger("test.log"));
     }
 
     [Test]
@@ -102,8 +103,8 @@ public class BatteryChargePlannerTests
         
         // Each segment: 5kWh solar, 2kWh load = 3kWh excess
         // Can charge battery with up to 10kWh total, so first ~3.33 segments charge battery
-        // Remaining ~8.67 segments have 3kWh excess each = ~26kWh wasted
-        // Total wasted: 26kWh * £5 penalty = £130
+        // Total excess solar: 3 * 12 = 36kWh
+        // Wasted solar: 36 - 10 = 26kWh (assuming battery capacity is 10kWh)
         decimal optimalCost = 130m;
         
         AssertPlanCost(chargePlan, optimalCost);
@@ -313,7 +314,7 @@ public class BatteryChargePlannerTests
     {
         // Define column widths
         const int timeWidth = 12;
-        const int modeWidth = 20;
+        const int modeWidth = 30;
         const int numberWidth = 10;
         
         // Print header
@@ -381,6 +382,41 @@ public class BatteryChargePlannerTests
         foreach (var segment in HalfHourSegments.AllSegments)
         {
             _solarPredictor.PredictSolarEnergy(_testDay.DayOfYear, segment).Returns(new Kwh(solarGenForSegment));
+        }
+    }
+}
+
+public class FileLogger : ILogger
+{
+    private string _filePath;
+    // buffer
+    private const int BufferSize = 3000;
+    private StringBuilder _logBuffer = new StringBuilder();
+    
+    public FileLogger(string file)
+    {
+        _filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file);
+        // delete
+        if (File.Exists(_filePath))
+        {
+            File.Delete(_filePath);
+        }
+    }
+
+    public void Log(string message)
+    {
+        _logBuffer.AppendLine(message);
+        
+        // If buffer exceeds size, write to file
+        if (_logBuffer.Length >= BufferSize)
+        {
+            // if file too large truncate
+            if (File.Exists(_filePath) && new FileInfo(_filePath).Length > 1000000) // 1MB limit
+            {
+                File.WriteAllText(_filePath, string.Empty); // clear file
+            }
+            File.AppendAllText(_filePath, _logBuffer.ToString());
+            _logBuffer.Clear();
         }
     }
 }

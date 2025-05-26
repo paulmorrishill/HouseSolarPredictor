@@ -84,6 +84,17 @@ public record Kwh(float Value)
         return a.Value < b.Value;
     }
     
+    // <= and >=
+    public static bool operator <=(Kwh a, Kwh b)
+    {
+        return a.Value <= b.Value;
+    }
+    
+    public static bool operator >=(Kwh a, Kwh b)
+    {
+        return a.Value >= b.Value;
+    }
+    
     public override string ToString()
     {
         return $"{Value:F2} kWh";
