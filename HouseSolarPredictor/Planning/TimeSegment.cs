@@ -31,7 +31,7 @@ public class TimeSegment
         var gridCost = Gbp.Zero;
         decimal wastedSolarCost = 0;
         
-        var solarUsed = Time.Kwh.Min(segment.ExpectedSolarGeneration, segment.ExpectedConsumption);
+        var solarUsed = Time.Kwh.Min(segment.ExpectedSolarGeneration, segment.ActualGridUsage);
         var batteryContribution = Time.Kwh.Zero;
         
         if (segment.Mode == OutputsMode.Discharge)
@@ -40,7 +40,7 @@ public class TimeSegment
         }
         
         // Calculate grid electricity used (load - solar - battery)
-        var gridUsed = segment.ExpectedConsumption - solarUsed - batteryContribution;
+        var gridUsed = segment.ActualGridUsage - solarUsed - batteryContribution;
         if (gridUsed.Value < 0)
             gridUsed = Time.Kwh.Zero;
             

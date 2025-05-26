@@ -10,7 +10,7 @@ public class TimeSegmentCostTests
     private TimeSegment CreateTimeSegment(
         decimal solarGeneration = 0,
         decimal gridPricePence = 20,
-        decimal estimatedConsumption = 0,
+        decimal gridConsumed = 0,
         decimal startBatteryCharge = 0,
         decimal endBatteryCharge = 0,
         OutputsMode mode = OutputsMode.ChargeSolarOnly,
@@ -20,7 +20,7 @@ public class TimeSegmentCostTests
         {
             ExpectedSolarGeneration = solarGeneration.Kwh(),
             GridPrice = new ElectricityRate(new Gbp(gridPricePence/100)), // Assuming constructor takes pence
-            ExpectedConsumption = estimatedConsumption.Kwh(),
+            ActualGridUsage = gridConsumed.Kwh(),
             StartBatteryChargeKwh = startBatteryCharge.Kwh(),
             EndBatteryChargeKwh = endBatteryCharge.Kwh(),
             Mode = mode,
@@ -34,7 +34,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 5,
-            estimatedConsumption: 0,
+            gridConsumed: 0,
             gridPricePence: 20
         );
 
@@ -51,7 +51,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 5,
-            estimatedConsumption: 3,
+            gridConsumed: 3,
             gridPricePence: 20
         );
 
@@ -68,7 +68,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 0,
-            estimatedConsumption: 4,
+            gridConsumed: 4,
             gridPricePence: 25 // 25p per kWh
         );
 
@@ -85,7 +85,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 2,
-            estimatedConsumption: 5,
+            gridConsumed: 5,
             gridPricePence: 30
         );
 
@@ -102,7 +102,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 1,
-            estimatedConsumption: 5,
+            gridConsumed: 5,
             startBatteryCharge: 8,
             endBatteryCharge: 6, // 2 kWh discharged
             mode: OutputsMode.Discharge,
@@ -126,7 +126,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 1,
-            estimatedConsumption: 5,
+            gridConsumed: 5,
             startBatteryCharge: 8,
             endBatteryCharge: 6,
             mode: OutputsMode.ChargeSolarOnly, // Not discharge mode
@@ -148,7 +148,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 2,
-            estimatedConsumption: 4,
+            gridConsumed: 4,
             startBatteryCharge: 10,
             endBatteryCharge: 8, // 2 kWh discharged
             mode: OutputsMode.Discharge,
@@ -169,7 +169,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 3,
-            estimatedConsumption: 4,
+            gridConsumed: 4,
             startBatteryCharge: 10,
             endBatteryCharge: 8, // 2 kWh discharged
             mode: OutputsMode.Discharge,
@@ -191,7 +191,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 2,
-            estimatedConsumption: 5,
+            gridConsumed: 5,
             wastedSolar: 1.5m,
             gridPricePence: 20
         );
@@ -212,7 +212,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 10,
-            estimatedConsumption: 10,
+            gridConsumed: 10,
             wastedSolar: 0,
             gridPricePence: 20,
             mode: OutputsMode.Discharge
@@ -234,7 +234,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 10,
-            estimatedConsumption: 10,
+            gridConsumed: 10,
             wastedSolar: 10,
             gridPricePence: 20,
             mode: OutputsMode.ChargeSolarOnly
@@ -252,7 +252,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 3,
-            estimatedConsumption: 8,
+            gridConsumed: 8,
             startBatteryCharge: 12,
             endBatteryCharge: 10, // 2 kWh discharged
             mode: OutputsMode.Discharge,
@@ -279,7 +279,7 @@ public class TimeSegmentCostTests
         // Arrange
         var segment = CreateTimeSegment(
             solarGeneration: 0,
-            estimatedConsumption: 5,
+            gridConsumed: 5,
             gridPricePence: 0,
             wastedSolar: 2
         );
@@ -297,7 +297,7 @@ public class TimeSegmentCostTests
         // Arrange - scenario where solar + battery > consumption
         var segment = CreateTimeSegment(
             solarGeneration: 10,
-            estimatedConsumption: 3,
+            gridConsumed: 3,
             startBatteryCharge: 10,
             endBatteryCharge: 8, // 2 kWh discharged
             mode: OutputsMode.Discharge,

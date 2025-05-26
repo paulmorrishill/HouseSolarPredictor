@@ -116,9 +116,17 @@ public class BatteryChargePlanner
         
         if (fromIndex >= segments.Count)
             return "END";
-            
-        return fromIndex.ToString() + segments[fromIndex].EndBatteryChargeKwh + segments[fromIndex].StartBatteryChargeKwh 
-               + segments[fromIndex].Mode;
+
+        var segment = segments[fromIndex];
+        var keyElements = new List<string>
+        {
+            fromIndex.ToString(),
+            segment.EndBatteryChargeKwh.ToString(),
+            segment.StartBatteryChargeKwh.ToString(),
+            segment.Mode.ToString()
+        };
+        var cacheKey = string.Join("|", keyElements);
+        return cacheKey;
     }
 
     private async Task InitialiseDefaultSegmentsLoadFirst(LocalDate date, ReadOnlyCollection<HalfHourSegment> segments, List<TimeSegment> workingSegments)
