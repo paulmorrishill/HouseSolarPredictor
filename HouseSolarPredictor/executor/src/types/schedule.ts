@@ -4,13 +4,11 @@ export enum OutputsMode {
   Discharge = "Discharge"
 }
 
-export interface time {
-  hourStart: string;
-  hourEnd: string;
-}
-
 export interface TimeSegment {
-  time: time;
+  time: {
+    segmentStart: string;  // ISO datetime string (YYYY-MM-DDTHH:MM:SS)
+    segmentEnd: string;    // ISO datetime string (YYYY-MM-DDTHH:MM:SS)
+  };
   expectedSolarGeneration: number; // kWh
   gridPrice: number; // pence per kWh
   expectedConsumption: number; // kWh
@@ -19,6 +17,18 @@ export interface TimeSegment {
   mode: OutputsMode;
   wastedSolarGeneration: number; // kWh
   actualGridUsage: number; // kWh
+  cost?: {
+    poundsAmount: number;
+  };
+}
+
+// DateTime utility interface for datetime operations
+export interface DateTimeUtilities {
+  parseDateTime(dateTimeString: string): Date;
+  isCurrentTimeInRange(start: Date, end: Date): boolean;
+  calculateTimeUntil(targetDateTime: Date): string;
+  formatDateTime(date: Date): string;
+  formatTimeOnly(date: Date): string;
 }
 
 export interface SystemState {

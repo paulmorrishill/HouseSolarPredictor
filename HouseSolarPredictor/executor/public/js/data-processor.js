@@ -37,120 +37,82 @@ class DataProcessor {
     }
 
     processModeTimelineData(scheduleData) {
-        const data = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        if (!Array.isArray(scheduleData)) return [];
 
+        const data = [];
         scheduleData.forEach(segment => {
-            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
-            const endTime = this.parseTimeToDate(segment.time.hourEnd, today);
-            
+            const startTime = this.parseDateTime(segment.time.segmentStart);
+            const endTime = this.parseDateTime(segment.time.segmentEnd);
             const modeValue = this.convertModeToNumeric(segment.mode);
-            
-            // Add start point
-            data.push({
-                x: startTime,
-                y: modeValue
-            });
-            
-            // Add end point for step effect
-            data.push({
-                x: endTime,
-                y: modeValue
-            });
+
+            data.push({ x: startTime, y: modeValue });
+            data.push({ x: endTime, y: modeValue });
         });
 
-        return data;
+        return data.sort((a, b) => a.x - b.x);
     }
 
     processBatteryScheduleData(scheduleData) {
-        const data = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        if (!Array.isArray(scheduleData)) return [];
 
+        const data = [];
         scheduleData.forEach(segment => {
-            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
-            const endTime = this.parseTimeToDate(segment.time.hourEnd, today);
-            
-            // Add start point
+            const startTime = this.parseDateTime(segment.time.segmentStart);
+            const endTime = this.parseDateTime(segment.time.segmentEnd);
+
             data.push({
                 x: startTime,
                 y: segment.startBatteryChargeKwh
             });
-            
-            // Add end point for interpolation
             data.push({
                 x: endTime,
                 y: segment.endBatteryChargeKwh
             });
         });
 
-        return data;
+        return data.sort((a, b) => a.x - b.x);
     }
 
     processGridPricingData(scheduleData) {
-        const data = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        if (!Array.isArray(scheduleData)) return [];
 
+        const data = [];
         scheduleData.forEach(segment => {
-            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
-            const endTime = this.parseTimeToDate(segment.time.hourEnd, today);
-            
-            // Convert pence to pounds
-            const priceInPounds = segment.gridPrice / 100;
-            
-            // Add start point
-            data.push({
-                x: startTime,
-                y: priceInPounds
-            });
-            
-            // Add end point for step effect
-            data.push({
-                x: endTime,
-                y: priceInPounds
-            });
+            const startTime = this.parseDateTime(segment.time.segmentStart);
+            const endTime = this.parseDateTime(segment.time.segmentEnd);
+            const priceInPounds = segment.gridPrice;
+
+            data.push({ x: startTime, y: priceInPounds });
+            data.push({ x: endTime, y: priceInPounds });
         });
 
-        return data;
+        return data.sort((a, b) => a.x - b.x);
     }
 
     processPowerFlowData(scheduleData) {
+        if (!Array.isArray(scheduleData)) return { load: [], grid: [], solar: [] };
+
         const loadData = [];
         const gridData = [];
         const solarData = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
         scheduleData.forEach(segment => {
-            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
+            const startTime = this.parseDateTime(segment.time.segmentStart);
             
             // Convert kWh to kW (divide by 0.5 for 30-minute segments)
             const loadKw = segment.expectedConsumption / 0.5;
             const gridKw = segment.actualGridUsage / 0.5;
             const solarKw = segment.expectedSolarGeneration / 0.5;
-            
-            loadData.push({
-                x: startTime,
-                y: loadKw
-            });
-            
-            gridData.push({
-                x: startTime,
-                y: gridKw
-            });
-            
-            solarData.push({
-                x: startTime,
-                y: solarKw
-            });
+
+            loadData.push({ x: startTime, y: loadKw });
+            gridData.push({ x: startTime, y: gridKw });
+            solarData.push({ x: startTime, y: solarKw });
         });
 
         return {
-            load: loadData,
-            grid: gridData,
-            solar: solarData
+            load: loadData.sort((a, b) => a.x - b.x),
+            grid: gridData.sort((a, b) => a.x - b.x),
+            solar: solarData.sort((a, b) => a.x - b.x)
         };
     }
 
@@ -163,51 +125,58 @@ class DataProcessor {
         return modeMap[mode] || 0;
     }
 
-    parseTimeToDate(timeString, baseDate) {
-        const [hours, minutes, seconds] = timeString.split(':').map(Number);
-        const date = new Date(baseDate);
-        date.setHours(hours, minutes, seconds || 0, 0);
+    // DateTime parsing - NO time-only support
+    parseDateTime(dateTimeString) {
+        const date = new Date(dateTimeString);
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid datetime format: ${dateTimeString}`);
+        }
         return date;
     }
 
-    parseTimeString(timeStr) {
-        // Convert HH:MM:SS to minutes since midnight
-        const parts = timeStr.split(':').map(Number);
-        return parts[0] * 60 + parts[1] + parts[2] / 60;
-    }
-
     getExpectedBatteryLevel(timestamp, schedule) {
-        if (!schedule || !Array.isArray(schedule)) {
-            return null;
-        }
+        if (!schedule || !Array.isArray(schedule)) return null;
 
-        const time = new Date(timestamp);
-        const timeString = time.toTimeString().slice(0, 8); // HH:MM:SS format
-        
-        // Find the schedule block that contains this time
+        const targetTime = new Date(timestamp);
+
         for (const block of schedule) {
-            if (timeString >= block.time.hourStart && timeString < block.time.hourEnd) {
-                // Interpolate between start and end battery levels
-                const startLevel = block.startBatteryChargeKwh || 0;
-                const endLevel = block.endBatteryChargeKwh || 0;
+            const startTime = this.parseDateTime(block.time.segmentStart);
+            const endTime = this.parseDateTime(block.time.segmentEnd);
 
-                // Calculate progress through the time segment
-                const segmentStart = this.parseTimeString(block.time.hourStart);
-                const segmentEnd = this.parseTimeString(block.time.hourEnd);
-                const currentTime = this.parseTimeString(timeString);
-
-                const segmentDuration = segmentEnd - segmentStart;
-                const elapsed = currentTime - segmentStart;
+            if (targetTime >= startTime && targetTime < endTime) {
+                // Linear interpolation between start and end battery levels
+                const segmentDuration = endTime.getTime() - startTime.getTime();
+                const elapsed = targetTime.getTime() - startTime.getTime();
                 const progress = segmentDuration > 0 ? elapsed / segmentDuration : 0;
 
-                // Linear interpolation between start and end levels
-                const interpolatedLevel = startLevel + (endLevel - startLevel) * progress;
+                const interpolatedLevel = block.startBatteryChargeKwh +
+                       (block.endBatteryChargeKwh - block.startBatteryChargeKwh) * progress;
                 return Math.max(0, Math.min(10, interpolatedLevel));
             }
         }
 
-        console.warn('Unable to find expected battery level for time:', timestamp);
         return null;
+    }
+
+    // DateTime utility methods - system timezone only
+    formatDateTime(dateTime) {
+        return new Date(dateTime).toLocaleString();
+    }
+
+    formatTimeOnly(dateTime) {
+        return new Date(dateTime).toLocaleTimeString();
+    }
+
+    formatDateOnly(dateTime) {
+        return new Date(dateTime).toLocaleDateString();
+    }
+
+    isDateTimeInRange(targetDateTime, startDateTime, endDateTime) {
+        const target = new Date(targetDateTime);
+        const start = new Date(startDateTime);
+        const end = new Date(endDateTime);
+        
+        return target >= start && target < end;
     }
 
     calculateCost(metrics) {

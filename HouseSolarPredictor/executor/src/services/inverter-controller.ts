@@ -492,11 +492,12 @@ export class InverterController {
   getCurrentMetrics() {
     const remainingBatteryKwh = this.getRemainingBatteryKwh();
     const nextScheduleInfo = this.getNextScheduleInfo();
-    
+    const remainingChargePercent = this.currentMetrics.batteryCharge ?? 0;
     return {
       ...this.currentMetrics,
       remainingBatteryKwh,
       nextScheduleInfo,
+      remainingChargePercent,
       timestamp: Date.now()
     };
   }
@@ -515,38 +516,23 @@ export class InverterController {
     }
 
     const now = new Date();
-    const nextStartTime = this.parseTimeString(nextSegment.time.hourStart);
+    const nextStartTime = new Date(nextSegment.time.segmentStart);
     
-    // Calculate time until next segment
-    let timeUntil = "";
+    // Calculate time until next segment (system timezone)
     const timeDiff = nextStartTime.getTime() - now.getTime();
-    if (timeDiff > 0) {
-      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-      timeUntil = `${hours}h ${minutes}m`;
-    } else {
-      // Next segment is tomorrow
-      const tomorrow = new Date(nextStartTime);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowDiff = tomorrow.getTime() - now.getTime();
-      const hours = Math.floor(tomorrowDiff / (1000 * 60 * 60));
-      const minutes = Math.floor((tomorrowDiff % (1000 * 60 * 60)) / (1000 * 60));
-      timeUntil = `${hours}h ${minutes}m`;
-    }
+    const hoursUntil = Math.floor(timeDiff / (1000 * 60 * 60));
+    const minutesUntil = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    const timeUntil = hoursUntil > 0
+      ? `${hoursUntil}h ${minutesUntil}m`
+      : `${minutesUntil}m`;
 
     return {
-      startTime: nextSegment.time.hourStart,
+      startTime: nextStartTime.toLocaleTimeString(), // System timezone
       mode: nextSegment.mode,
       expectedStartChargeKwh: nextSegment.startBatteryChargeKwh,
       timeUntil
     };
-  }
-
-  private parseTimeString(timeStr: string): Date {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date;
   }
 
   private delay(ms: number): Promise<void> {

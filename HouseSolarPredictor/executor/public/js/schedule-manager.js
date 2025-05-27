@@ -43,41 +43,26 @@ class ScheduleManager {
         }
 
         const now = new Date();
-        const currentTime = now.toTimeString().slice(0, 8); // HH:MM:SS format
-        
-        // Find the next schedule block
         let nextBlock = null;
-        let isNextDay = false;
-        
+
+        // Find next future block
         for (const block of schedule) {
-            if (block.time && block.time.hourStart > currentTime) {
+            const startTime = new Date(block.time.segmentStart);
+            if (startTime > now) {
                 nextBlock = block;
                 break;
             }
         }
-        
-        // If no block found for today, use the first block (next day)
-        if (!nextBlock && schedule.length > 0) {
-            nextBlock = schedule[0];
-            isNextDay = true;
-        }
-        
+
         if (nextBlock) {
-            // Format start time
-            const startTime = nextBlock.time.hourStart;
-            
-            // Calculate time until next block starts
-            const timeUntil = this.calculateTimeUntil(startTime, currentTime, isNextDay);
-            
-            // Format mode name
+            const startTime = new Date(nextBlock.time.segmentStart);
+            const timeUntil = this.calculateTimeUntilDateTime(startTime, now);
             const mode = this.dataProcessor.formatModeName(nextBlock.mode);
-            
-            // Format expected usage
             const usage = nextBlock.expectedConsumption
                 ? `${nextBlock.expectedConsumption.toFixed(2)} kWh`
                 : '-';
-            
-            this.uiManager.updateElement('next-start-time', startTime);
+
+            this.uiManager.updateElement('next-start-time', startTime.toLocaleTimeString());
             this.uiManager.updateElement('next-mode', mode);
             this.uiManager.updateElement('next-time-until', timeUntil);
             this.uiManager.updateElement('next-usage', usage);
@@ -89,28 +74,18 @@ class ScheduleManager {
         }
     }
 
-    calculateTimeUntil(startTime, currentTime, isNextDay) {
-        const startParts = startTime.split(':').map(Number);
-        const currentParts = currentTime.split(':').map(Number);
+    calculateTimeUntilDateTime(targetDateTime, currentDateTime) {
+        const timeDiff = targetDateTime.getTime() - currentDateTime.getTime();
         
-        const startMinutes = startParts[0] * 60 + startParts[1];
-        const currentMinutes = currentParts[0] * 60 + currentParts[1];
-        
-        let minutesUntil;
-        if (isNextDay) {
-            // Next day calculation: minutes until midnight + minutes from midnight to start
-            minutesUntil = (24 * 60 - currentMinutes) + startMinutes;
-        } else {
-            minutesUntil = startMinutes - currentMinutes;
-        }
-        
-        const hoursUntil = Math.floor(minutesUntil / 60);
-        const remainingMinutes = minutesUntil % 60;
-        
+        if (timeDiff <= 0) return "Now";
+
+        const hoursUntil = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutesUntil = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
         if (hoursUntil > 0) {
-            return `${hoursUntil}h ${remainingMinutes}m`;
+            return `${hoursUntil}h ${minutesUntil}m`;
         } else {
-            return `${remainingMinutes}m`;
+            return `${minutesUntil}m`;
         }
     }
 
@@ -120,13 +95,12 @@ class ScheduleManager {
         }
 
         const now = new Date();
-        const currentTime = now.toTimeString().slice(0, 8); // HH:MM:SS format
         
-        // Find the current schedule block
         for (const block of this.schedule) {
-            if (block.time && 
-                currentTime >= block.time.hourStart && 
-                currentTime < block.time.hourEnd) {
+            const startTime = new Date(block.time.segmentStart);
+            const endTime = new Date(block.time.segmentEnd);
+            
+            if (now >= startTime && now < endTime) {
                 return block;
             }
         }
@@ -134,39 +108,40 @@ class ScheduleManager {
         return null;
     }
 
-    getScheduleBlockAtTime(timeString) {
+    getScheduleBlockAtDateTime(targetDateTime) {
         if (!this.schedule || !Array.isArray(this.schedule)) {
             return null;
         }
-        
-        // Find the schedule block that contains this time
+
+        const target = new Date(targetDateTime);
+
         for (const block of this.schedule) {
-            if (block.time && 
-                timeString >= block.time.hourStart && 
-                timeString < block.time.hourEnd) {
+            const startTime = new Date(block.time.segmentStart);
+            const endTime = new Date(block.time.segmentEnd);
+            
+            if (target >= startTime && target < endTime) {
                 return block;
             }
         }
-        
+
         return null;
     }
 
-    getExpectedModeAtTime(timeString) {
-        const block = this.getScheduleBlockAtTime(timeString);
+    getExpectedModeAtDateTime(targetDateTime) {
+        const block = this.getScheduleBlockAtDateTime(targetDateTime);
         return block ? block.mode : null;
     }
 
-    getExpectedChargeRateAtTime(timeString) {
-        const block = this.getScheduleBlockAtTime(timeString);
+    getExpectedChargeRateAtDateTime(targetDateTime) {
+        const block = this.getScheduleBlockAtDateTime(targetDateTime);
         if (!block) return null;
-        
-        // Determine charge rate based on mode
+
         switch (block.mode) {
             case 'ChargeFromGridAndSolar':
-                return 100; // Full charge rate
+                return 100;
             case 'ChargeSolarOnly':
             case 'Discharge':
-                return 0; // No grid charging
+                return 0;
             default:
                 return null;
         }
@@ -231,11 +206,22 @@ class ScheduleManager {
             if (!block.time) {
                 errors.push(`Block ${index}: missing time field`);
             } else {
-                if (!block.time.hourStart) {
-                    errors.push(`Block ${index}: missing hourStart`);
+                if (!block.time.segmentStart) {
+                    errors.push(`Block ${index}: missing segmentStart`);
+                } else {
+                    const startDate = new Date(block.time.segmentStart);
+                    if (isNaN(startDate.getTime())) {
+                        errors.push(`Block ${index}: invalid segmentStart datetime format`);
+                    }
                 }
-                if (!block.time.hourEnd) {
-                    errors.push(`Block ${index}: missing hourEnd`);
+                
+                if (!block.time.segmentEnd) {
+                    errors.push(`Block ${index}: missing segmentEnd`);
+                } else {
+                    const endDate = new Date(block.time.segmentEnd);
+                    if (isNaN(endDate.getTime())) {
+                        errors.push(`Block ${index}: invalid segmentEnd datetime format`);
+                    }
                 }
             }
 

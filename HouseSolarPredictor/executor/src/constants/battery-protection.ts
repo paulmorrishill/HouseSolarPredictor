@@ -22,7 +22,7 @@ export const BATTERY_PROTECTION = {
    * Recovery threshold (%)
    * Battery must reach this level before exiting protection mode
    */
-  RECOVERY_THRESHOLD: 5,
+  RECOVERY_THRESHOLD: 4,
   
   /** 
    * Minimum charge rate (%)

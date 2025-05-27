@@ -26,9 +26,21 @@ export class ScheduleService {
   }
 
   private validateAndTransformSegment(segment: any): TimeSegment {
-    // Validate required fields
+    // Validate datetime format - NO backward compatibility
     if (!segment.time?.segmentStart || !segment.time?.segmentEnd) {
-      throw new Error("TimeSegment must have time with hourStart and hourEnd");
+      throw new Error("TimeSegment must have time with segmentStart and segmentEnd datetime strings");
+    }
+
+    // Validate ISO datetime format
+    const startDate = new Date(segment.time.segmentStart);
+    const endDate = new Date(segment.time.segmentEnd);
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error(`Invalid datetime format. Expected ISO format (YYYY-MM-DDTHH:MM:SS), got: ${segment.time.segmentStart}, ${segment.time.segmentEnd}`);
+    }
+
+    if (endDate <= startDate) {
+      throw new Error("Segment end time must be after start time");
     }
 
     if (!Object.values(OutputsMode).includes(segment.mode)) {
@@ -37,8 +49,8 @@ export class ScheduleService {
 
     return {
       time: {
-        hourStart: segment.time.segmentStart,
-        hourEnd: segment.time.segmentEnd
+        segmentStart: segment.time.segmentStart,
+        segmentEnd: segment.time.segmentEnd
       },
       expectedSolarGeneration: segment.expectedSolarGeneration || 0,
       gridPrice: segment.gridPrice || 0,
@@ -47,81 +59,65 @@ export class ScheduleService {
       endBatteryChargeKwh: segment.endBatteryChargeKwh || 0,
       mode: segment.mode,
       wastedSolarGeneration: segment.wastedSolarGeneration || 0,
-      actualGridUsage: segment.actualGridUsage || 0
+      actualGridUsage: segment.actualGridUsage || 0,
+      cost: segment.cost
     };
   }
 
   getCurrentTimeSegment(): TimeSegment | null {
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
     
     return this.schedule.find(segment => {
-      const startParts = segment.time.hourStart.split(':');
-      const endParts = segment.time.hourEnd.split(':');
+      const startDate = new Date(segment.time.segmentStart);
+      const endDate = new Date(segment.time.segmentEnd);
       
-      const startHour = parseInt(startParts[0]);
-      const startMinute = parseInt(startParts[1]);
-      const endHour = parseInt(endParts[0]);
-      const endMinute = parseInt(endParts[1]);
-      
-      const startTime = startHour * 60 + startMinute;
-      let endTime = endHour * 60 + endMinute;
-      const currentTime = currentHour * 60 + currentMinute;
-      
-      // Handle segments that cross midnight
-      if (endTime <= startTime) {
-        endTime += 24 * 60; // Add 24 hours
-        if (currentTime < startTime) {
-          return currentTime + 24 * 60 >= startTime && currentTime + 24 * 60 < endTime;
-        }
-      }
-      
-      return currentTime >= startTime && currentTime < endTime;
+      return now >= startDate && now < endDate;
     }) || null;
   }
 
   getNextTimeSegment(): TimeSegment | null {
-    const current = this.getCurrentTimeSegment();
-    if (!current) return null;
-
-    const currentIndex = this.schedule.findIndex(s => s === current);
-    if (currentIndex === -1 || currentIndex === this.schedule.length - 1) {
-      return this.schedule[0]; // Return first segment (next day)
-    }
-
-    return this.schedule[currentIndex + 1];
+    const now = new Date();
+    
+    // Find all future segments and sort by start time
+    const futureSegments = this.schedule
+      .filter(segment => new Date(segment.time.segmentStart) > now)
+      .sort((a, b) => new Date(a.time.segmentStart).getTime() - new Date(b.time.segmentStart).getTime());
+    
+    return futureSegments[0] || null;
   }
 
   getAllSegments(): TimeSegment[] {
     return [...this.schedule];
   }
 
-  getSegmentByTime(hour: number, minute: number): TimeSegment | null {
-    const targetTime = hour * 60 + minute;
-    
+  getSegmentByDateTime(targetDateTime: Date): TimeSegment | null {
     return this.schedule.find(segment => {
-      const startParts = segment.time.hourStart.split(':');
-      const endParts = segment.time.hourEnd.split(':');
+      const startDate = new Date(segment.time.segmentStart);
+      const endDate = new Date(segment.time.segmentEnd);
       
-      const startHour = parseInt(startParts[0]);
-      const startMinute = parseInt(startParts[1]);
-      const endHour = parseInt(endParts[0]);
-      const endMinute = parseInt(endParts[1]);
-      
-      const startTime = startHour * 60 + startMinute;
-      let endTime = endHour * 60 + endMinute;
-      
-      // Handle segments that cross midnight
-      if (endTime <= startTime) {
-        endTime += 24 * 60;
-        if (targetTime < startTime) {
-          return targetTime + 24 * 60 >= startTime && targetTime + 24 * 60 < endTime;
-        }
-      }
-      
-      return targetTime >= startTime && targetTime < endTime;
+      return targetDateTime >= startDate && targetDateTime < endDate;
     }) || null;
+  }
+
+  getScheduleForDateRange(startDate: Date, endDate: Date): TimeSegment[] {
+    return this.schedule.filter(segment => {
+      const segmentStart = new Date(segment.time.segmentStart);
+      const segmentEnd = new Date(segment.time.segmentEnd);
+      
+      return (segmentStart >= startDate && segmentStart <= endDate) ||
+             (segmentEnd >= startDate && segmentEnd <= endDate) ||
+             (segmentStart <= startDate && segmentEnd >= endDate);
+    });
+  }
+
+  getAllSegmentsForDate(targetDate: Date): TimeSegment[] {
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    return this.getScheduleForDateRange(startOfDay, endOfDay);
   }
 
   isScheduleLoaded(): boolean {

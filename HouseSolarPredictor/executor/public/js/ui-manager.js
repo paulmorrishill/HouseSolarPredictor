@@ -55,7 +55,8 @@ class UIManager {
         const batteryKw = ((metrics.batteryPower || 0) / 1000).toFixed(2);
         const batteryCurrent = (metrics.batteryCurrent || 0).toFixed(1);
         const remainingBatteryKwh = (metrics.remainingBatteryKwh || 0).toFixed(2);
-        
+        const remainingBatteryPercentage = (metrics.remainingChargePercent || 0).toFixed(1);
+
         this.logger.addLogEntry(`📈 Metrics update - Load: ${loadKw}kW, Grid: ${gridKw}kW, Battery: ${batteryKw}kW, Current: ${batteryCurrent}A, Remaining: ${remainingBatteryKwh}kWh`, 'info');
         
         // Convert watts to kilowatts for display
@@ -63,7 +64,7 @@ class UIManager {
         this.updateElement('grid-power', `${gridKw} kW`);
         this.updateElement('battery-power', `${batteryKw} kW`);
         this.updateElement('battery-current', `${batteryCurrent} A`);
-        this.updateElement('remaining-battery', `${remainingBatteryKwh} kWh`);
+        this.updateElement('remaining-battery', `${remainingBatteryKwh} kWh (${remainingBatteryPercentage}%)`);
 
         // Update next schedule information
         if (metrics.nextScheduleInfo) {

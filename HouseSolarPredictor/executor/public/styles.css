@@ -211,6 +211,11 @@ body {
     border-left: 4px solid #2196F3;
 }
 
+.mdl-card__supporting-text {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 .metric-value {
     font-size: 24px;
     font-weight: bold;
@@ -435,8 +440,9 @@ body {
     margin: 0;
 }
 
-#schedule-charts .mdl-cell {
+#charts .mdl-cell, #schedule-charts .mdl-cell {
     margin: 8px;
+    width: calc(50% - 16px);
 }
 
 /* Schedule Chart Titles */
