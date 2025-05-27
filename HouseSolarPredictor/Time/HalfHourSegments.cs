@@ -19,13 +19,11 @@ public static class HalfHourSegments
     {
         var segments = new List<HalfHourSegment>(48);
         
-        // Create 48 half-hour segments (24 hours × 2 segments per hour)
         for (int hour = 0; hour < 24; hour++)
         {
             // First half-hour of this hour (XX:00 - XX:30)
             segments.Add(CreateHalfHourSegment(hour, 0));
             
-            // Second half-hour of this hour (XX:30 - (XX+1):00)
             segments.Add(CreateHalfHourSegment(hour, 30));
         }
         
