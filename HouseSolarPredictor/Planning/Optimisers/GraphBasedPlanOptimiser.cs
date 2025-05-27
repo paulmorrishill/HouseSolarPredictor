@@ -5,18 +5,11 @@ using NodaTime;
 
 namespace HouseSolarPredictor.Planning.Optimisers;
 
-/// <summary>
-/// Battery charge planner using graph-based shortest path algorithm (Dijkstra's)
-/// Leverages .NET 8 built-in PriorityQueue for optimal performance
-/// Now uses the existing TimeSegment.Cost() and simulation logic instead of duplicating it
-/// </summary>
 public class GraphBasedPlanOptimiser : IPlanOptimiser
 {
     private readonly IHouseSimulator _houseSimulator;
     private readonly ILogger _logger;
-
-    // Graph discretization parameters
-    private const decimal BATTERY_STEP = 0.1m; // Discretize battery in 0.5 kWh steps
+    private const decimal BATTERY_STEP = 0.1m;
     private readonly int _maxBatterySteps;
     private readonly decimal _batteryCapacity;
 
@@ -34,13 +27,9 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
 
     public async Task<List<TimeSegment>> CreateChargePlan(List<TimeSegment> segments, LocalDate date)
     {
-        // Build the graph and find optimal path
         var optimalPath = await FindOptimalPathDijkstra(segments, date);
-        
-        // Apply optimal path to segments
         ApplyOptimalPathToSegments(optimalPath, segments);
-        
-        // Run final simulation to populate all fields
+
         await _houseSimulator.RunSimulation(segments, date);
         
         var totalCost = segments.CalculatePlanCost();
@@ -52,11 +41,7 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
     private async Task<List<GraphEdge>> FindOptimalPathDijkstra(List<TimeSegment> segments, LocalDate date)
     {
         const int NUM_SEGMENTS = 48;
-        
-        // Priority queue for Dijkstra's algorithm (.NET 6+)
         var priorityQueue = new PriorityQueue<GraphNode, decimal>();
-        
-        // Distance tracking: [segment][batteryStep] -> minimum cost to reach this state
         var distances = new decimal[NUM_SEGMENTS + 1][];
         var previous = new GraphEdge[NUM_SEGMENTS + 1][];
         
@@ -79,16 +64,14 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
         while (priorityQueue.Count > 0)
         {
             var currentNode = priorityQueue.Dequeue();
-            
-            // Skip if we've already found a better path to this node
-            if (distances[currentNode.Segment][currentNode.BatteryStep] < currentNode.Cost)
+            bool betterPathAlreadyFound = distances[currentNode.Segment][currentNode.BatteryStep] < currentNode.Cost;
+            if (betterPathAlreadyFound)
                 continue;
 
-            // If we've reached the final segment, we can stop exploring this path
-            if (currentNode.Segment == NUM_SEGMENTS)
+            bool finalSegment = currentNode.Segment == NUM_SEGMENTS;
+            if (finalSegment)
                 continue;
 
-            // Generate all possible transitions from current node
             var transitions = await GenerateTransitions(currentNode, segments[currentNode.Segment]);
             
             foreach (var transition in transitions)
@@ -109,7 +92,6 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
             }
         }
 
-        // Find the best final state (any battery level at the end)
         var bestFinalCost = decimal.MaxValue;
         var bestFinalBatteryStep = 0;
         
@@ -129,24 +111,17 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
 
         _logger.Log($"Optimal path found with cost: £{bestFinalCost:F4}, ending battery level: {bestFinalBatteryStep * BATTERY_STEP:F1} kWh");
 
-        // Reconstruct the optimal path
         return ReconstructPath(previous, NUM_SEGMENTS, bestFinalBatteryStep);
     }
 
     private async Task<List<GraphEdge>> GenerateTransitions(GraphNode currentNode, TimeSegment segment)
     {
-        var currentBatteryLevel = currentNode.BatteryStep * BATTERY_STEP;
-        
-        // Try each possible charging mode using the actual simulation
         var transitions = new List<GraphEdge>();
         
         foreach (var mode in Enum.GetValues<OutputsMode>())
         {
             var transition = CalculateTransition(currentNode, segment, mode);
-            if (transition != null)
-            {
-                transitions.Add(transition);
-            }
+            if (transition != null) transitions.Add(transition);
         }
         
         return transitions;
@@ -155,29 +130,24 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
     private GraphEdge? CalculateTransition(GraphNode fromNode, TimeSegment segment, OutputsMode mode)
     {
         var currentBatteryKwh = fromNode.BatteryStep * BATTERY_STEP;
-        
-        // Create a temporary segment for simulation
         var tempSegment = new TimeSegment
         {
             HalfHourSegment = segment.HalfHourSegment,
             ExpectedSolarGeneration = segment.ExpectedSolarGeneration,
             GridPrice = segment.GridPrice,
             ExpectedConsumption = segment.ExpectedConsumption,
-            StartBatteryChargeKwh = new Kwh((decimal)currentBatteryKwh),
+            StartBatteryChargeKwh = new Kwh(currentBatteryKwh),
             EndBatteryChargeKwh = Kwh.Zero,
             Mode = mode,
             WastedSolarGeneration = Kwh.Zero,
             ActualGridUsage = Kwh.Zero
         };
 
-        // Use the shared simulation service - same logic as HouseSimulator!
         _houseSimulator.SimulateBatteryChargingAndWastage(tempSegment);
         
-        // Convert final battery level to discrete step
         var newBatteryStep = (int)Math.Round((double)tempSegment.EndBatteryChargeKwh.Value / (double)BATTERY_STEP);
         newBatteryStep = Math.Max(0, Math.Min(_maxBatterySteps, newBatteryStep));
 
-        // Use the existing cost calculation method - same as everywhere else!
         var cost = tempSegment.Cost().PoundsAmount;
 
         var toNode = new GraphNode(fromNode.Segment + 1, newBatteryStep);
@@ -192,33 +162,6 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
         var newBatteryStep = (int)Math.Round(batteryCharge.Value / (float)BATTERY_STEP);
         var batteryStep1 = Math.Max(0, Math.Min(_maxBatterySteps, newBatteryStep));
         return batteryStep1;
-    }
-
-    /// <summary>
-    /// Simulates a single segment using the same logic as HouseSimulator
-    /// This ensures consistency with the main simulation
-    /// </summary>
-    private async Task SimulateSingleSegment(TimeSegment segment)
-    {
-        // Create a single-item list and run the simulation
-        var singleSegmentList = new List<TimeSegment> { segment };
-        await _houseSimulator.RunSimulation(singleSegmentList, new LocalDate(2025, 1, 1)); // Date doesn't matter for single segment
-    }
-
-    private TimeSegment CloneSegment(TimeSegment original)
-    {
-        return new TimeSegment
-        {
-            HalfHourSegment = original.HalfHourSegment,
-            ExpectedSolarGeneration = original.ExpectedSolarGeneration,
-            GridPrice = original.GridPrice,
-            ExpectedConsumption = original.ExpectedConsumption,
-            StartBatteryChargeKwh = original.StartBatteryChargeKwh,
-            EndBatteryChargeKwh = original.EndBatteryChargeKwh,
-            Mode = original.Mode,
-            WastedSolarGeneration = original.WastedSolarGeneration,
-            ActualGridUsage = original.ActualGridUsage
-        };
     }
 
     private List<GraphEdge> ReconstructPath(GraphEdge[][] previous, int finalSegment, int finalBatteryStep)
@@ -253,9 +196,6 @@ public class GraphBasedPlanOptimiser : IPlanOptimiser
     }
 }
 
-/// <summary>
-/// Represents a node in the battery optimization graph
-/// </summary>
 public class GraphNode
 {
     public int Segment { get; }
@@ -289,9 +229,6 @@ public class GraphNode
     }
 }
 
-/// <summary>
-/// Represents an edge in the battery optimization graph
-/// </summary>
 public class GraphEdge
 {
     public GraphNode FromNode { get; }
