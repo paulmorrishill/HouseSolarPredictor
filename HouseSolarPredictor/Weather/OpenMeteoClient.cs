@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using HouseSolarPredictor.Prediction;
 using NodaTime;
 
 namespace HouseSolarPredictor.Weather;
@@ -7,108 +8,96 @@ namespace HouseSolarPredictor.Weather;
 public class OpenMeteoClient
 {
     private readonly HttpClient _httpClient;
-        
-    // Winsford, England coordinates
-    private const float LATITUDE = 53.19f;
-    private const float LONGITUDE = -2.53f;
+    private ILogger _logger;
+
+    private const float LATITUDE = 51.2856861f;
+    private const float LONGITUDE = 1.0708219f;
         
     private const string API_BASE_URL = "https://api.open-meteo.com/v1/";
 
-    public OpenMeteoClient()
+    // Cache for storing full day weather data
+    private readonly Dictionary<string, DayWeatherCache> _weatherCache = new();
+    private readonly Dictionary<string, DayInfo> _dayInfoCache = new();
+
+    public OpenMeteoClient(ILogger logger)
     {
+        _logger = logger;
         _httpClient = new HttpClient();
     }
 
     public async Task<WeatherData> GetWeatherDataAsync(DateTime timestamp)
     {
-        // Format the timestamp for the API query
-        string formattedDate = timestamp.ToString("yyyy-MM-dd");
-            
-        // Construct the API URL for forecast or historical data based on date
-        string apiUrl;
-        if (timestamp.Date == DateTime.Today)
+        string dateKey = timestamp.ToString("yyyy-MM-dd");
+        
+        // Check if we have cached data for this date
+        if (_weatherCache.TryGetValue(dateKey, out DayWeatherCache cachedDay))
         {
-            // For current day, use forecast API
-            apiUrl = $"{API_BASE_URL}forecast?latitude={LATITUDE}&longitude={LONGITUDE}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,apparent_temperature,precipitation,diffuse_radiation,direct_radiation,terrestrial_radiation,shortwave_radiation&forecast_days=1&timezone=auto";
+            _logger.Log($"Using cached weather data for {dateKey}");
+            return GetWeatherDataFromCache(cachedDay, timestamp);
         }
-        else if (timestamp < DateTime.Today)
-        {
-            // For past days, use historical data API
-            apiUrl = $"{API_BASE_URL}archive?latitude={LATITUDE}&longitude={LONGITUDE}&start_date={formattedDate}&end_date={formattedDate}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,apparent_temperature,precipitation,diffuse_radiation,direct_radiation,terrestrial_radiation,shortwave_radiation&timezone=auto";
-        }
-        else
-        {
-            // For future dates
-            int forecastDays = (timestamp.Date - DateTime.Today).Days + 1;
-            forecastDays = Math.Min(forecastDays, 16); // API limit is 16 days
-            apiUrl = $"{API_BASE_URL}forecast?latitude={LATITUDE}&longitude={LONGITUDE}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,apparent_temperature,precipitation,diffuse_radiation,direct_radiation,terrestrial_radiation,shortwave_radiation&forecast_days={forecastDays}&timezone=auto";
-        }
+
+        // Cache miss - fetch full day data
+        _logger.Log($"Cache miss for {dateKey}, fetching full day data from API");
+        var dayCache = await FetchFullDayWeatherDataAsync(timestamp.Date);
+        _weatherCache[dateKey] = dayCache;
+        
+        return GetWeatherDataFromCache(dayCache, timestamp);
+    }
+
+    private async Task<DayWeatherCache> FetchFullDayWeatherDataAsync(DateTime date)
+    {
+        string formattedDate = date.ToString("yyyy-MM-dd");
+        var apiUrl = GetApiUrl(date, formattedDate);
 
         try
         {
-            // Make the API request
+            _logger.Log($"Fetching full day weather data from API: {apiUrl}");
+            
             HttpResponseMessage response = await _httpClient.GetAsync(apiUrl);
             response.EnsureSuccessStatusCode();
                 
             string responseBody = await response.Content.ReadAsStringAsync();
                 
-            // Parse the JSON response
             using JsonDocument doc = JsonDocument.Parse(responseBody);
             JsonElement root = doc.RootElement;
                 
-            // Get hourly data
             JsonElement hourlyData = root.GetProperty("hourly");
                 
-            // Get the timestamps
+            // Get all timestamps for the day
             string[] timestamps = hourlyData.GetProperty("time").EnumerateArray()
                 .Select(e => e.GetString())
                 .ToArray();
-                
-            // Find the index of the closest timestamp
-            int closestIndex = -1;
-            TimeSpan smallestDifference = TimeSpan.MaxValue;
-                
+
+            var dayCache = new DayWeatherCache();
+            
+            // Parse all hourly data for the day
             for (int i = 0; i < timestamps.Length; i++)
             {
                 if (DateTime.TryParse(timestamps[i], out DateTime apiTimestamp))
                 {
-                    TimeSpan difference = timestamp - apiTimestamp;
-                    difference = difference.Duration(); // Get absolute value
-                        
-                    if (difference < smallestDifference)
-                    {
-                        smallestDifference = difference;
-                        closestIndex = i;
-                    }
+                    var weatherData = new WeatherData();
+                    
+                    weatherData.Temperature = GetWeatherValue(hourlyData, "temperature_2m", i);
+                    weatherData.CloudCover = GetWeatherValue(hourlyData, "cloud_cover", i);
+                    weatherData.CloudCoverLow = GetWeatherValue(hourlyData, "cloud_cover_low", i);
+                    weatherData.CloudCoverMid = GetWeatherValue(hourlyData, "cloud_cover_mid", i);
+                    weatherData.CloudCoverHigh = GetWeatherValue(hourlyData, "cloud_cover_high", i);
+                    weatherData.WindSpeed = GetWeatherValue(hourlyData, "wind_speed_10m", i);
+                    weatherData.ApparentTemperature = GetWeatherValue(hourlyData, "apparent_temperature", i);
+                    weatherData.Precipitation = GetWeatherValue(hourlyData, "precipitation", i);
+                    weatherData.DiffuseRadiation = GetWeatherValue(hourlyData, "diffuse_radiation", i);
+                    weatherData.DirectRadiation = GetWeatherValue(hourlyData, "direct_radiation", i);
+                    weatherData.TerrestrialRadiation = GetWeatherValue(hourlyData, "terrestrial_radiation", i);
+                    weatherData.ShortwaveRadiation = GetWeatherValue(hourlyData, "shortwave_radiation", i);
+                    
+                    // Calculate global_tilted_irradiance as the sum of diffuse and direct radiation
+                    weatherData.GlobalTiltedIrradiance = weatherData.DiffuseRadiation + weatherData.DirectRadiation;
+                    
+                    dayCache.HourlyData[apiTimestamp] = weatherData;
                 }
             }
-                
-            if (closestIndex == -1)
-            {
-                throw new Exception("Could not find matching timestamp in API response");
-            }
-                
-            // Create a new WeatherData object
-            var weatherData = new WeatherData();
-                
-            // Extract values and set properties
-            weatherData.Temperature = GetWeatherValue(hourlyData, "temperature_2m", closestIndex);
-            weatherData.CloudCover = GetWeatherValue(hourlyData, "cloud_cover", closestIndex);
-            weatherData.CloudCoverLow = GetWeatherValue(hourlyData, "cloud_cover_low", closestIndex);
-            weatherData.CloudCoverMid = GetWeatherValue(hourlyData, "cloud_cover_mid", closestIndex);
-            weatherData.CloudCoverHigh = GetWeatherValue(hourlyData, "cloud_cover_high", closestIndex);
-            weatherData.WindSpeed = GetWeatherValue(hourlyData, "wind_speed_10m", closestIndex);
-            weatherData.ApparentTemperature = GetWeatherValue(hourlyData, "apparent_temperature", closestIndex);
-            weatherData.Precipitation = GetWeatherValue(hourlyData, "precipitation", closestIndex);
-            weatherData.DiffuseRadiation = GetWeatherValue(hourlyData, "diffuse_radiation", closestIndex);
-            weatherData.DirectRadiation = GetWeatherValue(hourlyData, "direct_radiation", closestIndex);
-            weatherData.TerrestrialRadiation = GetWeatherValue(hourlyData, "terrestrial_radiation", closestIndex);
-            weatherData.ShortwaveRadiation = GetWeatherValue(hourlyData, "shortwave_radiation", closestIndex);
-                
-            // Calculate global_tilted_irradiance as the sum of diffuse and direct radiation
-            weatherData.GlobalTiltedIrradiance = weatherData.DiffuseRadiation + weatherData.DirectRadiation;
-                
-            return weatherData;
+            
+            return dayCache;
         }
         catch (Exception ex)
         {
@@ -116,7 +105,36 @@ public class OpenMeteoClient
             throw;
         }
     }
-        
+
+    private WeatherData GetWeatherDataFromCache(DayWeatherCache dayCache, DateTime targetTimestamp)
+    {
+        // Find the closest timestamp in the cached data
+        DateTime closestTimestamp = dayCache.HourlyData.Keys
+            .OrderBy(t => Math.Abs((t - targetTimestamp).Ticks))
+            .First();
+            
+        _logger.Log($"Found closest cached timestamp {closestTimestamp} for requested {targetTimestamp}");
+        return dayCache.HourlyData[closestTimestamp];
+    }
+
+    private string GetApiUrl(DateTime timestamp, string formattedDate)
+    {
+        if (timestamp.Date >= DateTime.Today.AddDays(-6))
+        {
+            _logger.Log($"Fetching forecast data as timestamp {timestamp} is today or in the future.");
+            int forecastDays = Math.Max(1, (timestamp.Date - DateTime.Today).Days + 1);
+            if (forecastDays > 15)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timestamp), "Forecast is limited to 15 days in the future.");
+            }
+            
+            return $"{API_BASE_URL}forecast?latitude={LATITUDE}&longitude={LONGITUDE}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,apparent_temperature,precipitation,diffuse_radiation,direct_radiation,terrestrial_radiation,shortwave_radiation&forecast_days={forecastDays}&timezone=auto";
+        }
+
+        _logger.Log($"Fetching historical data as timestamp {timestamp} is in the past.");
+        return $"{API_BASE_URL}archive?latitude={LATITUDE}&longitude={LONGITUDE}&start_date={formattedDate}&end_date={formattedDate}&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,apparent_temperature,precipitation,diffuse_radiation,direct_radiation,terrestrial_radiation,shortwave_radiation&timezone=auto";
+    }
+
     private float GetWeatherValue(JsonElement hourlyData, string apiField, int index)
     {
         try
@@ -133,23 +151,30 @@ public class OpenMeteoClient
         
     public async Task<DayInfo> GetDayInfoAsync(LocalDate date)
     {
+        string dateKey = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        
+        // Check cache first
+        if (_dayInfoCache.TryGetValue(dateKey, out DayInfo cachedDayInfo))
+        {
+            _logger.Log($"Using cached day info for {dateKey}");
+            return cachedDayInfo;
+        }
+
         // Construct API URL to get sun times
-        string formattedDate = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        string apiUrl = $"{API_BASE_URL}forecast?latitude={LATITUDE}&longitude={LONGITUDE}&daily=sunrise,sunset,daylight_duration,sunshine_duration&timezone=auto&start_date={formattedDate}&end_date={formattedDate}";
+        string apiUrl = $"{API_BASE_URL}forecast?latitude={LATITUDE}&longitude={LONGITUDE}&daily=sunrise,sunset,daylight_duration,sunshine_duration&timezone=auto&start_date={dateKey}&end_date={dateKey}";
             
         try
         {
-            // Make the API request
+            _logger.Log($"Fetching day info from API: {apiUrl}");
+            
             HttpResponseMessage response = await _httpClient.GetAsync(apiUrl);
             response.EnsureSuccessStatusCode();
                 
             string responseBody = await response.Content.ReadAsStringAsync();
                 
-            // Parse the JSON response
             using JsonDocument doc = JsonDocument.Parse(responseBody);
             JsonElement root = doc.RootElement;
                 
-            // Get daily data
             JsonElement daily = root.GetProperty("daily");
                 
             var dayInfo = new DayInfo();
@@ -187,6 +212,9 @@ public class OpenMeteoClient
                     dayInfo.SunsetMinute = sunsetTime.Minute;
                 }
             }
+            
+            // Cache the result
+            _dayInfoCache[dateKey] = dayInfo;
                 
             return dayInfo;
         }
@@ -196,4 +224,10 @@ public class OpenMeteoClient
             throw;
         }
     }
+}
+
+// Helper class to store cached weather data for a full day
+public class DayWeatherCache
+{
+    public Dictionary<DateTime, WeatherData> HourlyData { get; set; } = new();
 }

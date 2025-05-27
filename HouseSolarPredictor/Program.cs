@@ -6,6 +6,7 @@
  using HouseSolarPredictor.Solar;
  using HouseSolarPredictor.Time;
  using HouseSolarPredictor.Weather;
+ using Newtonsoft.Json;
  using NodaTime;
 
  namespace HouseSolarPredictor;
@@ -21,6 +22,7 @@ class Program
     private const int HoursPerDay = 24;
     private const int MinutesPerHalfHour = 30;
     private const int ProgressReportIntervalHours = 6;
+    private static readonly ILogger FileLogger = new FileLogger("charge_plan.log");
 
     private enum ChargingSource
     {
@@ -34,8 +36,8 @@ class Program
     {
         Console.WriteLine("\nSolar Battery Optimizer");
         Console.WriteLine("======================\n");
-
-        var weatherClient = new OpenMeteoClient();
+    
+        var weatherClient = new OpenMeteoClient(FileLogger);
         
         Console.WriteLine("Initializing Octopus API client and auto-detecting tariff and region...");
         var octopusClient = ApiKeyProvider.GetOctopusClient();
@@ -111,18 +113,44 @@ class Program
         Console.WriteLine("Predicting solar generation for each half-hour...");
         var lifePo4BatteryPredictor = new LifePo4BatteryPredictor(10m, 3m);
         var houseSimulator = new HouseSimulator(lifePo4BatteryPredictor);
-        var fileLogger = new FileLogger("charge_plan.log");
-        var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(lifePo4BatteryPredictor, houseSimulator, fileLogger);
+        var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(lifePo4BatteryPredictor, houseSimulator, FileLogger);
         var chargePlanner = new ChargePlanner(
             solarPredictor,
             _loadEnergyPredictor,
-            new OctopusSupplier(octopusClient, fileLogger),
+            new OctopusSupplier(octopusClient, FileLogger),
             lifePo4BatteryPredictor,
             houseSimulator,
             graphBasedPlanOptimiser);
 
        var plan =  await chargePlanner.CreateChargePlan(targetDate, Kwh.Zero);
        plan.PrintPlanTable();
+       plan.PrintPlanTableToHtml();
+       var mappedPlan = plan.Select(s => new
+       {
+              Time = new
+              {
+                SegmentStart = s.HalfHourSegment.Start().ToString(),
+                SegmentEnd = s.HalfHourSegment.End().ToString(),
+              },
+              Mode = s.Mode.ToString(),
+              ExpectedSolarGeneration = s.ExpectedSolarGeneration.Value,
+              ExpectedConsumption = s.ExpectedConsumption.Value,
+              ActualGridUsage = s.ActualGridUsage.Value,
+              GridPrice = s.GridPrice.PricePerKwh.PoundsAmount,
+              StartBatteryChargeKwh = s.StartBatteryChargeKwh.Value,
+              EndBatteryChargeKwh = s.EndBatteryChargeKwh.Value,
+              WastedSolarGeneration = s.WastedSolarGeneration.Value,
+              Cost = s.Cost()
+       });
+       
+       // camel case
+       var json = JsonConvert.SerializeObject(mappedPlan, Formatting.Indented, new JsonSerializerSettings
+       {
+           ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
+       });
+       // get root project directory
+       var fullPath = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory + "../../..");
+       File.WriteAllText(Path.Combine(fullPath, "executor/schedules/schedule.json"), json);
     }
 
     private static async Task<(float High, float Low)> FetchWeatherDataAndGetTemperatureRange(

@@ -1,4 +1,6 @@
-﻿namespace HouseSolarPredictor.Time;
+﻿using NodaTime;
+
+namespace HouseSolarPredictor.Time;
 
 /// <summary>
 /// Represents a time segment with a start and end time
@@ -59,5 +61,15 @@ public class HalfHourSegment
             throw new ArgumentException("DateTime must be on the hour or half-hour");
         }
         return new HalfHourSegment(validFrom.Hour, validFrom.Minute);
+    }
+
+    public LocalTime Start()
+    {
+        return new LocalTime(HourStart, MinuteStart);
+    }
+
+    public LocalTime End()
+    {
+        return new LocalTime(HourEnd, MinuteEnd);
     }
 }

@@ -33,6 +33,41 @@ public static class TablePrinterExtensions
 
         printer.Print(chargePlan);
     }
+    public static void PrintPlanTableToHtml(this List<TimeSegment> chargePlan)
+    {
+        var printer = new TablePrinter<TimeSegment>()
+            .AddColumn("Time", c => FormatTime(c.HalfHourSegment))
+            .AddColumn("Mode", c => c.Mode switch
+            {
+                OutputsMode.Discharge => CellContent.WithBackground(c.Mode.ToString(), CellContent.Colors.Red),
+                OutputsMode.ChargeSolarOnly => CellContent.WithBackground(c.Mode.ToString(), CellContent.Colors.Orange),
+                OutputsMode.ChargeFromGridAndSolar => CellContent.WithBackground(c.Mode.ToString(), CellContent.Colors.Blue),
+                _ => new CellContent(c.Mode.ToString())
+            })
+            .AddColumn("Solar", c => c.ExpectedSolarGeneration.Value.ToString("F2"))
+            .AddColumn("Load", c => c.ExpectedConsumption.Value.ToString("F2"))
+            .AddColumn("Grid", c => c.ActualGridUsage.Value.ToString("F2"))
+            .AddColumn("Price", c => c.GridPrice.PricePerKwh.PoundsAmount.ToString("F2"))
+            .AddColumn("Batt Start", c => c.StartBatteryChargeKwh.Value.ToString("F2"))
+            .AddColumn("Batt End", c => c.EndBatteryChargeKwh.Value.ToString("F2"))
+            .AddColumn("Wasted", c => (c.WastedSolarGeneration ?? Kwh.Zero).Value.ToString("F2"))
+            .AddColumn("Cost", c => c.Cost().ToString())
+            .AddFooterRow(segments => new[]
+            {
+                "TOTAL",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                segments.Sum(s => (s.WastedSolarGeneration ?? Kwh.Zero).Value).ToString("F2"),
+                segments.ToList().CalculatePlanCost().ToString()
+            });
+
+        printer.PrintToHtml(chargePlan, "charg_plan.html", $"Charge Plan");
+    }
 
     private static string FormatTime(HalfHourSegment segment)
     {

@@ -1,0 +1,22 @@
+{
+  "mqtt": {
+    "host": "192.168.1.181",
+    "port": 1883,
+    "clientId": "solar_inverter_controller"
+  },
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "secure": false,
+    "username": "your-email@gmail.com",
+    "password": "your-app-password",
+    "from": "your-email@gmail.com",
+    "to": "your-email@gmail.com"
+  },
+  "schedulePath": "schedules/schedule.json",
+  "dbPath": "data/solar_system.db",
+  "retryAttempts": 3,
+  "retryDelayMinutes": 5,
+  "webPort": 8080,
+  "logLevel": "INFO"
+}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Inverter Control System</title>
+    
+    <!-- Material Design Lite CSS -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    
+    <!-- Chart.js with date adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <header class="mdl-layout__header">
+            <div class="mdl-layout__header-row">
+                <span class="mdl-layout-title">Solar Inverter Control System</span>
+                <div class="mdl-layout-spacer"></div>
+                <nav class="mdl-navigation mdl-layout--large-screen-only">
+                    <a class="mdl-navigation__link" href="#overview">Overview</a>
+                    <a class="mdl-navigation__link" href="#charts">Charts</a>
+                    <a class="mdl-navigation__link" href="#logs">Logs</a>
+                </nav>
+            </div>
+        </header>
+        
+        <main class="mdl-layout__content">
+            <!-- Status Bar -->
+            <section id="status-section" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
+                <div class="mdl-card mdl-cell mdl-cell--12-col">
+                    <div class="mdl-card__supporting-text">
+                        <div id="status-indicator" class="status-indicator status-amber">
+                            <div class="status-light"></div>
+                            <div class="status-text">
+                                <h4 id="status-title">System Status</h4>
+                                <p id="status-message">Initializing...</p>
+                            </div>
+                        </div>
+                        
+                        <div id="current-settings" class="current-settings">
+                            <h5>Current Settings</h5>
+                            <div class="settings-grid">
+                                <div class="setting-item">
+                                    <span class="setting-label">Work Mode:</span>
+                                    <span id="current-work-mode" class="setting-value">-</span>
+                                </div>
+                                <div class="setting-item">
+                                    <span class="setting-label">Charge Rate:</span>
+                                    <span id="current-charge-rate" class="setting-value">-</span>
+                                </div>
+                                <div class="setting-item">
+                                    <span class="setting-label">Desired Mode:</span>
+                                    <span id="desired-work-mode" class="setting-value">-</span>
+                                </div>
+                                <div class="setting-item">
+                                    <span class="setting-label">Desired Rate:</span>
+                                    <span id="desired-charge-rate" class="setting-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="next-schedule" class="next-schedule">
+                            <h5>Next Schedule Block</h5>
+                            <div class="schedule-grid">
+                                <div class="schedule-item">
+                                    <span class="schedule-label">Start Time:</span>
+                                    <span id="next-start-time" class="schedule-value">-</span>
+                                </div>
+                                <div class="schedule-item">
+                                    <span class="schedule-label">Mode:</span>
+                                    <span id="next-mode" class="schedule-value">-</span>
+                                </div>
+                                <div class="schedule-item">
+                                    <span class="schedule-label">Time until:</span>
+                                    <span id="next-time-until" class="schedule-value">-</span>
+                                </div>
+                                <div class="schedule-item">
+                                    <span class="schedule-label">Expected Usage:</span>
+                                    <span id="next-usage" class="schedule-value">-</span>
+                                </div>
+                                <div class="schedule-item">
+                                    <span class="schedule-label">Expected Start Charge:</span>
+                                    <span id="next-start-charge" class="schedule-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="retry-section" class="retry-section" style="display: none;">
+                            <button id="retry-button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+                                <i class="material-icons">refresh</i>
+                                Retry Operations
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Current Metrics -->
+            <section id="overview" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
+                <div class="mdl-card mdl-cell mdl-cell--12-col">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Current Metrics</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value" id="load-power">0 kW</div>
+                                <div class="metric-label">Load Power</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="grid-power">0 kW</div>
+                                <div class="metric-label">Grid Power</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="battery-power">0 kW</div>
+                                <div class="metric-label">Battery Power</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="battery-current">0 A</div>
+                                <div class="metric-label">Battery Current</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="remaining-battery">0 kWh</div>
+                                <div class="metric-label">Remaining Battery</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section id="charts" class="section--center mdl-grid mdl-grid--no-spacing">
+                <!-- Time Range Selector -->
+                <div class="mdl-card mdl-cell mdl-cell--12-col mdl-shadow--2dp" style="margin-bottom: 16px;">
+                    <div class="mdl-card__supporting-text">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <label for="time-range-select" style="font-weight: 500;">Chart Time Range:</label>
+                            <div class="mdl-selectfield mdl-js-selectfield">
+                                <select class="mdl-selectfield__input" id="time-range-select">
+                                    <option value="1">Last 1 Hour</option>
+                                    <option value="4" selected>Last 4 Hours</option>
+                                    <option value="12">Last 12 Hours</option>
+                                    <option value="24">Last 24 Hours</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Real-time Metrics Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Real-time Metrics</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <canvas id="realtime-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Control Parameters Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Expected vs Actual Control</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <canvas id="charge-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Predicted vs Actual Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Predicted vs Actual Values</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <canvas id="prediction-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Cost Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Grid Usage Cost</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="cost-summary">
+                            <div class="cost-item">
+                                <span class="cost-label">Total Grid Cost:</span>
+                                <span id="total-cost" class="cost-value">£0.00</span>
+                            </div>
+                        </div>
+                        <canvas id="cost-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Log -->
+            <section id="logs" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
+                <div class="mdl-card mdl-cell mdl-cell--12-col">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">System Log</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div id="log-container" class="log-container">
+                            <div class="log-entry">
+                                <span class="log-timestamp">[00:00:00]</span>
+                                <span class="log-message">System initializing...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Material Design Lite JS -->
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
