@@ -24,14 +24,6 @@ class Program
     private const int ProgressReportIntervalHours = 6;
     private static readonly ILogger FileLogger = new FileLogger("charge_plan.log");
 
-    private enum ChargingSource
-    {
-        Solar,
-        Grid
-    }
-    
-    // Moved OutputsMode enum to TimeSegment.cs
-
     static async Task Main(string[] args)
     {
         Console.WriteLine("\nSolar Battery Optimizer");
@@ -111,7 +103,7 @@ class Program
 
         // Step 3: Predict solar generation for each half-hour
         Console.WriteLine("Predicting solar generation for each half-hour...");
-        var lifePo4BatteryPredictor = new LifePo4BatteryPredictor(10m, 3m);
+        var lifePo4BatteryPredictor = new LifePo4BatteryPredictor(10m, 2.74m);
         var houseSimulator = new HouseSimulator(lifePo4BatteryPredictor);
         var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(lifePo4BatteryPredictor, houseSimulator, FileLogger);
         var chargePlanner = new ChargePlanner(
