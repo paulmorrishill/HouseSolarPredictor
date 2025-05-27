@@ -25,6 +25,7 @@
                 <nav class="mdl-navigation mdl-layout--large-screen-only">
                     <a class="mdl-navigation__link" href="#overview">Overview</a>
                     <a class="mdl-navigation__link" href="#charts">Charts</a>
+                    <a class="mdl-navigation__link" href="#schedule-charts">Schedule</a>
                     <a class="mdl-navigation__link" href="#logs">Logs</a>
                 </nav>
             </div>
@@ -195,6 +196,66 @@
                             </div>
                         </div>
                         <canvas id="cost-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Schedule Charts Section -->
+            <section id="schedule-charts" class="section--center mdl-grid mdl-grid--no-spacing">
+                <div class="mdl-card mdl-cell mdl-cell--12-col mdl-shadow--2dp" style="margin-bottom: 16px;">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">24-Hour Schedule Analysis</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <p>Comprehensive visualization of the planned 24-hour schedule showing mode transitions, battery charge progression, grid pricing, and power flow analysis.</p>
+                    </div>
+                </div>
+
+                <!-- Mode Timeline Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Mode Timeline</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="chart-container">
+                            <canvas id="mode-timeline-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Battery Charge Schedule Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Battery Charge Schedule</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="chart-container">
+                            <canvas id="battery-schedule-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Pricing Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Grid Pricing</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="chart-container">
+                            <canvas id="grid-pricing-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Power Flow Comparison Chart -->
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Power Flow Comparison</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="chart-container">
+                            <canvas id="power-flow-chart"></canvas>
+                        </div>
                     </div>
                 </div>
             </section>

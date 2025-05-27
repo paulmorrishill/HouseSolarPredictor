@@ -279,6 +279,155 @@ The dashboard provides comprehensive monitoring and control:
 - Real-time event logging
 - Error tracking and diagnostics
 - Control action confirmations
+### Schedule Charts
+
+The dashboard includes comprehensive 24-hour schedule visualization charts that provide detailed insights into planned system operation, energy flows, and cost optimization strategies.
+
+#### Mode Timeline Chart
+
+**Purpose**: Visualizes the operating mode transitions throughout the complete 24-hour schedule.
+
+**Data Processing**:
+- Converts schedule modes to numeric values for line chart rendering:
+  - [`ChargeFromGridAndSolar`](src/types/schedule.ts:2) → 1 (Grid + Solar charging)
+  - [`ChargeSolarOnly`](src/types/schedule.ts:3) → 2 (Solar-only charging)  
+  - [`Discharge`](src/types/schedule.ts:4) → 3 (Battery discharge mode)
+
+**Chart Specifications**:
+- **Type**: Step-line chart with mode transition markers
+- **X-Axis**: Time (00:00 - 23:59, 30-minute segments)
+- **Y-Axis**: Mode value (1-3) with custom labels
+- **Colors**: Distinct colors for each operational mode
+- **Tooltips**: Display actual mode names and time ranges
+
+#### Battery Charge Schedule Chart
+
+**Purpose**: Shows planned battery charge levels with smooth interpolation between time segments.
+
+**Data Processing**:
+- Uses [`startBatteryChargeKwh`](schedules/schedule.json:12) and [`endBatteryChargeKwh`](schedules/schedule.json:13) from schedule segments
+- Applies linear interpolation between segment boundaries for smooth visualization
+- Displays charge progression in kWh units
+
+**Chart Specifications**:
+- **Type**: Smooth line chart with area fill
+- **X-Axis**: Time (24-hour timeline)
+- **Y-Axis**: Battery charge (kWh, 0-10 kWh range)
+- **Interpolation**: Linear between segment start/end values
+- **Visual**: Area under curve with gradient fill
+
+#### Grid Pricing Chart
+
+**Purpose**: Displays electricity pricing per time segment without interpolation to show exact pricing periods.
+
+**Data Processing**:
+- Uses [`gridPrice`](schedules/schedule.json:11) values directly from schedule segments
+- No interpolation applied - shows step changes at segment boundaries
+- Displays pricing in pence per kWh
+
+**Chart Specifications**:
+- **Type**: Step chart (no interpolation between segments)
+- **X-Axis**: Time (24-hour timeline)
+- **Y-Axis**: Price (pence per kWh)
+- **Colors**: Heat map gradient (red=expensive, green=cheap)
+- **Annotations**: Peak/off-peak period markers
+
+#### Power Flow Comparison Chart
+
+**Purpose**: Compares expected load, grid usage, and solar generation on a single chart for comprehensive energy flow analysis.
+
+**Data Processing**:
+- Converts kWh values to kW by dividing by 0.5 (30-minute segment duration)
+- Three data series:
+  - **Expected Load**: [`expectedConsumption`](schedules/schedule.json:9) converted to kW
+  - **Expected Grid Usage**: [`actualGridUsage`](schedules/schedule.json:10) converted to kW
+  - **Expected Solar**: [`expectedSolarGeneration`](schedules/schedule.json:8) converted to kW
+
+**Chart Specifications**:
+- **Type**: Multi-line chart with distinct line styles
+- **X-Axis**: Time (24-hour timeline)
+- **Y-Axis**: Power (kW)
+- **Lines**: 
+  - Load (blue, solid line)
+  - Grid (red, dashed line)
+  - Solar (yellow, dotted line)
+- **Legend**: Clear identification with power source icons
+
+#### Implementation Architecture
+
+```mermaid
+graph TD
+    A[Schedule Data] --> B[Data Processing Service]
+    B --> C[Chart Data Transformation]
+    
+    C --> D[Mode Conversion<br/>String → Numeric]
+    C --> E[Battery Interpolation<br/>Linear Between Points]
+    C --> F[Power Conversion<br/>kWh → kW]
+    C --> G[Price Segmentation<br/>Step Values]
+    
+    D --> H[Mode Timeline Chart]
+    E --> I[Battery Schedule Chart]
+    F --> J[Power Flow Chart]
+    G --> K[Grid Pricing Chart]
+    
+    H --> L[Schedule Charts Section]
+    I --> L
+    J --> L
+    K --> L
+    
+    L --> M[Web Dashboard Integration]
+```
+
+#### Chart Integration Features
+
+**Interactive Elements**:
+- **Synchronized Time Selection**: Linked time range selection across all schedule charts
+- **Detailed Tooltips**: Hover information showing exact values and time ranges
+- **Chart Zoom**: Focus on specific time periods for detailed analysis
+- **Export Functionality**: Download charts as PNG/SVG for reporting
+
+**Data Updates**:
+- **Real-time Sync**: Charts update automatically when [`schedule.json`](schedules/schedule.json:1) changes
+- **WebSocket Integration**: Live updates via [`WebSocketService`](src/services/websocket.ts:149)
+- **Caching Strategy**: Client-side schedule data caching for performance
+
+**Responsive Design**:
+- **Mobile Optimization**: Touch-friendly chart interactions
+- **Adaptive Layout**: Charts resize based on screen dimensions
+- **Performance**: Optimized rendering for 48 time segments (24 hours × 30-minute intervals)
+
+#### Technical Implementation
+
+**Frontend Components** ([`app.js`](public/app.js:2)):
+```javascript
+// Schedule chart initialization
+initializeScheduleCharts() {
+    this.initializeModeTimelineChart();
+    this.initializeBatteryScheduleChart(); 
+    this.initializeGridPricingChart();
+    this.initializePowerFlowChart();
+}
+
+// Mode conversion utility
+convertModeToNumeric(mode) {
+    const modeMap = {
+        'ChargeFromGridAndSolar': 1,
+        'ChargeSolarOnly': 2,
+        'Discharge': 3
+    };
+    return modeMap[mode] || 0;
+}
+
+// Power unit conversion
+convertKwhToKw(kwhValue) {
+    return kwhValue / 0.5; // 30-minute segments
+}
+```
+
+**API Integration**:
+- **Schedule Endpoint**: [`GET /api/schedule`](main.ts:65) returns chart-optimized schedule data
+- **Chart Data Processing**: Server-side preprocessing for optimal chart performance
+- **Update Notifications**: WebSocket broadcasts for schedule changes
 
 ### Control Modes
 

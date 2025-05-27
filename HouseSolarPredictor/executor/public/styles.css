@@ -1,3 +1,10 @@
+/* Fix Chart.js responsive issues */
+.chart-container {
+    position: relative;
+    height: 280px;
+    width: 100%;
+}
+
 /* Custom styles for Solar Inverter Control System */
 
 body {
@@ -408,4 +415,56 @@ body {
 
 .visible {
     display: block !important;
+}
+/* Schedule Charts Section Styles */
+#schedule-charts .mdl-card {
+    margin-bottom: 16px;
+}
+
+#schedule-charts .mdl-card__supporting-text {
+    height: 300px;
+    position: relative;
+}
+
+#schedule-charts canvas {
+    max-height: 280px !important;
+}
+
+/* Schedule Charts Grid Layout */
+#schedule-charts .mdl-grid {
+    margin: 0;
+}
+
+#schedule-charts .mdl-cell {
+    margin: 8px;
+}
+
+/* Schedule Chart Titles */
+#schedule-charts .mdl-card__title-text {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+}
+
+/* Schedule Charts Description */
+#schedule-charts .mdl-card__supporting-text p {
+    margin: 0 0 16px 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Responsive adjustments for schedule charts */
+@media (max-width: 768px) {
+    #schedule-charts .mdl-cell--6-col {
+        width: calc(100% - 16px);
+    }
+    
+    #schedule-charts .mdl-card__supporting-text {
+        height: 250px;
+    }
+    
+    #schedule-charts canvas {
+        max-height: 230px !important;
+    }
 }

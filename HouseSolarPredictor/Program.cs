@@ -125,22 +125,30 @@ class Program
        var plan =  await chargePlanner.CreateChargePlan(targetDate, Kwh.Zero);
        plan.PrintPlanTable();
        plan.PrintPlanTableToHtml();
-       var mappedPlan = plan.Select(s => new
+       var mappedPlan = plan.Select(s =>
        {
-              Time = new
-              {
-                SegmentStart = s.HalfHourSegment.Start().ToString(),
-                SegmentEnd = s.HalfHourSegment.End().ToString(),
-              },
-              Mode = s.Mode.ToString(),
-              ExpectedSolarGeneration = s.ExpectedSolarGeneration.Value,
-              ExpectedConsumption = s.ExpectedConsumption.Value,
-              ActualGridUsage = s.ActualGridUsage.Value,
-              GridPrice = s.GridPrice.PricePerKwh.PoundsAmount,
-              StartBatteryChargeKwh = s.StartBatteryChargeKwh.Value,
-              EndBatteryChargeKwh = s.EndBatteryChargeKwh.Value,
-              WastedSolarGeneration = s.WastedSolarGeneration.Value,
-              Cost = s.Cost()
+           var endTime = s.HalfHourSegment.End().On(targetDate);
+           if(endTime < s.HalfHourSegment.Start().On(targetDate))
+           {
+               endTime = endTime.PlusDays(1);
+           }
+           return new
+           {
+               Time = new
+               {
+                   SegmentStart = s.HalfHourSegment.Start().On(targetDate),
+                   SegmentEnd = endTime,
+               },
+               Mode = s.Mode.ToString(),
+               ExpectedSolarGeneration = s.ExpectedSolarGeneration.Value,
+               ExpectedConsumption = s.ExpectedConsumption.Value,
+               ActualGridUsage = s.ActualGridUsage.Value,
+               GridPrice = s.GridPrice.PricePerKwh.PoundsAmount,
+               StartBatteryChargeKwh = s.StartBatteryChargeKwh.Value,
+               EndBatteryChargeKwh = s.EndBatteryChargeKwh.Value,
+               WastedSolarGeneration = s.WastedSolarGeneration.Value,
+               Cost = s.Cost()
+           };
        });
        
        // camel case

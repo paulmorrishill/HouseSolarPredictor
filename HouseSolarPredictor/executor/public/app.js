@@ -684,8 +684,468 @@ class SolarInverterApp {
                 }
             });
         }
+// Initialize schedule charts
+        this.initializeScheduleCharts();
     }
 
+    initializeScheduleCharts() {
+        // Mode Timeline Chart
+        const modeCtx = document.getElementById('mode-timeline-chart');
+        if (modeCtx) {
+            this.charts.modeTimeline = new Chart(modeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Operating Mode',
+                        data: [],
+                        borderColor: '#9C27B0',
+                        backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                        stepped: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            min: 0.5,
+                            max: 3.5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    const modes = {
+                                        1: 'Grid+Solar',
+                                        2: 'Solar Only',
+                                        3: 'Discharge'
+                                    };
+                                    return modes[value] || '';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Mode'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const modes = {
+                                        1: 'Charge from Grid + Solar',
+                                        2: 'Charge Solar Only',
+                                        3: 'Discharge'
+                                    };
+                                    return modes[context.parsed.y] || 'Unknown Mode';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Battery Schedule Chart
+        const batteryCtx = document.getElementById('battery-schedule-chart');
+        if (batteryCtx) {
+            this.charts.batterySchedule = new Chart(batteryCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Planned Battery Charge',
+                        data: [],
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 12,
+                            title: {
+                                display: true,
+                                text: 'Battery Charge (kWh)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Grid Pricing Chart
+        const pricingCtx = document.getElementById('grid-pricing-chart');
+        if (pricingCtx) {
+            this.charts.gridPricing = new Chart(pricingCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Grid Price',
+                        data: [],
+                        borderColor: '#FF5722',
+                        backgroundColor: function(context) {
+                            const value = context.parsed?.y;
+                            if (value < 0.05) return 'rgba(76, 175, 80, 0.3)'; // Green for cheap
+                            if (value < 0.10) return 'rgba(255, 193, 7, 0.3)'; // Yellow for medium
+                            return 'rgba(244, 67, 54, 0.3)'; // Red for expensive
+                        },
+                        stepped: true,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Price (£/kWh)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Price: £${context.parsed.y.toFixed(4)}/kWh`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Power Flow Comparison Chart
+        const powerFlowCtx = document.getElementById('power-flow-chart');
+        if (powerFlowCtx) {
+            this.charts.powerFlow = new Chart(powerFlowCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Expected Load',
+                            data: [],
+                            borderColor: '#2196F3',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Expected Grid Usage',
+                            data: [],
+                            borderColor: '#F44336',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Expected Solar',
+                            data: [],
+                            borderColor: '#FF9800',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [2, 2],
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Power (kW)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load schedule data and update charts
+        this.loadScheduleData();
+    }
+
+    async loadScheduleData() {
+        try {
+            const response = await fetch('/api/schedule');
+            if (response.ok) {
+                const scheduleData = await response.json();
+                this.processScheduleData(scheduleData);
+                this.addLogEntry('📊 Schedule data loaded successfully', 'info');
+            } else {
+                this.addLogEntry('❌ Failed to load schedule data', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading schedule data:', error);
+            this.addLogEntry('❌ Error loading schedule data: ' + error.message, 'error');
+        }
+    }
+
+    processScheduleData(scheduleData) {
+        if (!Array.isArray(scheduleData) || scheduleData.length === 0) {
+            this.addLogEntry('⚠️ No schedule data available', 'warn');
+            return;
+        }
+
+        // Process data for each chart
+        const modeData = this.processModeTimelineData(scheduleData);
+        const batteryData = this.processBatteryScheduleData(scheduleData);
+        const pricingData = this.processGridPricingData(scheduleData);
+        const powerFlowData = this.processPowerFlowData(scheduleData);
+
+        // Update charts
+        this.updateModeTimelineChart(modeData);
+        this.updateBatteryScheduleChart(batteryData);
+        this.updateGridPricingChart(pricingData);
+        this.updatePowerFlowChart(powerFlowData);
+
+        this.addLogEntry('✅ Schedule charts updated', 'info');
+    }
+
+    processModeTimelineData(scheduleData) {
+        const data = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        scheduleData.forEach(segment => {
+            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
+            const endTime = this.parseTimeToDate(segment.time.hourEnd, today);
+            
+            const modeValue = this.convertModeToNumeric(segment.mode);
+            
+            // Add start point
+            data.push({
+                x: startTime,
+                y: modeValue
+            });
+            
+            // Add end point for step effect
+            data.push({
+                x: endTime,
+                y: modeValue
+            });
+        });
+
+        return data;
+    }
+
+    processBatteryScheduleData(scheduleData) {
+        const data = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        scheduleData.forEach(segment => {
+            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
+            const endTime = this.parseTimeToDate(segment.time.hourEnd, today);
+            
+            // Add start point
+            data.push({
+                x: startTime,
+                y: segment.startBatteryChargeKwh
+            });
+            
+            // Add end point for interpolation
+            data.push({
+                x: endTime,
+                y: segment.endBatteryChargeKwh
+            });
+        });
+
+        return data;
+    }
+
+    processGridPricingData(scheduleData) {
+        const data = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        scheduleData.forEach(segment => {
+            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
+            const endTime = this.parseTimeToDate(segment.time.hourEnd, today);
+            
+            // Convert pence to pounds
+            const priceInPounds = segment.gridPrice / 100;
+            
+            // Add start point
+            data.push({
+                x: startTime,
+                y: priceInPounds
+            });
+            
+            // Add end point for step effect
+            data.push({
+                x: endTime,
+                y: priceInPounds
+            });
+        });
+
+        return data;
+    }
+
+    processPowerFlowData(scheduleData) {
+        const loadData = [];
+        const gridData = [];
+        const solarData = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        scheduleData.forEach(segment => {
+            const startTime = this.parseTimeToDate(segment.time.hourStart, today);
+            
+            // Convert kWh to kW (divide by 0.5 for 30-minute segments)
+            const loadKw = segment.expectedConsumption / 0.5;
+            const gridKw = segment.actualGridUsage / 0.5;
+            const solarKw = segment.expectedSolarGeneration / 0.5;
+            
+            loadData.push({
+                x: startTime,
+                y: loadKw
+            });
+            
+            gridData.push({
+                x: startTime,
+                y: gridKw
+            });
+            
+            solarData.push({
+                x: startTime,
+                y: solarKw
+            });
+        });
+
+        return {
+            load: loadData,
+            grid: gridData,
+            solar: solarData
+        };
+    }
+
+    convertModeToNumeric(mode) {
+        const modeMap = {
+            'ChargeFromGridAndSolar': 1,
+            'ChargeSolarOnly': 2,
+            'Discharge': 3
+        };
+        return modeMap[mode] || 0;
+    }
+
+    parseTimeToDate(timeString, baseDate) {
+        const [hours, minutes, seconds] = timeString.split(':').map(Number);
+        const date = new Date(baseDate);
+        date.setHours(hours, minutes, seconds || 0, 0);
+        return date;
+    }
+
+    updateModeTimelineChart(data) {
+        const chart = this.charts.modeTimeline;
+        if (!chart || !data) return;
+
+        chart.data.datasets[0].data = data;
+        chart.update('none');
+    }
+
+    updateBatteryScheduleChart(data) {
+        const chart = this.charts.batterySchedule;
+        if (!chart || !data) return;
+
+        chart.data.datasets[0].data = data;
+        chart.update('none');
+    }
+
+    updateGridPricingChart(data) {
+        const chart = this.charts.gridPricing;
+        if (!chart || !data) return;
+
+        chart.data.datasets[0].data = data;
+        chart.update('none');
+    }
+
+    updatePowerFlowChart(data) {
+        const chart = this.charts.powerFlow;
+        if (!chart || !data) return;
+
+        chart.data.datasets[0].data = data.load;
+        chart.data.datasets[1].data = data.grid;
+        chart.data.datasets[2].data = data.solar;
+        chart.update('none');
+    }
+    
     updateRealtimeChart(metrics) {
         // Add new real-time data to our stored metrics
         if (metrics && metrics.timestamp) {
