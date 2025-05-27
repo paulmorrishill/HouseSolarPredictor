@@ -56,14 +56,13 @@ public class OptimiserBlackBoxTests
             new("Dynamic", () => new DynamicProgrammingPlanOptimiser(_fileLogger, _houseSimulator, _testBatteryPredictor)),
             new("Genetic400", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 400)),
             new("Genetic200", () => new GeneticAlgorithmPlanOptimiser(_houseSimulator, _fileLogger, generations: 200)),
-            new("SimpleStacker", () => new ScoringOptimiser(_houseSimulator, _testBatteryPredictor.Capacity)),
             new("DoNothing", () => new DoNothingOptimiser())
         };
 
         var results = await RunScenarioComparison(optimizers);
 
         var scenario = "Expensive Afternoon";
-        var scenarioResult = results["SimpleStacker"][scenario];
+        var scenarioResult = results["Graph"][scenario];
         var scenarioInstance = GetAllScenarios().First(s => s.Name == scenario);
         PrintSegmentTable(scenarioResult.ChargePlan, scenarioInstance);
     }
