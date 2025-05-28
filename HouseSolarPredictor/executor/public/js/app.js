@@ -54,7 +54,7 @@ class SolarInverterApp {
         
         if (data.schedule) {
             this.scheduleManager.updateScheduleInfo(data.schedule);
-            this.chartManager.updateScheduleCharts(data.schedule);
+            this.chartManager.updateScheduleCharts(data.schedule, data.metrics);
         }
     }
 

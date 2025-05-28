@@ -1,4 +1,7 @@
 // Data processing utilities for metrics and schedule data
+const MODE_CHARGE_FROM_GRID_AND_SOLAR = 3;
+const MODE_CHARGE_SOLAR_ONLY = 2;
+const MODE_DISCHARGE = 1;
 class DataProcessor {
     constructor(logger) {
         this.logger = logger;
@@ -36,20 +39,53 @@ class DataProcessor {
         return limitedMetrics;
     }
 
-    processModeTimelineData(scheduleData) {
-        if (!Array.isArray(scheduleData)) return [];
+    processModeTimelineData(scheduleData, historicData) {
+        if (!Array.isArray(scheduleData)) return {
+            planned: [],
+            actual: []
+        };
 
-        const data = [];
-        scheduleData.forEach(segment => {
+        const plannedMode = [];
+
+        scheduleData.forEach((segment, i) => {
             const startTime = this.parseDateTime(segment.time.segmentStart);
             const endTime = this.parseDateTime(segment.time.segmentEnd);
-            const modeValue = this.convertModeToNumeric(segment.mode);
+            const modeValue = this.convertPlannedModeToNumeric(segment.mode);
 
-            data.push({ x: startTime, y: modeValue });
-            data.push({ x: endTime, y: modeValue });
+            plannedMode.push({ x: startTime, y: modeValue });
+            if (i === scheduleData.length - 1) {
+                plannedMode.push({ x: endTime, y: modeValue });
+            }
         });
 
-        return data.sort((a, b) => a.x - b.x);
+        const actualModes = historicData.filter(m => m.workModePriority).map(metric => {
+            const startTime = metric.timestamp;
+            const modeValue = this.convertActualModeToNumeric(metric);
+
+            return { x: startTime, y: modeValue };
+        });
+
+        // Add the last point of now with the same mode
+        if (actualModes.length > 0) {
+            const lastMode = actualModes[actualModes.length - 1].y;
+            actualModes.push({ x: Date.now(), y: lastMode });
+        }
+
+        const dedupedModes = [actualModes[0]];
+        for (let i = 1; i < actualModes.length; i++) {
+            let mostRecentMode = dedupedModes[dedupedModes.length-1].y;
+            let currentDataPointMode = actualModes[i].y;
+            let modeHasChanged = mostRecentMode !== currentDataPointMode;
+            if (modeHasChanged) {
+                dedupedModes.push(actualModes[i-1]);
+                dedupedModes.push(actualModes[i]);
+            }
+        }
+
+        return {
+            planned: plannedMode.sort((a, b) => a.x - b.x),
+            actual: dedupedModes.sort((a, b) => a.x - b.x)
+        };
     }
 
     processBatteryScheduleData(scheduleData) {
@@ -77,13 +113,16 @@ class DataProcessor {
         if (!Array.isArray(scheduleData)) return [];
 
         const data = [];
-        scheduleData.forEach(segment => {
+        scheduleData.forEach((segment, i) => {
             const startTime = this.parseDateTime(segment.time.segmentStart);
             const endTime = this.parseDateTime(segment.time.segmentEnd);
             const priceInPounds = segment.gridPrice;
 
             data.push({ x: startTime, y: priceInPounds });
-            data.push({ x: endTime, y: priceInPounds });
+            if (i < scheduleData.length - 1) {
+                // Add a point at the end of the segment to maintain the price until the next segment
+                data.push({ x: endTime, y: priceInPounds });
+            }
         });
 
         return data.sort((a, b) => a.x - b.x);
@@ -116,13 +155,28 @@ class DataProcessor {
         };
     }
 
-    convertModeToNumeric(mode) {
+    convertPlannedModeToNumeric(mode) {
         const modeMap = {
-            'ChargeFromGridAndSolar': 3,
-            'ChargeSolarOnly': 2,
-            'Discharge': 1
+            'ChargeFromGridAndSolar': MODE_CHARGE_FROM_GRID_AND_SOLAR,
+            'ChargeSolarOnly': MODE_CHARGE_SOLAR_ONLY,
+            'Discharge': MODE_DISCHARGE
         };
         return modeMap[mode] || 0;
+    }
+
+    convertActualModeToNumeric(metric) {
+        if(metric.workModePriority === 'Battery first') {
+            if(metric.batteryChargeRate > 50){
+                return MODE_CHARGE_FROM_GRID_AND_SOLAR; // Battery first with high charge rate
+            } else {
+                return MODE_CHARGE_SOLAR_ONLY; // Battery first with low charge rate
+            }
+        }
+        if (metric.workModePriority === 'Load first') {
+            return MODE_DISCHARGE;
+        }
+
+        throw new Error('Unknown work mode priority: ' + metric.workModePriority);
     }
 
     // DateTime parsing - NO time-only support

@@ -6,6 +6,7 @@ class ChartManager {
         this.charts = {};
         this.lastChartUpdate = 0;
         this.chartUpdateThrottle = 5000; // Minimum 5 seconds between chart updates
+        Chart.register(window['chartjs-plugin-annotation']);
     }
 
     initializeCharts() {
@@ -28,21 +29,24 @@ class ChartManager {
                             data: [],
                             borderColor: '#FF6384',
                             backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2
                         },
                         {
                             label: 'Grid Power (kW)',
                             data: [],
                             borderColor: '#36A2EB',
                             backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2
                         },
                         {
                             label: 'Battery Power (kW)',
                             data: [],
                             borderColor: '#4BC0C0',
                             backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2
                         }
                     ]
                 },
@@ -96,14 +100,18 @@ class ChartManager {
                             data: [],
                             borderColor: '#FF9F40',
                             backgroundColor: 'rgba(255, 159, 64, 0.1)',
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2,
+                            hoverPointRadius: 4
                         },
                         {
                             label: 'Actual Battery Level (kWh)',
                             data: [],
                             borderColor: '#FF6384',
                             backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2,
+                            hoverPointRadius: 4
                         }
                     ]
                 },
@@ -143,7 +151,8 @@ class ChartManager {
                         data: [0],
                         backgroundColor: '#4CAF50',
                         borderColor: '#45a049',
-                        borderWidth: 1
+                        borderWidth: 1,
+                        pointRadius: 2
                     }]
                 },
                 options: {
@@ -180,19 +189,45 @@ class ChartManager {
     initializeModeTimelineChart() {
         const modeCtx = document.getElementById('mode-timeline-chart');
         if (modeCtx) {
+            const modeLabels = {
+                1: 'Discharge',
+                2: 'Solar Only',
+                3: 'Grid+Solar'
+            };
+
+            const tooltipLabels = {
+                1: 'Charge from Grid + Solar',
+                2: 'Charge Solar Only',
+                3: 'Discharge'
+            };
+
             this.charts.modeTimeline = new Chart(modeCtx, {
                 type: 'line',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'Operating Mode',
-                        data: [],
-                        borderColor: '#9C27B0',
-                        backgroundColor: 'rgba(156, 39, 176, 0.1)',
-                        stepped: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
+                    datasets: [
+                        {
+                            label: 'Actual Mode',
+                            data: [], // use `offsetData(actualData)` when setting real data
+                            borderColor: '#6cb027',
+                            backgroundColor: 'rgba(108, 176, 39, 0.1)',
+                            stepped: true,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Planned Mode',
+                            data: [], // use original data
+                            borderColor: 'rgba(156,39,176,0.7)',
+                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                            borderDash: [6, 4],
+                            stepped: true,
+                            borderWidth: 2,
+                            pointRadius: 1,
+                            pointHoverRadius: 5
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -202,46 +237,28 @@ class ChartManager {
                             type: 'time',
                             time: {
                                 unit: 'hour',
-                                displayFormats: {
-                                    hour: 'HH:mm'
-                                }
+                                displayFormats: { hour: 'HH:mm' }
                             },
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
+                            title: { display: true, text: 'Time' }
                         },
                         y: {
                             min: 0.5,
                             max: 3.5,
                             ticks: {
-                                stepSize: 1,
-                                callback: function(value) {
-                                    const modes = {
-                                        1: 'Grid+Solar',
-                                        2: 'Solar Only',
-                                        3: 'Discharge'
-                                    };
-                                    return modes[value] || '';
-                                }
+                                callback: value => modeLabels[value] || ''
                             },
-                            title: {
-                                display: true,
-                                text: 'Mode'
-                            }
+                            title: { display: true, text: 'Mode' }
                         }
                     },
                     plugins: {
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    const modes = {
-                                        1: 'Charge from Grid + Solar',
-                                        2: 'Charge Solar Only',
-                                        3: 'Discharge'
-                                    };
-                                    return modes[context.parsed.y] || 'Unknown Mode';
-                                }
+                                label: context => tooltipLabels[context.parsed.y.toFixed(0)] || 'Unknown Mode'
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                usePointStyle: true
                             }
                         }
                     }
@@ -263,7 +280,8 @@ class ChartManager {
                         borderColor: '#4CAF50',
                         backgroundColor: 'rgba(76, 175, 80, 0.2)',
                         fill: true,
-                        tension: 0.4
+                        tension: 0.4,
+                        pointRadius: 2
                     }]
                 },
                 options: {
@@ -315,7 +333,7 @@ class ChartManager {
                             return 'rgba(244, 67, 54, 0.3)'; // Red for expensive
                         },
                         stepped: true,
-                        pointRadius: 3
+                        pointRadius: 2
                     }]
                 },
                 options: {
@@ -371,7 +389,8 @@ class ChartManager {
                             borderColor: '#2196F3',
                             backgroundColor: 'rgba(33, 150, 243, 0.1)',
                             borderWidth: 2,
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2
                         },
                         {
                             label: 'Expected Grid Usage',
@@ -380,7 +399,8 @@ class ChartManager {
                             backgroundColor: 'rgba(244, 67, 54, 0.1)',
                             borderWidth: 2,
                             borderDash: [5, 5],
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2
                         },
                         {
                             label: 'Expected Solar',
@@ -389,7 +409,8 @@ class ChartManager {
                             backgroundColor: 'rgba(255, 152, 0, 0.1)',
                             borderWidth: 2,
                             borderDash: [2, 2],
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 2
                         }
                     ]
                 },
@@ -518,14 +539,14 @@ class ChartManager {
         chart.update('active');
     }
 
-    updateScheduleCharts(scheduleData) {
+    updateScheduleCharts(scheduleData, metrics) {
         if (!Array.isArray(scheduleData) || scheduleData.length === 0) {
             this.logger.addLogEntry('⚠️ No schedule data available for charts', 'warn');
             return;
         }
 
         // Process data for each chart
-        const modeData = this.dataProcessor.processModeTimelineData(scheduleData);
+        const modeData = this.dataProcessor.processModeTimelineData(scheduleData, metrics);
         const batteryData = this.dataProcessor.processBatteryScheduleData(scheduleData);
         const pricingData = this.dataProcessor.processGridPricingData(scheduleData);
         const powerFlowData = this.dataProcessor.processPowerFlowData(scheduleData);
@@ -535,7 +556,7 @@ class ChartManager {
         this.updateBatteryScheduleChart(batteryData);
         this.updateGridPricingChart(pricingData);
         this.updatePowerFlowChart(powerFlowData);
-
+        console.log('Mode timeline data:', modeData);
         this.logger.addLogEntry('✅ Schedule charts updated', 'info');
     }
 
@@ -543,7 +564,8 @@ class ChartManager {
         const chart = this.charts.modeTimeline;
         if (!chart || !data) return;
 
-        chart.data.datasets[0].data = data;
+        chart.data.datasets[0].data = data.planned;
+        chart.data.datasets[1].data = data.actual;
         chart.update('none');
     }
 
