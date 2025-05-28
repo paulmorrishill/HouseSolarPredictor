@@ -209,8 +209,8 @@ export class InverterController {
     const needsChargeRateChange = currentRate !== chargeRate;
 
     if (!needsWorkModeChange && !needsChargeRateChange) {
-      this.logger.log("✅ No changes needed, inverter is already in desired state");
       this.state.status = "green";
+      this.state.message = "Inverter is already in the correct state ✅";
       return;
     }
 
