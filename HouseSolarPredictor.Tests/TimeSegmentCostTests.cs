@@ -334,4 +334,22 @@ public class TimeSegmentCostTests
         // Grid calculation: 3 - 3 - 2 = -2, but should be treated as 0
         cost.Should().Be(Gbp.Zero);
     }
+
+    [Test]
+    public void CanSumUpSegmentCosts()
+    {
+        var segments = new List<TimeSegment>
+        {
+            CreateTimeSegment(solarGeneration: 2, gridConsumed: 5, gridPricePence: 20),
+            CreateTimeSegment(solarGeneration: 1, gridConsumed: 3, gridPricePence: 25),
+            CreateTimeSegment(solarGeneration: 0, gridConsumed: 4, gridPricePence: 30)
+        };
+        
+        var totalCost = segments.CalculatePlanCost();
+        // First segment: 5 kWh - 2 kWh solar = 3 kWh grid * £0.20 = £0.60
+        // Second segment: 3 kWh - 1 kWh solar = 2 kWh grid * £0.25 = £0.50
+        // Third segment: 4 kWh grid * £0.30 = £1.20
+        var expectedCost = new Gbp(0.60m + 0.50m + 1.20m); // Total: £2.30
+        totalCost.Should().Be(expectedCost);
+    }
 }

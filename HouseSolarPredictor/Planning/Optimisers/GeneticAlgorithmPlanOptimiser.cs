@@ -77,7 +77,7 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
             {
                 bestFitness = currentBestFitness;
                 generationsWithoutImprovement = 0;
-                _logger.Log($"Generation {generation}: New best fitness = £{bestFitness:F4}");
+                //_logger.Log($"Generation {generation}: New best fitness = £{bestFitness:F4}");
             }
             else
             {
@@ -87,7 +87,7 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
             // Early stopping if no improvement
             if (generationsWithoutImprovement >= MAX_GENERATIONS_WITHOUT_IMPROVEMENT)
             {
-                _logger.Log($"Early stopping at generation {generation} - no improvement for {MAX_GENERATIONS_WITHOUT_IMPROVEMENT} generations");
+                //_logger.Log($"Early stopping at generation {generation} - no improvement for {MAX_GENERATIONS_WITHOUT_IMPROVEMENT} generations");
                 break;
             }
 
@@ -100,7 +100,7 @@ public class GeneticAlgorithmPlanOptimiser : IPlanOptimiser
         var finalEvaluation = await EvaluatePopulation(population, baseSegments, date);
         finalEvaluation.Sort((a, b) => a.Fitness.CompareTo(b.Fitness));
         
-        _logger.Log($"GA completed with best fitness: £{finalEvaluation[0].Fitness:F4}");
+        //_logger.Log($"GA completed with best fitness: £{finalEvaluation[0].Fitness:F4}");
         return finalEvaluation[0];
     }
 

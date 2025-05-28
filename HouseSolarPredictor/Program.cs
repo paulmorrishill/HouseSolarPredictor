@@ -103,7 +103,7 @@ class Program
 
         // Step 3: Predict solar generation for each half-hour
         Console.WriteLine("Predicting solar generation for each half-hour...");
-        var lifePo4BatteryPredictor = new LifePo4BatteryPredictor(10m, 2.74m);
+        var lifePo4BatteryPredictor = new LifePo4BatteryPredictor(10m, 2.74m/2m);
         var houseSimulator = new HouseSimulator(lifePo4BatteryPredictor);
         var graphBasedPlanOptimiser = new GraphBasedPlanOptimiser(lifePo4BatteryPredictor, houseSimulator, FileLogger);
         var chargePlanner = new ChargePlanner(

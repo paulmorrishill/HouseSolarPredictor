@@ -34,7 +34,7 @@
         <main class="mdl-layout__content">
             <!-- Status Bar -->
             <section id="status-section" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
-                <div class="mdl-card mdl-cell mdl-cell--12-col">
+                <div class="mdl-card status-card">
                     <div class="mdl-card__supporting-text">
                         <div id="status-indicator" class="status-indicator status-amber">
                             <div class="status-light"></div>
@@ -104,7 +104,7 @@
 
             <!-- Current Metrics -->
             <section id="overview" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
-                <div class="mdl-card mdl-cell mdl-cell--12-col">
+                <div class="mdl-card overview-card">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Current Metrics</h2>
                     </div>
@@ -138,7 +138,7 @@
             <!-- Charts Section -->
             <section id="charts" class="section--center mdl-grid mdl-grid--no-spacing">
                 <!-- Time Range Selector -->
-                <div class="mdl-card mdl-cell mdl-cell--12-col mdl-shadow--2dp" style="margin-bottom: 16px;">
+                <div class="mdl-card section-header mdl-shadow--2dp">
                     <div class="mdl-card__supporting-text">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <label for="time-range-select" style="font-weight: 500;">Chart Time Range:</label>
@@ -154,7 +154,7 @@
                     </div>
                 </div>
                 <!-- Real-time Metrics Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Real-time Metrics</h2>
                     </div>
@@ -164,7 +164,7 @@
                 </div>
 
                 <!-- Control Parameters Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Expected vs Actual Control</h2>
                     </div>
@@ -174,7 +174,7 @@
                 </div>
 
                 <!-- Predicted vs Actual Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Predicted vs Actual Values</h2>
                     </div>
@@ -184,7 +184,7 @@
                 </div>
 
                 <!-- Cost Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Grid Usage Cost</h2>
                     </div>
@@ -202,14 +202,14 @@
 
             <!-- Schedule Charts Section -->
             <section id="schedule-charts" class="section--center mdl-grid mdl-grid--no-spacing">
-                <div class="mdl-card mdl-cell mdl-cell--12-col mdl-shadow--2dp" style="margin-bottom: 16px;">
+                <div class="mdl-card section-header mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">24-Hour Schedule Analysis</h2>
                     </div>
                 </div>
 
                 <!-- Mode Timeline Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Mode Timeline</h2>
                     </div>
@@ -221,7 +221,7 @@
                 </div>
 
                 <!-- Battery Charge Schedule Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Battery Charge Schedule</h2>
                     </div>
@@ -233,7 +233,7 @@
                 </div>
 
                 <!-- Grid Pricing Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Grid Pricing</h2>
                     </div>
@@ -245,7 +245,7 @@
                 </div>
 
                 <!-- Power Flow Comparison Chart -->
-                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-shadow--2dp">
+                <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">Power Flow Comparison</h2>
                     </div>
@@ -259,7 +259,7 @@
 
             <!-- System Log -->
             <section id="logs" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
-                <div class="mdl-card mdl-cell mdl-cell--12-col">
+                <div class="mdl-card log-card">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">System Log</h2>
                     </div>
