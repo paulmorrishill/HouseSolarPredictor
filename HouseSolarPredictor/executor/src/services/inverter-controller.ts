@@ -5,6 +5,7 @@ import { TimeSegment, OutputsMode, ControlAction, SystemState } from "../types/s
 import { BATTERY_PROTECTION } from "../constants/battery-protection.ts";
 import {ConfigService} from "./config.ts";
 import { SmtpClient } from "https://deno.land/x/smtp/mod.ts";
+import { Logger } from "../logger.ts";
 
 export type ControllerStatus = "green" | "amber" | "red";
 
@@ -39,6 +40,7 @@ export class InverterController {
   private databaseService: DatabaseService;
   private retryAttempts: number;
   private retryDelayMinutes: number;
+  private logger: Logger;
 
   private state: ControllerState = {
     status: "amber",
@@ -76,6 +78,7 @@ export class InverterController {
     this.databaseService = databaseService;
     this.retryAttempts = retryAttempts;
     this.retryDelayMinutes = retryDelayMinutes;
+    this.logger = new Logger();
     
     this.setupMqttHandlers();
   }
@@ -125,7 +128,7 @@ export class InverterController {
     });
 
     this.mqttService.onMessage(topics.RESPONSE_MESSAGE_STATE, (message) => {
-      console.log(`Inverter response: ${message}`);
+      this.logger.log(`Inverter response: ${message}`);
       this.handleInverterResponse(message);
     });
   }
@@ -143,7 +146,7 @@ export class InverterController {
   }
 
   async start(): Promise<void> {
-    console.log("Starting inverter controller...");
+    this.logger.log("Starting inverter controller...");
     
     if (!this.scheduleService.isScheduleLoaded()) {
       await this.scheduleService.loadSchedule();
@@ -162,14 +165,14 @@ export class InverterController {
     this.controlTimer = setInterval(() => {
       if (!this.isSuspended) {
         this.checkAndUpdateInverter().catch(error => {
-          console.error("Error in control loop:", error);
+          this.logger.logException(error as Error);
         });
       }
     }, 30000);
 
     // Initial check
     this.checkAndUpdateInverter().catch(error => {
-      console.error("Error in initial control check:", error);
+      this.logger.logException(error as Error);
     });
   }
 
@@ -292,14 +295,14 @@ export class InverterController {
     // Check for recovery from protection mode
     if (wasInProtection && !protection.protectionApplied &&
         this.currentMetrics.batteryCharge >= BATTERY_PROTECTION.RECOVERY_THRESHOLD) {
-      console.log(`Battery protection mode exited - battery recovered to ${this.currentMetrics.batteryCharge}%`);
+      this.logger.log(`Battery protection mode exited - battery recovered to ${this.currentMetrics.batteryCharge}%`);
       this.state.isInProtectionMode = false;
       this.state.protectionReason = undefined;
     }
 
     // Log protection mode changes
     if (protection.protectionApplied && !wasInProtection) {
-      console.log(`Battery protection mode activated: ${protection.protectionReason}`);
+      this.logger.log(`Battery protection mode activated: ${protection.protectionReason}`);
     }
 
     return { workMode: protection.workMode, chargeRate: protection.chargeRate };
@@ -336,7 +339,7 @@ export class InverterController {
       this.startVerificationTimer();
 
     } catch (error) {
-      console.error("Error executing control sequence:", error);
+      this.logger.logException(error as Error);
       await this.handleControlError(error as Error);
     }
   }
@@ -380,7 +383,7 @@ export class InverterController {
     // Wait 30 seconds then verify the change was applied
     this.verificationTimer = setTimeout(() => {
       this.verifyControlAction().catch(error => {
-        console.error("Error verifying control action:", error);
+        this.logger.logException(error as Error);
       });
     }, 30000);
   }
@@ -409,7 +412,7 @@ export class InverterController {
     await this.databaseService.updateControlAction(this.pendingActionId, success, responseMessage);
 
     if (success) {
-      console.log(`Control action succeeded: ${responseMessage}`);
+      this.logger.log(`Control action succeeded: ${responseMessage}`);
       this.state.pendingAction = undefined;
       this.pendingActionId = undefined;
       this.retryCount = 0;
@@ -420,7 +423,7 @@ export class InverterController {
         this.state.message = "System updated successfully";
       }
     } else {
-      console.warn(`Control action failed: ${responseMessage}`);
+      this.logger.log(`Control action failed: ${responseMessage}`);
       await this.handleControlFailure(responseMessage);
     }
   }
@@ -429,7 +432,7 @@ export class InverterController {
     this.retryCount++;
 
     if (this.retryCount <= this.retryAttempts) {
-      console.log(`Retrying control action (attempt ${this.retryCount}/${this.retryAttempts})`);
+      this.logger.log(`Retrying control action (attempt ${this.retryCount}/${this.retryAttempts})`);
       this.state.message = `Retrying... (${this.retryCount}/${this.retryAttempts})`;
       
       // Clear pending action and retry after delay
@@ -438,9 +441,9 @@ export class InverterController {
       
       setTimeout(() => {
         this.checkAndUpdateInverter().catch(error => {
-          console.error("Error in retry:", error);
+          this.logger.logException(error as Error);
         });
-      }, this.retryDelayMinutes * 30 * 1000);
+      }, this.retryDelayMinutes * 60 * 1000);
     } else {
       // Max retries reached - suspend operations
       await this.suspendOperations(`Max retries reached: ${message}`);
@@ -448,7 +451,7 @@ export class InverterController {
   }
 
   private async handleControlError(error: Error): Promise<void> {
-    console.error("Control error:", error);
+    this.logger.logException(error);
     await this.handleControlFailure(error.message);
   }
 
@@ -461,14 +464,14 @@ export class InverterController {
 
     await this.databaseService.insertSystemStatus("red", reason);
     
-    console.error(`Operations suspended: ${reason}`);
+    this.logger.log(`Operations suspended: ${reason}`);
     
     await this.sendEmailNotification(reason);
   }
 
   private handleInverterResponse(message: string): void {
     // Log the response message
-    console.log(`Inverter response logged: ${message}`);
+    this.logger.log(`Inverter response logged: ${message}`);
     
     // If we have a pending action, this might be the response to it
     if (this.state.pendingAction && this.pendingActionId) {
@@ -485,7 +488,7 @@ export class InverterController {
       return;
     }
 
-    console.log("Retrying operations after manual intervention");
+    this.logger.log("Retrying operations after manual intervention");
     this.isSuspended = false;
     this.retryCount = 0;
     this.state.status = "amber";
@@ -495,7 +498,7 @@ export class InverterController {
     
     // Restart the control check
     this.checkAndUpdateInverter().catch(error => {
-      console.error("Error in manual retry:", error);
+      this.logger.logException(error as Error);
     });
   }
 
@@ -563,7 +566,7 @@ export class InverterController {
   }
 
   private async sendEmailNotification(reason: string) {
-    console.log(`Sending email notification: Operations suspended - ${reason}`);
+    this.logger.log(`Sending email notification: Operations suspended - ${reason}`);
 
     const emailContent = `
       <h1>Inverter Controller Alert</h1>
@@ -575,7 +578,7 @@ export class InverterController {
     const smtpConfig = this.configService.getSmtpConfig();
 
     if (!smtpConfig) {
-      console.warn("SMTP configuration not set, skipping email notification");
+      this.logger.log("SMTP configuration not set, skipping email notification");
       return;
     }
 

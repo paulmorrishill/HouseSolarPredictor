@@ -10,7 +10,8 @@
     "@std/fs": "jsr:@std/fs@0.229",
     "@std/log": "jsr:@std/log@0.224",
     "sqlite": "https://deno.land/x/sqlite@v3.8/mod.ts",
-    "mqtt": "npm:mqtt@^5.3.4"
+    "mqtt": "npm:mqtt@^5.3.4",
+    "sentry": "https://deno.land/x/sentry@7.77.0/index.mjs"
   },
   "compilerOptions": {
     "strict": true,

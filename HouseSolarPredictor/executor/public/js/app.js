@@ -1,6 +1,4 @@
 // Solar Inverter Control System Frontend - Main Application
-import {Logger} from "./logger";
-
 class SolarInverterApp {
     constructor() {
         // Initialize core properties
@@ -112,14 +110,16 @@ class SolarInverterApp {
         
         // Store all metrics data
         this.allMetricsData = metrics;
-        
+
         // Log data range
         if (metrics.length > 0) {
-            const oldest = new Date(Math.min(...metrics.map(m => m.timestamp)));
-            const newest = new Date(Math.max(...metrics.map(m => m.timestamp)));
+            let timestampsOnly = metrics.map(m => m.timestamp);
+            timestampsOnly.sort();
+            const oldest = new Date(timestampsOnly[0] || Date.now() - 24 * 60 * 60 * 1000); // Default to 24h ago if no timestamp
+            const newest = new Date(timestampsOnly[timestampsOnly.length - 1] || Date.now());
             this.logger.addLogEntry(`📅 Data range: ${oldest.toLocaleString()} to ${newest.toLocaleString()}`, 'info');
         }
-        
+
         // Update charts with filtered data based on current time range
         this.updateChartsWithTimeRange();
     }

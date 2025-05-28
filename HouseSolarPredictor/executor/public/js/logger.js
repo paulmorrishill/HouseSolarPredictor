@@ -1,13 +1,7 @@
-import * as Sentry from "npm:@sentry/deno";
-
-export class Logger {
+class Logger {
     constructor(maxEntries = 100) {
         this.logEntries = [];
         this.maxEntries = maxEntries;
-    }
-
-    logException(error){
-        Sentry.captureException(error);
     }
 
     addLogEntry(message, level = 'info', additional = null) {

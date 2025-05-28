@@ -1,5 +1,6 @@
 import * as mqtt from "mqtt";
 import { MqttConfig } from "../types/config.ts";
+import { Logger } from "../logger.ts";
 
 export interface MqttMessage {
   topic: string;
@@ -16,6 +17,7 @@ export class MqttService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000; // 5 seconds
+  private logger: Logger;
 
   // MQTT Topics
   private readonly TOPICS = {
@@ -37,6 +39,7 @@ export class MqttService {
 
   constructor(config: MqttConfig) {
     this.config = config;
+    this.logger = new Logger();
   }
 
   async connect(): Promise<void> {
@@ -64,12 +67,12 @@ export class MqttService {
         options.password = this.config.password;
       }
 
-      console.log(`Connecting to MQTT broker at ${brokerUrl}...`);
+      this.logger.log(`Connecting to MQTT broker at ${brokerUrl}...`);
       
       this.client = mqtt.connect(brokerUrl, options);
 
       this.client.on('connect', () => {
-        console.log('Connected to MQTT broker');
+        this.logger.log('Connected to MQTT broker');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.subscribeToTopics();
@@ -77,7 +80,7 @@ export class MqttService {
       });
 
       this.client.on('error', (error) => {
-        console.error('MQTT connection error:', error);
+        this.logger.logException(error as Error);
         this.isConnected = false;
         if (this.reconnectAttempts === 0) {
           reject(error);
@@ -85,14 +88,14 @@ export class MqttService {
       });
 
       this.client.on('close', () => {
-        console.log('MQTT connection closed');
+        this.logger.log('MQTT connection closed');
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
       this.client.on('message', (topic, message) => {
         const messageStr = message.toString();
-        console.log(`MQTT message received - Topic: ${topic}, Message: ${messageStr}`);
+        //this.logger.log(`MQTT message received - Topic: ${topic}, Message: ${messageStr}`);
         
         const handler = this.messageHandlers.get(topic);
         if (handler) {
@@ -120,9 +123,9 @@ export class MqttService {
     stateTopics.forEach(topic => {
       this.client!.subscribe(topic, (error) => {
         if (error) {
-          console.error(`Failed to subscribe to ${topic}:`, error);
+          this.logger.logException(error as Error);
         } else {
-          console.log(`Subscribed to ${topic}`);
+          this.logger.log(`Subscribed to ${topic}`);
         }
       });
     });
@@ -130,19 +133,19 @@ export class MqttService {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached. Giving up.');
+      this.logger.log('Max reconnection attempts reached. Giving up.');
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1); // Exponential backoff
     
-    console.log(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
+    this.logger.log(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
     
     setTimeout(() => {
       this.connectionPromise = null;
       this.connect().catch(error => {
-        console.error('Reconnection failed:', error);
+        this.logger.logException(error as Error);
       });
     }, delay);
   }
@@ -159,10 +162,10 @@ export class MqttService {
     return new Promise((resolve, reject) => {
       this.client!.publish(this.TOPICS.WORK_MODE_SET, mode, (error) => {
         if (error) {
-          console.error(`Failed to publish work mode ${mode}:`, error);
+          this.logger.logException(error as Error);
           reject(error);
         } else {
-          console.log(`Published work mode: ${mode}`);
+          this.logger.log(`Published work mode: ${mode}`);
           resolve();
         }
       });
@@ -181,10 +184,10 @@ export class MqttService {
     return new Promise((resolve, reject) => {
       this.client!.publish(this.TOPICS.BATTERY_CHARGE_RATE_SET, rate.toString(), (error) => {
         if (error) {
-          console.error(`Failed to publish charge rate ${rate}:`, error);
+          this.logger.logException(error as Error);
           reject(error);
         } else {
-          console.log(`Published charge rate: ${rate}%`);
+          this.logger.log(`Published charge rate: ${rate}%`);
           resolve();
         }
       });

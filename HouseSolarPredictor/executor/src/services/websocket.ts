@@ -1,6 +1,7 @@
 import { InverterController, ControllerState } from "./inverter-controller.ts";
 import { DatabaseService } from "./database.ts";
 import { ScheduleService } from "./schedule.ts";
+import { Logger } from "../logger.ts";
 
 export interface WebSocketMessage {
   type: string;
@@ -14,6 +15,7 @@ export class WebSocketService {
   private databaseService: DatabaseService;
   private scheduleService: ScheduleService;
   private broadcastTimer?: number;
+  private logger: Logger;
 
   constructor(
     inverterController: InverterController,
@@ -23,12 +25,13 @@ export class WebSocketService {
     this.inverterController = inverterController;
     this.databaseService = databaseService;
     this.scheduleService = scheduleService;
+    this.logger = new Logger();
     
     this.startBroadcastTimer();
   }
 
   handleConnection(socket: WebSocket): void {
-    console.log("New WebSocket connection established");
+    this.logger.log("New WebSocket connection established");
     this.sockets.add(socket);
 
     // Send initial data to the new client
@@ -39,18 +42,18 @@ export class WebSocketService {
         const message: WebSocketMessage = JSON.parse(event.data);
         this.handleMessage(socket, message);
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        this.logger.logException(error as Error);
         this.sendError(socket, "Invalid message format");
       }
     });
 
     socket.addEventListener("close", () => {
-      console.log("WebSocket connection closed");
+      this.logger.log("WebSocket connection closed");
       this.sockets.delete(socket);
     });
 
     socket.addEventListener("error", (error) => {
-      console.error("WebSocket error:", error);
+      this.logger.log(`WebSocket error: ${error.type}`);
       this.sockets.delete(socket);
     });
   }
@@ -106,13 +109,13 @@ export class WebSocketService {
       });
 
     } catch (error) {
-      console.error("Error sending initial data:", error);
+      this.logger.logException(error as Error);
       this.sendError(socket, "Failed to load initial data");
     }
   }
 
   private async handleMessage(socket: WebSocket, message: WebSocketMessage): Promise<void> {
-    console.log(`Received WebSocket message: ${message.type}`);
+    this.logger.log(`Received WebSocket message: ${message.type}`);
 
     switch (message.type) {
       case "retry_operations":
@@ -145,7 +148,7 @@ export class WebSocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error("Error handling retry:", error);
+      this.logger.logException(error as Error);
       this.sendError(socket, "Failed to retry operations");
     }
   }
@@ -164,7 +167,7 @@ export class WebSocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error("Error getting current state:", error);
+      this.logger.logException(error as Error);
       this.sendError(socket, "Failed to get current state");
     }
   }
@@ -178,7 +181,7 @@ export class WebSocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error("Error getting recent metrics:", error);
+      this.logger.logException(error as Error);
       this.sendError(socket, "Failed to get recent metrics");
     }
   }
@@ -192,7 +195,7 @@ export class WebSocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error("Error getting control actions:", error);
+      this.logger.logException(error as Error);
       this.sendError(socket, "Failed to get control actions");
     }
   }
@@ -215,7 +218,7 @@ export class WebSocketService {
     // Broadcast updates every 10 seconds
     this.broadcastTimer = setInterval(() => {
       this.broadcastUpdates().catch(error => {
-        console.error("Error broadcasting updates:", error);
+        this.logger.logException(error as Error);
       });
     }, 10000);
   }
@@ -238,7 +241,7 @@ export class WebSocketService {
 
       this.broadcast(updateMessage);
     } catch (error) {
-      console.error("Error preparing broadcast updates:", error);
+      this.logger.logException(error as Error);
     }
   }
 
@@ -251,7 +254,7 @@ export class WebSocketService {
         try {
           socket.send(messageStr);
         } catch (error) {
-          console.error("Error sending broadcast message:", error);
+          this.logger.logException(error as Error);
           socketsToRemove.push(socket);
         }
       } else {

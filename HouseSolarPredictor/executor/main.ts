@@ -4,6 +4,7 @@ import { ScheduleService } from "./src/services/schedule.ts";
 import { MqttService } from "./src/services/mqtt.ts";
 import { InverterController } from "./src/services/inverter-controller.ts";
 import { WebSocketService } from "./src/services/websocket.ts";
+import { Logger } from "./src/logger.ts";
 
 import * as Sentry from "https://deno.land/x/sentry/index.mjs";
 
@@ -15,9 +16,11 @@ class SolarInverterApp {
   private inverterController: InverterController;
   private webSocketService: WebSocketService;
   private httpServer?: Deno.HttpServer;
+  public logger: Logger;
 
   constructor() {
-    console.log("Initializing Solar Inverter Control System...");
+    this.logger = new Logger();
+    this.logger.log("Initializing Solar Inverter Control System...");
     Sentry.init({
       dsn: "https://0fd7326c1b2222f374802cc555d2faf4@o1341921.ingest.us.sentry.io/4509400230133760",
     });
@@ -47,28 +50,28 @@ class SolarInverterApp {
 
   async start(): Promise<void> {
     try {
-      console.log("Starting services...");
+      this.logger.log("Starting services...");
       
       // Connect to MQTT broker
-      console.log("Connecting to MQTT broker...");
+      this.logger.log("Connecting to MQTT broker...");
       await this.mqttService.connect();
       
       // Load schedule
-      console.log("Loading schedule...");
+      this.logger.log("Loading schedule...");
       await this.scheduleService.loadSchedule();
       
       // Start inverter controller
-      console.log("Starting inverter controller...");
+      this.logger.log("Starting inverter controller...");
       await this.inverterController.start();
       
       // Start HTTP server
-      console.log("Starting HTTP server...");
+      this.logger.log("Starting HTTP server...");
       await this.startHttpServer();
       
-      console.log("Solar Inverter Control System started successfully!");
+      this.logger.log("Solar Inverter Control System started successfully!");
       
     } catch (error) {
-      console.error("Failed to start application:", error);
+      this.logger.logException(error as Error);
       await this.shutdown();
       Deno.exit(1);
     }
@@ -97,7 +100,7 @@ class SolarInverterApp {
     };
 
     this.httpServer = Deno.serve({ port }, handler);
-    console.log(`HTTP server running on http://localhost:${port}`);
+    this.logger.log(`HTTP server running on http://localhost:${port}`);
   }
 
   private async handleApiRequest(request: Request): Promise<Response> {
@@ -133,7 +136,7 @@ class SolarInverterApp {
           return new Response("Not Found", { status: 404 });
       }
     } catch (error) {
-      console.error("API error:", error);
+      this.logger.logException(error as Error);
       return this.jsonResponse({ error: "Internal server error" }, 500);
     }
 
@@ -168,7 +171,7 @@ class SolarInverterApp {
         return new Response("File Not Found", { status: 404 });
       }
       
-      console.error("Error serving static file:", error);
+      this.logger.logException(error as Error);
       return new Response("Internal Server Error", { status: 500 });
     }
   }
@@ -214,7 +217,7 @@ class SolarInverterApp {
   }
 
   async shutdown(): Promise<void> {
-    console.log("Shutting down Solar Inverter Control System...");
+    this.logger.log("Shutting down Solar Inverter Control System...");
     
     try {
       // Stop services in reverse order
@@ -226,9 +229,9 @@ class SolarInverterApp {
         await this.httpServer.shutdown();
       }
       
-      console.log("Shutdown complete");
+      this.logger.log("Shutdown complete");
     } catch (error) {
-      console.error("Error during shutdown:", error);
+      this.logger.logException(error as Error);
     }
   }
 }
@@ -238,7 +241,7 @@ const app = new SolarInverterApp();
 
 // Handle Ctrl+C and other termination signals
 Deno.addSignalListener("SIGINT", async () => {
-  console.log("\nReceived SIGINT, shutting down gracefully...");
+  app.logger.log("\nReceived SIGINT, shutting down gracefully...");
   await app.shutdown();
   Deno.exit(0);
 });
@@ -248,7 +251,7 @@ if (import.meta.main) {
   try {
     await app.start();
   } catch (error) {
-    console.error("Failed to start application:", error);
+    app.logger.logException(error as Error);
     Deno.exit(1);
   }
 }

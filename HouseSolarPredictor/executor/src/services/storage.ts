@@ -1,12 +1,15 @@
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import { MetricReading, ControlAction, SystemState } from "../types/schedule.ts";
+import { Logger } from "../logger.ts";
 
 export class StorageService {
   private dataDir: string;
+  private logger: Logger;
 
   constructor(dataDir: string = "data") {
     this.dataDir = dataDir;
+    this.logger = new Logger();
     this.ensureDataDirectory();
   }
 

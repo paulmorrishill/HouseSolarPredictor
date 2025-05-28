@@ -118,9 +118,9 @@ class DataProcessor {
 
     convertModeToNumeric(mode) {
         const modeMap = {
-            'ChargeFromGridAndSolar': 1,
+            'ChargeFromGridAndSolar': 3,
             'ChargeSolarOnly': 2,
-            'Discharge': 3
+            'Discharge': 1
         };
         return modeMap[mode] || 0;
     }

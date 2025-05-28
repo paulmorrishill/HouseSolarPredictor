@@ -10,6 +10,7 @@ class ScheduleManager {
 
     updateScheduleInfo(schedule) {
         // Store schedule for cost calculations
+        console.log("Updating schedule info:", schedule);
         this.schedule = schedule;
         
         // Update next schedule block info
@@ -34,6 +35,7 @@ class ScheduleManager {
     }
 
     updateNextScheduleBlock(schedule) {
+        console.log("Updating next schedule block with schedule:", schedule);
         if (!Array.isArray(schedule) || schedule.length === 0) {
             this.uiManager.updateElement('next-start-time', '-');
             this.uiManager.updateElement('next-mode', '-');
@@ -87,177 +89,6 @@ class ScheduleManager {
         } else {
             return `${minutesUntil}m`;
         }
-    }
-
-    getCurrentScheduleBlock() {
-        if (!this.schedule || !Array.isArray(this.schedule)) {
-            return null;
-        }
-
-        const now = new Date();
-        
-        for (const block of this.schedule) {
-            const startTime = new Date(block.time.segmentStart);
-            const endTime = new Date(block.time.segmentEnd);
-            
-            if (now >= startTime && now < endTime) {
-                return block;
-            }
-        }
-        
-        return null;
-    }
-
-    getScheduleBlockAtDateTime(targetDateTime) {
-        if (!this.schedule || !Array.isArray(this.schedule)) {
-            return null;
-        }
-
-        const target = new Date(targetDateTime);
-
-        for (const block of this.schedule) {
-            const startTime = new Date(block.time.segmentStart);
-            const endTime = new Date(block.time.segmentEnd);
-            
-            if (target >= startTime && target < endTime) {
-                return block;
-            }
-        }
-
-        return null;
-    }
-
-    getExpectedModeAtDateTime(targetDateTime) {
-        const block = this.getScheduleBlockAtDateTime(targetDateTime);
-        return block ? block.mode : null;
-    }
-
-    getExpectedChargeRateAtDateTime(targetDateTime) {
-        const block = this.getScheduleBlockAtDateTime(targetDateTime);
-        if (!block) return null;
-
-        switch (block.mode) {
-            case 'ChargeFromGridAndSolar':
-                return 100;
-            case 'ChargeSolarOnly':
-            case 'Discharge':
-                return 0;
-            default:
-                return null;
-        }
-    }
-
-    getScheduleStatistics() {
-        if (!this.schedule || !Array.isArray(this.schedule)) {
-            return null;
-        }
-
-        const stats = {
-            totalBlocks: this.schedule.length,
-            chargeBlocks: 0,
-            dischargeBlocks: 0,
-            solarOnlyBlocks: 0,
-            totalExpectedConsumption: 0,
-            totalExpectedGeneration: 0,
-            totalExpectedGridUsage: 0,
-            totalExpectedCost: 0
-        };
-
-        this.schedule.forEach(block => {
-            switch (block.mode) {
-                case 'ChargeFromGridAndSolar':
-                    stats.chargeBlocks++;
-                    break;
-                case 'ChargeSolarOnly':
-                    stats.solarOnlyBlocks++;
-                    break;
-                case 'Discharge':
-                    stats.dischargeBlocks++;
-                    break;
-            }
-
-            stats.totalExpectedConsumption += block.expectedConsumption || 0;
-            stats.totalExpectedGeneration += block.expectedSolarGeneration || 0;
-            stats.totalExpectedGridUsage += block.actualGridUsage || 0;
-            
-            if (block.cost && block.cost.poundsAmount) {
-                stats.totalExpectedCost += block.cost.poundsAmount;
-            }
-        });
-
-        return stats;
-    }
-
-    validateSchedule(schedule) {
-        if (!Array.isArray(schedule)) {
-            this.logger.addLogEntry('❌ Schedule validation failed: not an array', 'error');
-            return false;
-        }
-
-        if (schedule.length === 0) {
-            this.logger.addLogEntry('❌ Schedule validation failed: empty schedule', 'error');
-            return false;
-        }
-
-        const errors = [];
-        
-        schedule.forEach((block, index) => {
-            // Check required fields
-            if (!block.time) {
-                errors.push(`Block ${index}: missing time field`);
-            } else {
-                if (!block.time.segmentStart) {
-                    errors.push(`Block ${index}: missing segmentStart`);
-                } else {
-                    const startDate = new Date(block.time.segmentStart);
-                    if (isNaN(startDate.getTime())) {
-                        errors.push(`Block ${index}: invalid segmentStart datetime format`);
-                    }
-                }
-                
-                if (!block.time.segmentEnd) {
-                    errors.push(`Block ${index}: missing segmentEnd`);
-                } else {
-                    const endDate = new Date(block.time.segmentEnd);
-                    if (isNaN(endDate.getTime())) {
-                        errors.push(`Block ${index}: invalid segmentEnd datetime format`);
-                    }
-                }
-            }
-
-            if (!block.mode) {
-                errors.push(`Block ${index}: missing mode field`);
-            } else {
-                const validModes = ['ChargeFromGridAndSolar', 'ChargeSolarOnly', 'Discharge'];
-                if (!validModes.includes(block.mode)) {
-                    errors.push(`Block ${index}: invalid mode '${block.mode}'`);
-                }
-            }
-
-            // Check numeric fields
-            const numericFields = [
-                'expectedSolarGeneration',
-                'expectedConsumption',
-                'actualGridUsage',
-                'gridPrice',
-                'startBatteryChargeKwh',
-                'endBatteryChargeKwh'
-            ];
-
-            numericFields.forEach(field => {
-                if (block[field] !== undefined && typeof block[field] !== 'number') {
-                    errors.push(`Block ${index}: ${field} must be a number`);
-                }
-            });
-        });
-
-        if (errors.length > 0) {
-            this.logger.addLogEntry(`❌ Schedule validation failed: ${errors.join(', ')}`, 'error');
-            return false;
-        }
-
-        this.logger.addLogEntry('✅ Schedule validation passed', 'info');
-        return true;
     }
 
     getSchedule() {
