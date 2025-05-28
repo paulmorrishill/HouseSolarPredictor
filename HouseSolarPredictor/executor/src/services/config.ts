@@ -11,8 +11,7 @@ export class ConfigService {
     try {
       const configText = Deno.readTextFileSync(configPath);
       const config = JSON.parse(configText) as AppConfig;
-      
-      // Validate required fields
+
       this.validateConfig(config);
       
       return config;

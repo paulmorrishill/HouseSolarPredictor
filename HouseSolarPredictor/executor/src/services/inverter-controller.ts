@@ -3,8 +3,12 @@ import { ScheduleService } from "./schedule.ts";
 import { DatabaseService } from "./database.ts";
 import { TimeSegment, OutputsMode, ControlAction, SystemState } from "../types/schedule.ts";
 import { BATTERY_PROTECTION } from "../constants/battery-protection.ts";
+import {ConfigService} from "./config.ts";
+import { SmtpClient } from "https://deno.land/x/smtp/mod.ts";
 
 export type ControllerStatus = "green" | "amber" | "red";
+
+export type InverterMode = 'Battery first' | 'Load first';
 
 export interface ControllerState {
   status: ControllerStatus;
@@ -18,6 +22,16 @@ export interface ControllerState {
   isInProtectionMode?: boolean;
   protectionReason?: string;
 }
+export type CurrentMetrics = {
+  batteryChargeRate: number
+  workModePriority: string
+  loadPower: number
+  gridPower: number
+  batteryPower: number
+  batteryCurrent: number
+  batteryCharge: number
+  batteryCapacity: number
+}
 
 export class InverterController {
   private mqttService: MqttService;
@@ -25,13 +39,13 @@ export class InverterController {
   private databaseService: DatabaseService;
   private retryAttempts: number;
   private retryDelayMinutes: number;
-  
+
   private state: ControllerState = {
     status: "amber",
     message: "Initializing..."
   };
   
-  private currentMetrics = {
+  private currentMetrics: CurrentMetrics = {
     batteryChargeRate: 0,
     workModePriority: "",
     loadPower: 0,
@@ -54,7 +68,8 @@ export class InverterController {
     scheduleService: ScheduleService,
     databaseService: DatabaseService,
     retryAttempts: number = 3,
-    retryDelayMinutes: number = 5
+    retryDelayMinutes: number = 5,
+    private configService: ConfigService
   ) {
     this.mqttService = mqttService;
     this.scheduleService = scheduleService;
@@ -199,9 +214,9 @@ export class InverterController {
 
   private applyBatteryProtection(
     scheduleMode: OutputsMode,
-    scheduleWorkMode: string,
+    scheduleWorkMode: InverterMode,
     scheduleChargeRate: number
-  ): { workMode: string; chargeRate: number; protectionApplied: boolean; protectionReason?: string } {
+  ): { workMode: InverterMode; chargeRate: number; protectionApplied: boolean; protectionReason?: string } {
     const batteryCharge = this.currentMetrics.batteryCharge;
     let workMode = scheduleWorkMode;
     let chargeRate = scheduleChargeRate;
@@ -243,9 +258,9 @@ export class InverterController {
     return { workMode, chargeRate, protectionApplied, protectionReason };
   }
 
-  private getDesiredSettings(mode: OutputsMode): { workMode: string; chargeRate: number } {
+  private getDesiredSettings(mode: OutputsMode): { workMode: InverterMode; chargeRate: number } {
     // Get base settings from schedule
-    let baseSettings: { workMode: string; chargeRate: number };
+    let baseSettings: { workMode: InverterMode; chargeRate: number };
     
     switch (mode) {
       case OutputsMode.ChargeFromGridAndSolar:
@@ -291,7 +306,7 @@ export class InverterController {
   }
 
   private async executeControlSequence(
-    targetWorkMode: string,
+    targetWorkMode: InverterMode,
     targetChargeRate: number,
     needsWorkModeChange: boolean,
     needsChargeRateChange: boolean
@@ -425,7 +440,7 @@ export class InverterController {
         this.checkAndUpdateInverter().catch(error => {
           console.error("Error in retry:", error);
         });
-      }, this.retryDelayMinutes * 60 * 1000);
+      }, this.retryDelayMinutes * 30 * 1000);
     } else {
       // Max retries reached - suspend operations
       await this.suspendOperations(`Max retries reached: ${message}`);
@@ -448,8 +463,7 @@ export class InverterController {
     
     console.error(`Operations suspended: ${reason}`);
     
-    // TODO: Send email notification
-    // await this.sendEmailNotification(reason);
+    await this.sendEmailNotification(reason);
   }
 
   private handleInverterResponse(message: string): void {
@@ -546,5 +560,42 @@ export class InverterController {
     if (this.verificationTimer) {
       clearTimeout(this.verificationTimer);
     }
+  }
+
+  private async sendEmailNotification(reason: string) {
+    console.log(`Sending email notification: Operations suspended - ${reason}`);
+
+    const emailContent = `
+      <h1>Inverter Controller Alert</h1>
+      <p>Operations have been suspended due to the following reason:</p>
+      <p><strong>${reason}</strong></p>
+      <p>Please check the system immediately.</p>
+    `;
+
+    const smtpConfig = this.configService.getSmtpConfig();
+
+    if (!smtpConfig) {
+      console.warn("SMTP configuration not set, skipping email notification");
+      return;
+    }
+
+    const client = new SmtpClient();
+
+    await client.connect({
+      hostname: smtpConfig.host,
+      port: smtpConfig.port,
+      username: smtpConfig.username,
+      password: smtpConfig.password,
+    });
+
+    await client.send({
+      from: smtpConfig.from,
+      to: smtpConfig.to,
+      subject: "Inverter Controller Alert",
+      content: "text/html",
+      html: emailContent,
+    });
+
+    await client.close();
   }
 }

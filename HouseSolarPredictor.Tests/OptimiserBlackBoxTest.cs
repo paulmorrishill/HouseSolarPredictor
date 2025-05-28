@@ -59,17 +59,17 @@ public class OptimiserBlackBoxTests
             new("DoNothing", () => new DoNothingOptimiser()),
             new("HardCoded", () => new HardCodedPlanOptimiser(new List<OutputsMode>
             {
-                OutputsMode.ChargeFromGridAndSolar, // 00:00
+                OutputsMode.Discharge, // 00:00
                 OutputsMode.ChargeFromGridAndSolar, // 00:30
-                OutputsMode.Discharge, // 01:00
-                OutputsMode.Discharge, // 01:30
+                OutputsMode.ChargeFromGridAndSolar, // 01:00
+                OutputsMode.ChargeFromGridAndSolar, // 01:30
                 OutputsMode.ChargeFromGridAndSolar, // 02:00
                 OutputsMode.ChargeFromGridAndSolar, // 02:30
                 OutputsMode.Discharge, // 03:00
                 OutputsMode.Discharge, // 03:30
                 OutputsMode.ChargeSolarOnly, // 04:00
                 OutputsMode.Discharge, // 04:30
-                OutputsMode.ChargeFromGridAndSolar, // 05:00
+                OutputsMode.Discharge, // 05:00
                 OutputsMode.Discharge, // 05:30
                 OutputsMode.Discharge, // 06:00
                 OutputsMode.Discharge, // 06:30
@@ -108,8 +108,6 @@ public class OptimiserBlackBoxTests
                 OutputsMode.Discharge, // 23:00
                 OutputsMode.Discharge // 23:30
             }))
-
-
         };
     
         var results = await RunScenarioComparison(optimizers);
@@ -117,7 +115,6 @@ public class OptimiserBlackBoxTests
         CompareOptimiserResults(results, "HardCoded", "Graph", "RealLifeLowSunHighDayCost");
         PrintOptimisersPlanTable(results, "Graph", "RealLifeLowSunHighDayCost");
         PrintOptimisersPlanTable(results, "HardCoded", "RealLifeLowSunHighDayCost");
-        
     }
 
     private List<Scenario> GetAllScenarios()
@@ -311,8 +308,8 @@ public class OptimiserBlackBoxTests
                 pair => $"{pair.First.HalfHourSegment.HourStart:D2}:{pair.First.HalfHourSegment.MinuteStart:D2}")
             .AddColumn("Price", pair => FormatComparison(pair.First.GridPrice, pair.Second.GridPrice, "F2"))
             .AddColumn("Segment Cost", pair => FormatComparison(
-                pair.First.GridPrice * pair.First.ActualGridUsage,
-                pair.Second.GridPrice * pair.Second.ActualGridUsage, "F2"))
+                pair.First.Cost(),
+                pair.Second.Cost(), "F2"))
             .AddColumn("Solar (kWh)", pair => FormatComparison(
                 pair.First.ExpectedSolarGeneration.Value,
                 pair.Second.ExpectedSolarGeneration.Value, "F1"))
@@ -400,7 +397,7 @@ public class OptimiserBlackBoxTests
         var printer = new TablePrinter<TimeSegment>()
             .AddColumn("Time", s => $"{s.HalfHourSegment.HourStart:D2}:{s.HalfHourSegment.MinuteStart:D2}")
             .AddColumn("Price", s => $"{s.GridPrice:D2}")
-            .AddColumn("Segment Cost", s => $"{s.GridPrice * s.ActualGridUsage:D2}")
+            .AddColumn("Segment Cost", s => $"{s.Cost():D2}")
             .AddColumn("Solar (kWh)", s => $"{s.ExpectedSolarGeneration.Value:F1}")
             .AddColumn("Load (kWh)", s => $"{s.ExpectedConsumption.Value:F1}")
             .AddColumn("Battery Start (kWh)", s => $"{s.StartBatteryChargeKwh.Value:F1}")

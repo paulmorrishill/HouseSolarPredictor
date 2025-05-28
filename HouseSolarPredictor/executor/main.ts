@@ -5,6 +5,8 @@ import { MqttService } from "./src/services/mqtt.ts";
 import { InverterController } from "./src/services/inverter-controller.ts";
 import { WebSocketService } from "./src/services/websocket.ts";
 
+import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+
 class SolarInverterApp {
   private configService: ConfigService;
   private databaseService: DatabaseService;
@@ -16,9 +18,11 @@ class SolarInverterApp {
 
   constructor() {
     console.log("Initializing Solar Inverter Control System...");
-    
+    Sentry.init({
+      dsn: "https://0fd7326c1b2222f374802cc555d2faf4@o1341921.ingest.us.sentry.io/4509400230133760",
+    });
     // Initialize services
-    this.configService = new ConfigService();
+    this.configService = new ConfigService('config/pmh.json');
     const config = this.configService.getConfig();
     
     this.databaseService = new DatabaseService(config.dbPath || "data/solar_system.db");
@@ -30,7 +34,8 @@ class SolarInverterApp {
       this.scheduleService,
       this.databaseService,
       config.retryAttempts,
-      config.retryDelayMinutes
+      config.retryDelayMinutes,
+      this.configService
     );
     
     this.webSocketService = new WebSocketService(

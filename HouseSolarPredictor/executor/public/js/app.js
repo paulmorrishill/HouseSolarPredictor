@@ -1,4 +1,6 @@
 // Solar Inverter Control System Frontend - Main Application
+import {Logger} from "./logger";
+
 class SolarInverterApp {
     constructor() {
         // Initialize core properties

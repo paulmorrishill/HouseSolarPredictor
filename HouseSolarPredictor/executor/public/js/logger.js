@@ -1,8 +1,13 @@
-// Logger utility for managing log entries and display
-class Logger {
+import * as Sentry from "npm:@sentry/deno";
+
+export class Logger {
     constructor(maxEntries = 100) {
         this.logEntries = [];
         this.maxEntries = maxEntries;
+    }
+
+    logException(error){
+        Sentry.captureException(error);
     }
 
     addLogEntry(message, level = 'info', additional = null) {
