@@ -4,8 +4,9 @@ class ApiClient {
         this.logger = logger;
     }
 
-    async loadInitialData() {
-        this.logger.addLogEntry('🔄 Loading initial data from server...', 'info');
+    async loadInitialData(selectedDate) {
+        const dateStr = selectedDate;
+        this.logger.addLogEntry(`🔄 Loading initial data from server for ${dateStr}...`, 'info');
         
         const results = {
             status: null,
@@ -14,7 +15,7 @@ class ApiClient {
         };
 
         try {
-            // Load current status
+            // Load current status (always current, not date-specific)
             this.logger.addLogEntry('🌐 Fetching current system status...', 'info');
             const statusResponse = await fetch('/api/status');
             if (statusResponse.ok) {
@@ -24,9 +25,10 @@ class ApiClient {
                 this.logger.addLogEntry(`⚠️ Status fetch failed - HTTP ${statusResponse.status}`, 'warn');
             }
 
-            // Load recent metrics
-            this.logger.addLogEntry('🌐 Fetching 24h metrics data...', 'info');
-            const metricsResponse = await fetch('/api/metrics?hours=24');
+            // Load metrics for the selected date
+            this.logger.addLogEntry(`🌐 Fetching 24h metrics data for ${dateStr}...`, 'info');
+            const metricsUrl = `/api/metrics?date=${selectedDate}&hours=24`;
+            const metricsResponse = await fetch(metricsUrl);
             if (metricsResponse.ok) {
                 results.metrics = await metricsResponse.json();
                 this.logger.addLogEntry(`✅ Metrics loaded - ${Array.isArray(results.metrics) ? results.metrics.length : 0} data points`, 'info');
@@ -34,9 +36,10 @@ class ApiClient {
                 this.logger.addLogEntry(`⚠️ Metrics fetch failed - HTTP ${metricsResponse.status}`, 'warn');
             }
 
-            // Load schedule
-            this.logger.addLogEntry('🌐 Fetching schedule data...', 'info');
-            const scheduleResponse = await fetch('/api/schedule');
+            // Load schedule for the selected date
+            this.logger.addLogEntry(`🌐 Fetching schedule data for ${dateStr}...`, 'info');
+            const scheduleUrl = `/api/schedule?date=${selectedDate}`;
+            const scheduleResponse = await fetch(scheduleUrl);
             if (scheduleResponse.ok) {
                 results.schedule = await scheduleResponse.json();
                 this.logger.addLogEntry(`✅ Schedule loaded - ${Array.isArray(results.schedule) ? results.schedule.length : 0} blocks`, 'info');
@@ -78,12 +81,20 @@ class ApiClient {
         }
     }
 
-    async loadScheduleData() {
+    async loadScheduleData(selectedDate) {
+        if( !selectedDate ) {
+            // error message
+            this.logger.addLogEntry('❌ No date selected for schedule data', 'error');
+            return ;
+        }
         try {
-            const response = await fetch('/api/schedule');
+            const url = `/api/schedule?date=${selectedDate}`;
+            this.logger.addLogEntry(`🔄 Loading schedule data from ${url}...`, 'info');
+            const response = await fetch(url);
             if (response.ok) {
                 const scheduleData = await response.json();
-                this.logger.addLogEntry('📊 Schedule data loaded successfully', 'info');
+                const dateStr = selectedDate || 'today';
+                this.logger.addLogEntry(`📊 Schedule data loaded successfully for ${dateStr}`, 'info');
                 return scheduleData;
             } else {
                 this.logger.addLogEntry('❌ Failed to load schedule data', 'error');
@@ -92,6 +103,30 @@ class ApiClient {
         } catch (error) {
             console.error('Error loading schedule data:', error);
             this.logger.addLogEntry('❌ Error loading schedule data: ' + error.message, 'error');
+            return null;
+        }
+    }
+
+    async loadMetricsData(selectedDate = null, hours = 24) {
+        try {
+            let url = `/api/metrics?hours=${hours}`;
+            if (selectedDate) {
+                url += `&date=${selectedDate}`;
+            }
+            this.logger.addLogEntry(`🔄 Loading metrics data from ${url}...`, 'info');
+            const response = await fetch(url);
+            if (response.ok) {
+                const metricsData = await response.json();
+                const dateStr = selectedDate || 'today';
+                this.logger.addLogEntry(`📊 Metrics data loaded successfully for ${dateStr}`, 'info');
+                return metricsData;
+            } else {
+                this.logger.addLogEntry('❌ Failed to load metrics data', 'error');
+                return null;
+            }
+        } catch (error) {
+            console.error('Error loading metrics data:', error);
+            this.logger.addLogEntry('❌ Error loading metrics data: ' + error.message, 'error');
             return null;
         }
     }

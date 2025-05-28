@@ -133,12 +133,38 @@ class UIManager {
             });
         }
 
+        // Date picker
+        const datePicker = document.getElementById('date-picker');
+        if (datePicker && callbacks.onDateChange) {
+            // Set default to today
+            const today = new Date().toISOString().split('T')[0];
+            datePicker.value = today;
+            
+            datePicker.addEventListener('change', (e) => {
+                const selectedDate = e.target.value;
+                this.logger.addLogEntry(`👤 User changed date to ${selectedDate}`, 'info');
+                callbacks.onDateChange(selectedDate);
+            });
+        }
+
         // Handle page visibility changes
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && callbacks.onPageVisible) {
                 callbacks.onPageVisible();
             }
         });
+    }
+
+    getCurrentSelectedDate() {
+        const datePicker = document.getElementById('date-picker');
+        return datePicker ? datePicker.value : null;
+    }
+
+    setSelectedDate(date) {
+        const datePicker = document.getElementById('date-picker');
+        if (datePicker) {
+            datePicker.value = date;
+        }
     }
 
     showLoadingState(element) {

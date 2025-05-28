@@ -125,15 +125,28 @@ export class DatabaseService {
     stmt.run(Date.now(), status, message ?? null);
   }
 
-  getRecentMetrics(hours: number = 24): MetricReading[] {
-    const cutoffTime = Date.now() - (hours * 60 * 60 * 1000);
+  getMetrics(hours: number = 24, date?: string): MetricReading[] {
+    let startTime: number;
+    let endTime: number;
+    
+    if (date) {
+      // For specific date, get data for that day
+      const endOfDay = new Date(date + 'T23:59:59.999Z');
+      endTime = endOfDay.getTime();
+      startTime = endTime - (hours * 60 * 60 * 1000);
+    } else {
+      // For today, use current time
+      endTime = Date.now();
+      startTime = endTime - (hours * 60 * 60 * 1000);
+    }
+    
     const stmt = this.db.prepare(`
-      SELECT * FROM metrics 
-      WHERE timestamp > ? 
+      SELECT * FROM metrics
+      WHERE timestamp >= ? AND timestamp <= ?
       ORDER BY timestamp DESC
     `);
 
-    const rows = stmt.all(cutoffTime) as any[];
+    const rows = stmt.all(startTime, endTime) as any[];
 
     return rows.map(row => ({
       id: row.id,
@@ -146,6 +159,11 @@ export class DatabaseService {
       batteryCurrent: row.battery_current,
       batteryCharge: row.battery_charge
     }));
+  }
+
+  // Keep for backward compatibility
+  getRecentMetrics(hours: number = 24): MetricReading[] {
+    return this.getMetrics(hours);
   }
 
   getRecentControlActions(hours: number = 24): ControlAction[] {

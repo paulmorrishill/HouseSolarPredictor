@@ -177,12 +177,20 @@ export class InverterController {
   }
 
   private async checkAndUpdateInverter(): Promise<void> {
+    if(!this.hasReceivedMqttData){
+        this.state.status = "amber";
+        this.state.message = "Waiting for initial MQTT data...";
+        this.logger.log("Waiting for initial MQTT data...");
+        return;
+    }
     const currentSegment = this.scheduleService.getCurrentTimeSegment();
 
     if (this.state.isInProtectionMode) {
-      this.logger.log(`⚠️ Battery protection active: ${this.state.protectionReason}`);
-      this.state.message = `Battery Protection: ${this.state.protectionReason})`;
-      await this.applyDesiredWorkModeAndChargeRate('Battery first', 1);
+      const isCorrectAlready = await this.applyDesiredWorkModeAndChargeRate('Battery first', 1);
+      if (isCorrectAlready){
+        this.logger.log(`⚠️ Battery protection active: ${this.state.protectionReason}`);
+        this.state.message = `Battery Protection: ${this.state.protectionReason})`;
+      }
       return;
     }
 
@@ -198,7 +206,7 @@ export class InverterController {
     await this.applyDesiredWorkModeAndChargeRate(workMode, chargeRate);
   }
 
-  private async applyDesiredWorkModeAndChargeRate(workMode: "Battery first" | "Load first", chargeRate: number) {
+  private async applyDesiredWorkModeAndChargeRate(workMode: "Battery first" | "Load first", chargeRate: number): Promise<boolean> {
     this.state.desiredWorkMode = workMode;
     this.state.desiredChargeRate = chargeRate;
 
@@ -211,25 +219,28 @@ export class InverterController {
     if (!needsWorkModeChange && !needsChargeRateChange) {
       this.state.status = "green";
       this.state.message = "Inverter is already in the correct state ✅";
-      return;
+      return true;
     }
 
     // If we have a pending action, don't start a new one
     if (this.state.pendingAction) {
       this.logger.log("🔄 Pending action already in progress, skipping control update");
-      return;
+      return false;
     }
 
     this.state.status = "amber";
-    let settingsChanges = '';
+    let settingsChanges = [];
     if (needsWorkModeChange) {
-      settingsChanges += `Work Mode: ${currentMode} ➡ ${workMode}, `;
+      settingsChanges.push(`Work Mode: ${currentMode} ➡ ${workMode}`);
     }
     if (needsChargeRateChange) {
-      settingsChanges += `Charge Rate: ${currentRate}% ➡ ${chargeRate}%`;
+      settingsChanges.push(`Charge Rate: ${currentRate}% ➡ ${chargeRate}%`);
     }
-    this.state.message = `Applying settings: ${settingsChanges}`;
+
+    const settingsChangesStr = settingsChanges.join(", ");
+    this.state.message = `Applying settings: ${settingsChangesStr}`;
     await this.executeControlSequence(workMode, chargeRate, needsWorkModeChange, needsChargeRateChange);
+    return false;
   }
 
   private applyBatteryProtection(
@@ -251,12 +262,10 @@ export class InverterController {
     // Critical battery protection (≤ 3%)
     if (batteryCharge <= BATTERY_PROTECTION.CRITICAL_THRESHOLD) {
       // Force charge mode and ensure minimum charge rate
-      if (scheduleMode === OutputsMode.Discharge) {
-        workMode = "Battery first"; // Convert to charge mode
-        protectionApplied = true;
-        protectionReason = `Critical battery level (${batteryCharge}%) - forced charge mode`;
-      }
-      
+      workMode = "Battery first"; // Convert to charge mode
+      protectionApplied = true;
+      protectionReason = `Critical battery level (${batteryCharge}%) - forced charge mode`;
+
       // Ensure minimum charge rate (but allow schedule to set higher)
       if (chargeRate < BATTERY_PROTECTION.MIN_CHARGE_RATE) {
         chargeRate = BATTERY_PROTECTION.MIN_CHARGE_RATE;

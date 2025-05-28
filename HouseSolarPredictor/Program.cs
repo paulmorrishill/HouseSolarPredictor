@@ -6,6 +6,7 @@
  using HouseSolarPredictor.Solar;
  using HouseSolarPredictor.Time;
  using HouseSolarPredictor.Weather;
+ using HouseSolarPredictor.Planning;
  using Newtonsoft.Json;
  using NodaTime;
 
@@ -117,6 +118,8 @@ class Program
        var plan =  await chargePlanner.CreateChargePlan(targetDate, Kwh.Zero);
        plan.PrintPlanTable();
        plan.PrintPlanTableToHtml();
+       
+       var ukZone = DateTimeZoneProviders.Tzdb["Europe/London"];
        var mappedPlan = plan.Select(s =>
        {
            var endTime = s.HalfHourSegment.End().On(targetDate);
@@ -124,33 +127,32 @@ class Program
            {
                endTime = endTime.PlusDays(1);
            }
-           return new
+           return new ScheduleSegment
            {
-               Time = new
+               Time = new TimeInfo
                {
-                   SegmentStart = s.HalfHourSegment.Start().On(targetDate),
-                   SegmentEnd = endTime,
+                   SegmentStart = s.HalfHourSegment.Start().On(targetDate).InZoneLeniently(ukZone).ToDateTimeUtc(),
+                   SegmentEnd = endTime.InZoneLeniently(ukZone).ToDateTimeUtc()
                },
                Mode = s.Mode.ToString(),
-               ExpectedSolarGeneration = s.ExpectedSolarGeneration.Value,
-               ExpectedConsumption = s.ExpectedConsumption.Value,
-               ActualGridUsage = s.ActualGridUsage.Value,
-               GridPrice = s.GridPrice.PricePerKwh.PoundsAmount,
-               StartBatteryChargeKwh = s.StartBatteryChargeKwh.Value,
-               EndBatteryChargeKwh = s.EndBatteryChargeKwh.Value,
-               WastedSolarGeneration = s.WastedSolarGeneration.Value,
-               Cost = s.Cost()
+               ExpectedSolarGeneration = (decimal)s.ExpectedSolarGeneration.Value,
+               ExpectedConsumption = (decimal)s.ExpectedConsumption.Value,
+               ActualGridUsage = (decimal)s.ActualGridUsage.Value,
+               GridPrice = (decimal)s.GridPrice.PricePerKwh.PoundsAmount,
+               StartBatteryChargeKwh = (decimal)s.StartBatteryChargeKwh.Value,
+               EndBatteryChargeKwh = (decimal)s.EndBatteryChargeKwh.Value,
+               WastedSolarGeneration = (decimal)s.WastedSolarGeneration.Value,
+               Cost = s.Cost().PoundsAmount
            };
        });
        
-       // camel case
-       var json = JsonConvert.SerializeObject(mappedPlan, Formatting.Indented, new JsonSerializerSettings
-       {
-           ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
-       });
-       // get root project directory
+       // Save using the new schedule file manager
        var fullPath = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory + "../../..");
-       File.WriteAllText(Path.Combine(fullPath, "executor/schedules/schedule.json"), json);
+       var scheduleFilePath = Path.Combine(fullPath, "executor/schedules/schedule.json");
+       var scheduleFileManager = new ScheduleFileManager(scheduleFilePath);
+       await scheduleFileManager.SaveScheduleAsync(mappedPlan);
+       
+       Console.WriteLine($"Schedule saved to {scheduleFilePath}");
     }
 
     private static async Task<(float High, float Low)> FetchWeatherDataAndGetTemperatureRange(

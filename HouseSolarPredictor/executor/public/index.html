@@ -139,17 +139,21 @@
 
             <!-- Charts Section -->
             <section id="charts" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
-                <!-- Time Range Selector -->
+                <!-- Time Range and Date Selector -->
                 <div class="mdl-card section-header mdl-shadow--2dp">
                     <div class="mdl-card__supporting-text">
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <label for="time-range-select" style="font-weight: 500;">Chart Time Range:</label>
+                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <label for="date-picker" style="font-weight: 500;">Date:</label>
+                            <div class="mdl-textfield mdl-js-textfield">
+                                <input class="mdl-textfield__input" type="date" id="date-picker">
+                            </div>
+                            <label for="time-range-select" style="font-weight: 500;">Time Range:</label>
                             <div class="mdl-selectfield mdl-js-selectfield">
                                 <select class="mdl-selectfield__input" id="time-range-select">
-                                    <option value="1">Last 1 Hour</option>
-                                    <option value="4" selected>Last 4 Hours</option>
-                                    <option value="12">Last 12 Hours</option>
-                                    <option value="24">Last 24 Hours</option>
+                                    <option value="1">1 Hour</option>
+                                    <option value="4" selected>4 Hours</option>
+                                    <option value="12">12 Hours</option>
+                                    <option value="24">24 Hours</option>
                                 </select>
                             </div>
                         </div>
@@ -230,7 +234,21 @@
                         <h2 class="mdl-card__title-text">Grid Pricing</h2>
                     </div>
                     <div class="mdl-card__supporting-text">
-                        <div class="chart-container">
+                        <div class="chart-container" style="position: relative;">
+                            <div class="mode-legend" style="z-index: 10; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                                <div class="legend-item" style="display: flex; align-items: center; gap: 6px;">
+                                    <div style="width: 16px; height: 12px; background-color: rgba(33, 150, 243, 0.4); border: 1px solid rgba(33, 150, 243, 0.6);"></div>
+                                    <span>Grid + Solar</span>
+                                </div>
+                                <div class="legend-item" style="display: flex; align-items: center; gap: 6px;">
+                                    <div style="width: 16px; height: 12px; background-color: rgba(255, 193, 7, 0.4); border: 1px solid rgba(255, 193, 7, 0.6);"></div>
+                                    <span>Solar Only</span>
+                                </div>
+                                <div class="legend-item" style="display: flex; align-items: center; gap: 6px;">
+                                    <div style="width: 16px; height: 12px; background-color: rgba(76, 175, 80, 0.4); border: 1px solid rgba(76, 175, 80, 0.6);"></div>
+                                    <span>Discharge</span>
+                                </div>
+                            </div>
                             <canvas id="grid-pricing-chart"></canvas>
                         </div>
                     </div>

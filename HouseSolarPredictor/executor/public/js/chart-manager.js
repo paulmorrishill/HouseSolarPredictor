@@ -370,6 +370,9 @@ class ChartManager {
                         }
                     },
                     plugins: {
+                        annotation: {
+                            annotations: {}
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -460,10 +463,6 @@ class ChartManager {
 
     updateMetricsChart(metrics) {
         const chart = this.charts.realtime;
-        if (!chart || !Array.isArray(metrics) || metrics.length === 0) {
-            this.logger.addLogEntry('⚠️ Cannot update metrics chart - invalid data or chart not found', 'warn');
-            return;
-        }
 
         this.logger.addLogEntry(`📊 Updating metrics chart with ${metrics.length} data points`, 'info');
 
@@ -495,15 +494,12 @@ class ChartManager {
 
     updateExpectedVsActualBatteryChargeChart(metrics, schedule) {
         const chart = this.charts.batteryCharge;
-        if (!chart || !Array.isArray(metrics) || metrics.length === 0) {
-            this.logger.addLogEntry('⚠️ Cannot update control chart - invalid data or chart not found', 'warn');
+        if(schedule == null){
+            this.logger.addLogEntry('⚠️ No schedule data provided for battery charge chart', 'warn');
             return;
         }
+        this.logger.addLogEntry(`📊 Updating charge chart with ${metrics.length} actual and ${schedule.length} schedule points`, 'info');
 
-        this.logger.addLogEntry(`📊 Updating control chart with ${metrics.length} data points`, 'info');
-
-        // Clear existing data
-        chart.data.labels = [];
         chart.data.datasets[0].data = [];
         chart.data.datasets[1].data = [];
 
@@ -512,30 +508,35 @@ class ChartManager {
 
         // Process metrics to extract battery level data
         metrics.forEach(metric => {
-            if (metric.timestamp) {
-                const timestamp = new Date(metric.timestamp);
-                chart.data.labels.push(timestamp);
-                
-                // Add actual battery charge (from MQTT data)
-                const actualBatteryLevel = metric.batteryCharge !== undefined ? metric.batteryCharge : null;
-
-                if(actualBatteryLevel === null) {
-                    console.warn('⚠️ No actual battery level data available', metric);
-                }
-                let BATTERY_MAX_CHARGE = 10;
-                const batteryRemainingKwh = actualBatteryLevel / 100 * BATTERY_MAX_CHARGE; // Convert percentage to kWh (assuming 10kWh battery)
-                chart.data.datasets[1].data.push(batteryRemainingKwh);
-                if (actualBatteryLevel !== null) actualPoints++;
-                
-                // Get expected battery level from schedule
-                const expectedBatteryLevel = this.dataProcessor.getExpectedBatteryLevel(timestamp, schedule);
-                chart.data.datasets[0].data.push(expectedBatteryLevel);
-                if (expectedBatteryLevel !== null) expectedPoints++;
+            const timestamp = new Date(metric.timestamp);
+            chart.data.labels.push(timestamp);
+            const actualBatteryLevel = metric.batteryCharge !== undefined ? metric.batteryCharge : null;
+            if(actualBatteryLevel === null) {
+                console.warn('⚠️ No actual battery level data available', metric);
             }
+            let BATTERY_MAX_CHARGE = 10;
+            const batteryRemainingKwh = actualBatteryLevel / 100 * BATTERY_MAX_CHARGE; // Convert percentage to kWh (assuming 10kWh battery)
+            chart.data.datasets[1].data.push({x: timestamp, y: batteryRemainingKwh});
+            if (actualBatteryLevel !== null) actualPoints++;
+
+            // Get expected battery level from schedule
+        });
+
+        schedule.forEach(segment => {
+           for (let i = 0; i < 30; i++) {
+                const segmentStart = this.dataProcessor.parseDateTime(segment.time.segmentStart);
+                const segmentEnd = this.dataProcessor.parseDateTime(segment.time.segmentEnd);
+                const segmentDuration = (segmentEnd - segmentStart) / 30; // Divide into 30 minute intervals
+                const newStart = new Date(segmentStart.getTime() + i * segmentDuration);
+
+                const expectedBatteryLevel = this.dataProcessor.getExpectedBatteryLevel(newStart, schedule);
+                chart.data.datasets[0].data.push({x: newStart, y: expectedBatteryLevel});
+           }
         });
 
         chart.update('active');
-        this.logger.addLogEntry(`✅ Control chart updated - Expected: ${expectedPoints} points, Actual: ${actualPoints} points`, 'info');
+        this.logger.addLogEntry(`✅ Bat Charge chart updated - Expected: ${expectedPoints} points, Actual: ${actualPoints} points`, 'info');
+        console.log('Battery charge chart data:', chart.data.datasets);
     }
 
     updateCostChart(cost) {
@@ -562,7 +563,7 @@ class ChartManager {
         // Update charts
         this.updateModeTimelineChart(modeData);
         this.updateBatteryScheduleChart(batteryData);
-        this.updateGridPricingChart(pricingData);
+        this.updateGridPricingChart(pricingData, scheduleData);
         this.updatePowerFlowChart(powerFlowData);
         console.log('Mode timeline data:', modeData);
         this.logger.addLogEntry('✅ Schedule charts updated', 'info');
@@ -585,11 +586,58 @@ class ChartManager {
         chart.update('none');
     }
 
-    updateGridPricingChart(data) {
+    createModeAnnotations(scheduleData) {
+        if (!Array.isArray(scheduleData)) return {};
+
+        const annotations = {};
+        const modeColors = {
+            'ChargeFromGridAndSolar': 'rgba(33, 150, 243, 0.2)', // Blue
+            'ChargeSolarOnly': 'rgba(255, 193, 7, 0.2)',         // Yellow
+            'Discharge': 'rgba(76, 175, 80, 0.2)'                // Green
+        };
+
+        const modeLabels = {
+            'ChargeFromGridAndSolar': 'Charge Grid + Solar',
+            'ChargeSolarOnly': 'Charge Solar Only',
+            'Discharge': 'Discharge'
+        };
+
+        scheduleData.forEach((segment, index) => {
+            const startTime = this.dataProcessor.parseDateTime(segment.time.segmentStart);
+            const endTime = this.dataProcessor.parseDateTime(segment.time.segmentEnd);
+            const mode = segment.mode;
+            const color = modeColors[mode] || 'rgba(128, 128, 128, 0.2)';
+            const label = modeLabels[mode] || mode;
+
+            annotations[`mode_${index}`] = {
+                type: 'box',
+                xMin: startTime,
+                xMax: endTime,
+                backgroundColor: color,
+                borderWidth: 0,
+                drawTime: 'beforeDatasetsDraw',
+                label: {
+                    display: false,
+                    content: label
+                }
+            };
+        });
+
+        return annotations;
+    }
+
+    updateGridPricingChart(data, scheduleData = null) {
         const chart = this.charts.gridPricing;
         if (!chart || !data) return;
 
         chart.data.datasets[0].data = data;
+        
+        // Update mode annotations if schedule data is provided
+        if (scheduleData) {
+            const annotations = this.createModeAnnotations(scheduleData);
+            chart.options.plugins.annotation.annotations = annotations;
+        }
+        
         chart.update('none');
     }
 

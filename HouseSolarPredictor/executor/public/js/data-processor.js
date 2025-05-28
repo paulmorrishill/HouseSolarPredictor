@@ -7,15 +7,28 @@ class DataProcessor {
         this.logger = logger;
     }
 
-    filterMetricsByTimeRange(metrics, hours) {
+    filterMetricsByTimeRange(metrics, hours, selectedDate = null) {
         if (!Array.isArray(metrics) || metrics.length === 0) {
             return [];
         }
 
-        const now = Date.now();
-        const cutoffTime = now - (hours * 60 * 60 * 1000); // Convert hours to milliseconds
+        let endTime, cutoffTime;
         
-        return metrics.filter(metric => metric.timestamp >= cutoffTime);
+        if (selectedDate) {
+            // For historical dates, filter based on the selected date
+            const selectedDateObj = new Date(selectedDate + 'T23:59:59.999Z');
+            endTime = selectedDateObj.getTime();
+            cutoffTime = endTime - (hours * 60 * 60 * 1000);
+        } else {
+            // For today, use current time
+            endTime = Date.now();
+            cutoffTime = endTime - (hours * 60 * 60 * 1000);
+        }
+        
+        return metrics.filter(metric => {
+            const timestamp = metric.timestamp;
+            return timestamp >= cutoffTime && timestamp <= endTime;
+        });
     }
 
     limitDataPoints(metrics, maxPoints) {
@@ -179,7 +192,6 @@ class DataProcessor {
         throw new Error('Unknown work mode priority: ' + metric.workModePriority);
     }
 
-    // DateTime parsing - NO time-only support
     parseDateTime(dateTimeString) {
         const date = new Date(dateTimeString);
         if (isNaN(date.getTime())) {
@@ -189,7 +201,7 @@ class DataProcessor {
     }
 
     getExpectedBatteryLevel(timestamp, schedule) {
-        if (!schedule || !Array.isArray(schedule)) return null;
+        if (!Array.isArray(schedule)) return null;
 
         const targetTime = new Date(timestamp);
 

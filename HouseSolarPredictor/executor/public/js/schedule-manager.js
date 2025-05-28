@@ -12,7 +12,12 @@ class ScheduleManager {
         // Store schedule for cost calculations
         console.log("Updating schedule info:", schedule);
         this.schedule = schedule;
-        
+        if(schedule.length > 0) {
+            const firstDate = new Date(schedule[0].time.segmentStart);
+            const lastDate = new Date(schedule[schedule.length - 1].time.segmentEnd);
+            console.log("⏱️ Schedule First date:", firstDate, "Last date:", lastDate);
+        }
+
         // Update next schedule block info
         this.updateNextScheduleBlock(schedule);
         
@@ -91,8 +96,12 @@ class ScheduleManager {
         }
     }
 
-    getSchedule() {
-        return this.schedule;
+    getSchedule(date) {
+        return this.schedule.filter(block => {
+            const blockStart = new Date(block.time.segmentStart);
+            const blockEnd = new Date(block.time.segmentEnd);
+            return blockStart >= date && blockEnd < new Date(date.getTime() + 24 * 60 * 60 * 1000);
+        });
     }
 
     clearScheduleTimer() {

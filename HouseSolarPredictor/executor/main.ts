@@ -114,7 +114,9 @@ class SolarInverterApp {
           
         case "/api/metrics":
           const hours = parseInt(url.searchParams.get("hours") || "24");
-          const metrics = await this.databaseService.getRecentMetrics(hours);
+          const dateParam = url.searchParams.get("date");
+          this.logger.log(`Fetching metrics for ${hours} hours on date ${dateParam}`);
+          const metrics = await this.databaseService.getMetrics(hours, dateParam || undefined);
           return this.jsonResponse(metrics);
           
         case "/api/control-actions":
@@ -123,7 +125,11 @@ class SolarInverterApp {
           return this.jsonResponse(actions);
           
         case "/api/schedule":
-          return this.jsonResponse(this.scheduleService.getAllSegments());
+          const scheduleDateParam = url.searchParams.get("date");
+          const targetDate = new Date(scheduleDateParam!);
+          this.logger.log(`Fetching schedule for date: ${targetDate.toISOString()}`);
+          const scheduleData = this.scheduleService.getAllSegmentsForDate(targetDate);
+          return this.jsonResponse(scheduleData);
           
         case "/api/retry":
           if (request.method === "POST") {

@@ -5,6 +5,9 @@ class SolarInverterApp {
         this.allMetricsData = []; // Store all 24 hours of data
         this.currentTimeRange = 4; // Default to 4 hours
         this.maxDataPoints = 100; // Maximum data points per chart
+        let today = new Date();
+        today.setHours(0, 0, 0, 0);
+        this.selectedDate =  today// Default to today
         
         // Initialize modules
         this.logger = new Logger(100);
@@ -37,12 +40,13 @@ class SolarInverterApp {
         this.uiManager.setupEventListeners({
             onRetry: () => this.retryOperations(),
             onTimeRangeChange: (newRange) => this.handleTimeRangeChange(newRange),
+            onDateChange: (newDate) => this.handleDateChange(newDate),
             onPageVisible: () => this.handlePageVisible()
         });
     }
 
     async loadInitialData() {
-        const data = await this.apiClient.loadInitialData();
+        const data = await this.apiClient.loadInitialData(this.selectedDate);
         
         if (data.status) {
             this.uiManager.updateControllerState(data.status);
@@ -93,6 +97,40 @@ class SolarInverterApp {
         this.updateChartsWithTimeRange(true);
     }
 
+    async handleDateChange(newDate) {
+        const oldDate = this.selectedDate;
+        this.selectedDate = newDate;
+        this.logger.addLogEntry(`👤 User changed date from ${oldDate} to ${newDate}`, 'info');
+        
+        // Load data for the new date
+        await this.loadDataForDate(newDate);
+    }
+
+    async loadDataForDate(date) {
+        this.logger.addLogEntry(`📅 Loading data for date: ${date}`, 'info');
+        
+        try {
+            const isToday = date === new Date().toISOString().split('T')[0];
+            
+            // Load metrics for the selected date
+            const metrics = await this.apiClient.loadMetricsData(isToday ? null : date, 24);
+            if (metrics) {
+                this.updateHistoricalCharts(metrics);
+            }
+            
+            // Load schedule for the selected date
+            const schedule = await this.apiClient.loadScheduleData(date);
+            if (schedule) {
+                this.scheduleManager.updateScheduleInfo(schedule);
+                this.chartManager.updateScheduleCharts(schedule, metrics);
+            }
+            
+            this.logger.addLogEntry(`✅ Data loaded successfully for ${date}`, 'info');
+        } catch (error) {
+            this.logger.addLogEntry(`❌ Failed to load data for ${date}: ${error.message}`, 'error');
+        }
+    }
+
     handlePageVisible() {
         if (this.websocketManager.getConnectionStatus() === 'disconnected') {
             this.websocketManager.connect();
@@ -135,9 +173,10 @@ class SolarInverterApp {
 
         this.logger.addLogEntry(`📊 Updating charts for ${this.currentTimeRange}h time range`, 'info');
 
-        // Filter data based on selected time range
-        const filteredMetrics = this.dataProcessor.filterMetricsByTimeRange(this.allMetricsData, this.currentTimeRange);
-        this.logger.addLogEntry(`🔍 Filtered to ${filteredMetrics.length} data points for ${this.currentTimeRange}h range`, 'info');
+        // Filter data based on selected time range and date
+        const selectedDateForFilter = this.selectedDate;
+        const filteredMetrics = this.dataProcessor.filterMetricsByTimeRange(this.allMetricsData, this.currentTimeRange, selectedDateForFilter);
+        this.logger.addLogEntry(`🔍 Filtered to ${filteredMetrics.length} data points for ${this.currentTimeRange}h range on ${this.selectedDate}`, 'info');
         
         // Limit data points to maximum for performance
         const limitedMetrics = this.dataProcessor.limitDataPoints(filteredMetrics, this.maxDataPoints);
@@ -147,7 +186,8 @@ class SolarInverterApp {
         
         // Update charts with filtered and limited data
         this.chartManager.updateMetricsChart(limitedMetrics);
-        this.chartManager.updateExpectedVsActualBatteryChargeChart(limitedMetrics, this.scheduleManager.getSchedule());
+        let schedule = this.scheduleManager.getSchedule(selectedDateForFilter);
+        this.chartManager.updateExpectedVsActualBatteryChargeChart(limitedMetrics, schedule);
         this.calculateAndDisplayCost(limitedMetrics);
         
         this.logger.addLogEntry('✅ Chart updates completed', 'info');
@@ -202,27 +242,6 @@ class SolarInverterApp {
         } catch (error) {
             this.uiManager.showError(`Retry operation failed: ${error.message}`);
         }
-    }
-
-    // Public methods for external access
-    getLogger() {
-        return this.logger;
-    }
-
-    getCharts() {
-        return this.chartManager.getCharts();
-    }
-
-    getSchedule() {
-        return this.scheduleManager.getSchedule();
-    }
-
-    getCurrentMetrics() {
-        return this.allMetricsData;
-    }
-
-    getConnectionStatus() {
-        return this.websocketManager.getConnectionStatus();
     }
 
     // Cleanup method
