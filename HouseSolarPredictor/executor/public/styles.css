@@ -46,6 +46,7 @@ body {
 
 .section--center {
     max-width: 1200px;
+    background-color: white;
     margin: 16px auto;
 }
 
@@ -417,6 +418,7 @@ body {
 .section-header {
     margin: 8px;
     width: calc(100% - 16px);
+    min-height: 0;
 }
 
 .section-header .mdl-card__supporting-text {
@@ -455,6 +457,10 @@ body {
 .log-card {
     margin: 8px;
     width: calc(100% - 16px);
+}
+
+#remaining-battery {
+    font-size: 20px;
 }
 
 /* Chart Card Titles */

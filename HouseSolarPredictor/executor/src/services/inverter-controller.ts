@@ -178,7 +178,14 @@ export class InverterController {
 
   private async checkAndUpdateInverter(): Promise<void> {
     const currentSegment = this.scheduleService.getCurrentTimeSegment();
-    
+
+    if (this.state.isInProtectionMode) {
+      this.logger.log(`⚠️ Battery protection active: ${this.state.protectionReason}`);
+      this.state.message = `Battery Protection: ${this.state.protectionReason})`;
+      await this.applyDesiredWorkModeAndChargeRate('Battery first', 1);
+      return;
+    }
+
     if (!currentSegment) {
       this.state.status = "amber";
       this.state.message = "No current time segment found";
@@ -187,31 +194,41 @@ export class InverterController {
 
     this.state.currentSegment = currentSegment;
     
-    // Determine desired settings based on mode
     const { workMode, chargeRate } = this.getDesiredSettings(currentSegment.mode);
+    await this.applyDesiredWorkModeAndChargeRate(workMode, chargeRate);
+  }
+
+  private async applyDesiredWorkModeAndChargeRate(workMode: "Battery first" | "Load first", chargeRate: number) {
     this.state.desiredWorkMode = workMode;
     this.state.desiredChargeRate = chargeRate;
 
     // Check if we need to make changes
-    const needsWorkModeChange = this.currentMetrics.workModePriority !== workMode;
-    const needsChargeRateChange = this.currentMetrics.batteryChargeRate !== chargeRate;
+    let currentMode = this.currentMetrics.workModePriority;
+    const needsWorkModeChange = currentMode !== workMode;
+    let currentRate = this.currentMetrics.batteryChargeRate;
+    const needsChargeRateChange = currentRate !== chargeRate;
 
     if (!needsWorkModeChange && !needsChargeRateChange) {
+      this.logger.log("✅ No changes needed, inverter is already in desired state");
       this.state.status = "green";
-      if (this.state.isInProtectionMode) {
-        this.state.message = `System in correct state (Battery Protection: ${this.state.protectionReason})`;
-      } else {
-        this.state.message = "System is in correct state";
-      }
       return;
     }
 
     // If we have a pending action, don't start a new one
     if (this.state.pendingAction) {
+      this.logger.log("🔄 Pending action already in progress, skipping control update");
       return;
     }
 
-    // Start control sequence
+    this.state.status = "amber";
+    let settingsChanges = '';
+    if (needsWorkModeChange) {
+      settingsChanges += `Work Mode: ${currentMode} ➡ ${workMode}, `;
+    }
+    if (needsChargeRateChange) {
+      settingsChanges += `Charge Rate: ${currentRate}% ➡ ${chargeRate}%`;
+    }
+    this.state.message = `Applying settings: ${settingsChanges}`;
     await this.executeControlSequence(workMode, chargeRate, needsWorkModeChange, needsChargeRateChange);
   }
 
@@ -276,8 +293,7 @@ export class InverterController {
         baseSettings = { workMode: "Load first", chargeRate: 0 };
         break;
       default:
-        baseSettings = { workMode: "Battery first", chargeRate: 0 };
-        break;
+        throw new Error(`Unknown mode: ${mode}`);
     }
 
     // Apply battery protection overrides
@@ -314,29 +330,24 @@ export class InverterController {
     needsWorkModeChange: boolean,
     needsChargeRateChange: boolean
   ): Promise<void> {
-    this.state.status = "amber";
-    if (this.state.isInProtectionMode) {
-      this.state.message = `Updating inverter settings... (Battery Protection: ${this.state.protectionReason})`;
-    } else {
-      this.state.message = "Updating inverter settings...";
-    }
+    this.logger.log(`Executing control sequence: Work Mode=${targetWorkMode}, Charge Rate=${targetChargeRate}%`);
 
     try {
       // Step 1: Set work mode first (if needed)
       if (needsWorkModeChange) {
         await this.setWorkMode(targetWorkMode);
-        
-        // Wait a bit for the work mode to be applied
-        await this.delay(2000);
+        this.logger.log(`Work mode set to ${targetWorkMode} waiting for confirmation`);
+        this.startVerificationTimer();
+        return;
       }
 
       // Step 2: Set charge rate (if needed and work mode is Battery first)
       if (needsChargeRateChange && targetWorkMode === "Battery first") {
         await this.setChargeRate(targetChargeRate);
+        this.logger.log(`Charge rate set to ${targetChargeRate}% waiting for confirmation`);
+        this.startVerificationTimer();
+        return;
       }
-
-      // Start verification timer
-      this.startVerificationTimer();
 
     } catch (error) {
       this.logger.logException(error as Error);
@@ -406,6 +417,8 @@ export class InverterController {
       success = Math.abs(this.currentMetrics.batteryChargeRate - expectedRate) < 1; // Allow 1% tolerance
       responseMessage = success ? "Charge rate updated successfully" : 
         `Charge rate verification failed. Expected: ${expectedRate}%, Actual: ${this.currentMetrics.batteryChargeRate}%`;
+    } else {
+      throw new Error(`Unknown action type: ${action.actionType}`);
     }
 
     // Update the action in storage

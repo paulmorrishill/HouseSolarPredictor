@@ -18,79 +18,83 @@ class ChartManager {
 
     initializeRealtimeChart() {
         const realtimeCtx = document.getElementById('realtime-chart');
-        if (realtimeCtx) {
-            this.charts.realtime = new Chart(realtimeCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'Load Power (kW)',
-                            data: [],
-                            borderColor: '#FF6384',
-                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                            tension: 0.4,
-                            pointRadius: 2
+        if (!realtimeCtx) {
+            throw new Error('Realtime chart canvas not found');
+        }
+        this.charts.realtime = new Chart(realtimeCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Load Power (kW)',
+                        data: [],
+                        borderColor: '#FF6384',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 1,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'Grid Power (kW)',
+                        data: [],
+                        borderColor: '#36A2EB',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 1,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'Battery Power (kW)',
+                        data: [],
+                        borderColor: '#4BC0C0',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 1,
+                        pointHoverRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'HH:mm'
+                            }
                         },
-                        {
-                            label: 'Grid Power (kW)',
-                            data: [],
-                            borderColor: '#36A2EB',
-                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                            tension: 0.4,
-                            pointRadius: 2
-                        },
-                        {
-                            label: 'Battery Power (kW)',
-                            data: [],
-                            borderColor: '#4BC0C0',
-                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                            tension: 0.4,
-                            pointRadius: 2
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'hour',
-                                displayFormats: {
-                                    hour: 'HH:mm'
-                                }
-                            },
+                        display: true,
+                        title: {
                             display: true,
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Power (kW)'
-                            }
+                            text: 'Time'
                         }
                     },
-                    plugins: {
-                        legend: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
                             display: true,
-                            position: 'top'
+                            text: 'Power (kW)'
                         }
                     }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
                 }
-            });
-        }
+            }
+        });
     }
 
     initializeBatteryChargeChart() {
         const controlCtx = document.getElementById('charge-chart');
         if (controlCtx) {
-            this.charts.batteryCharge = new Chart(controlCtx, {
+            let chargeChartConfig = {
                 type: 'line',
                 data: {
                     labels: [],
@@ -101,7 +105,7 @@ class ChartManager {
                             borderColor: '#FF9F40',
                             backgroundColor: 'rgba(255, 159, 64, 0.1)',
                             tension: 0.4,
-                            pointRadius: 2,
+                            pointRadius: 1,
                             hoverPointRadius: 4
                         },
                         {
@@ -110,7 +114,8 @@ class ChartManager {
                             borderColor: '#FF6384',
                             backgroundColor: 'rgba(255, 99, 132, 0.1)',
                             tension: 0.4,
-                            pointRadius: 2,
+                            fill: true,
+                            pointRadius: 1,
                             hoverPointRadius: 4
                         }
                     ]
@@ -130,19 +135,21 @@ class ChartManager {
                             max: 12,
                             title: {
                                 display: true,
-                                text: 'Battery Level %'
+                                text: 'Battery Level (kWh)'
                             }
                         }
                     }
                 }
-            });
+            };
+            console.log('Initializing battery charge chart with config:', chargeChartConfig);
+            this.charts.batteryCharge = new Chart(controlCtx, chargeChartConfig);
         }
     }
 
     initializeCostChart() {
         const costCtx = document.getElementById('cost-chart');
         if (costCtx) {
-            this.charts.cost = new Chart(costCtx, {
+            let costConfig = {
                 type: 'bar',
                 data: {
                     labels: ['Today'],
@@ -152,7 +159,7 @@ class ChartManager {
                         backgroundColor: '#4CAF50',
                         borderColor: '#45a049',
                         borderWidth: 1,
-                        pointRadius: 2
+                        pointRadius: 1
                     }]
                 },
                 options: {
@@ -175,7 +182,8 @@ class ChartManager {
                         }
                     }
                 }
-            });
+            };
+            this.charts.cost = new Chart(costCtx, costConfig);
         }
     }
 
@@ -208,7 +216,7 @@ class ChartManager {
                     datasets: [
                         {
                             label: 'Actual Mode',
-                            data: [], // use `offsetData(actualData)` when setting real data
+                            data: [],
                             borderColor: '#6cb027',
                             backgroundColor: 'rgba(108, 176, 39, 0.1)',
                             stepped: true,
@@ -281,7 +289,7 @@ class ChartManager {
                         backgroundColor: 'rgba(76, 175, 80, 0.2)',
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 2
+                        pointRadius: 1
                     }]
                 },
                 options: {
@@ -333,7 +341,7 @@ class ChartManager {
                             return 'rgba(244, 67, 54, 0.3)'; // Red for expensive
                         },
                         stepped: true,
-                        pointRadius: 2
+                        pointRadius: 1
                     }]
                 },
                 options: {
@@ -390,7 +398,7 @@ class ChartManager {
                             backgroundColor: 'rgba(33, 150, 243, 0.1)',
                             borderWidth: 2,
                             tension: 0.4,
-                            pointRadius: 2
+                            pointRadius: 1
                         },
                         {
                             label: 'Expected Grid Usage',
@@ -400,7 +408,7 @@ class ChartManager {
                             borderWidth: 2,
                             borderDash: [5, 5],
                             tension: 0.4,
-                            pointRadius: 2
+                            pointRadius: 1
                         },
                         {
                             label: 'Expected Solar',
@@ -410,7 +418,7 @@ class ChartManager {
                             borderWidth: 2,
                             borderDash: [2, 2],
                             tension: 0.4,
-                            pointRadius: 2
+                            pointRadius: 1
                         }
                     ]
                 },
@@ -564,8 +572,8 @@ class ChartManager {
         const chart = this.charts.modeTimeline;
         if (!chart || !data) return;
 
-        chart.data.datasets[0].data = data.planned;
-        chart.data.datasets[1].data = data.actual;
+        chart.data.datasets[0].data = data.actual;
+        chart.data.datasets[1].data = data.planned;
         chart.update('none');
     }
 

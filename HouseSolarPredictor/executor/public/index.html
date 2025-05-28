@@ -54,7 +54,7 @@
                                     <span id="current-work-mode" class="setting-value">-</span>
                                 </div>
                                 <div class="setting-item">
-                                    <span class="setting-label">Charge Rate:</span>
+                                    <span class="setting-label">Grid Charge Rate:</span>
                                     <span id="current-charge-rate" class="setting-value">-</span>
                                 </div>
                                 <div class="setting-item">
@@ -62,7 +62,7 @@
                                     <span id="desired-work-mode" class="setting-value">-</span>
                                 </div>
                                 <div class="setting-item">
-                                    <span class="setting-label">Desired Rate:</span>
+                                    <span class="setting-label">Desired Grid Charge Rate:</span>
                                     <span id="desired-charge-rate" class="setting-value">-</span>
                                 </div>
                             </div>
@@ -84,11 +84,11 @@
                                     <span id="next-time-until" class="schedule-value">-</span>
                                 </div>
                                 <div class="schedule-item">
-                                    <span class="schedule-label">Expected Usage:</span>
+                                    <span class="schedule-label">Exp Usage:</span>
                                     <span id="next-usage" class="schedule-value">-</span>
                                 </div>
                                 <div class="schedule-item">
-                                    <span class="schedule-label">Expected Start Charge:</span>
+                                    <span class="schedule-label">Exp Start Charge:</span>
                                     <span id="next-start-charge" class="schedule-value">-</span>
                                 </div>
                             </div>
@@ -138,7 +138,7 @@
             </section>
 
             <!-- Charts Section -->
-            <section id="charts" class="section--center mdl-grid mdl-grid--no-spacing">
+            <section id="charts" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
                 <!-- Time Range Selector -->
                 <div class="mdl-card section-header mdl-shadow--2dp">
                     <div class="mdl-card__supporting-text">
@@ -168,20 +168,10 @@
                 <!-- Control Parameters Chart -->
                 <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
-                        <h2 class="mdl-card__title-text">Expected vs Actual Control</h2>
+                        <h2 class="mdl-card__title-text">Expected vs Actual Charge</h2>
                     </div>
                     <div class="mdl-card__supporting-text">
                         <canvas id="charge-chart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Predicted vs Actual Chart -->
-                <div class="mdl-card chart-card mdl-shadow--2dp">
-                    <div class="mdl-card__title">
-                        <h2 class="mdl-card__title-text">Predicted vs Actual Values</h2>
-                    </div>
-                    <div class="mdl-card__supporting-text">
-                        <canvas id="prediction-chart"></canvas>
                     </div>
                 </div>
 
@@ -203,7 +193,7 @@
             </section>
 
             <!-- Schedule Charts Section -->
-            <section id="schedule-charts" class="section--center mdl-grid mdl-grid--no-spacing">
+            <section id="schedule-charts" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
                 <div class="mdl-card section-header mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">24-Hour Schedule Analysis</h2>

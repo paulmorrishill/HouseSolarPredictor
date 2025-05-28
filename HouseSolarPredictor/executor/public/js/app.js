@@ -90,8 +90,7 @@ class SolarInverterApp {
         this.currentTimeRange = newRange;
         this.logger.addLogEntry(`👤 User changed time range from ${oldRange}h to ${newRange}h`, 'info');
         
-        // Force immediate update when user changes time range
-        this.updateChartsWithTimeRange();
+        this.updateChartsWithTimeRange(true);
     }
 
     handlePageVisible() {
@@ -120,18 +119,17 @@ class SolarInverterApp {
             this.logger.addLogEntry(`📅 Data range: ${oldest.toLocaleString()} to ${newest.toLocaleString()}`, 'info');
         }
 
-        // Update charts with filtered data based on current time range
-        this.updateChartsWithTimeRange();
+        this.updateChartsWithTimeRange(true);
     }
 
-    updateChartsWithTimeRange() {
+    updateChartsWithTimeRange(force = false) {
         if (!this.allMetricsData || this.allMetricsData.length === 0) {
             this.logger.addLogEntry('⚠️ No metrics data available for chart update', 'warn');
             return;
         }
 
         // Throttle chart updates to avoid too frequent rendering
-        if (!this.chartManager.shouldUpdateCharts()) {
+        if (!this.chartManager.shouldUpdateCharts() && !force) {
             return;
         }
 
