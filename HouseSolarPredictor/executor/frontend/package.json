@@ -1,0 +1,25 @@
+{
+  "name": "solar-inverter-frontend",
+  "version": "1.0.0",
+  "description": "TypeScript frontend for Solar Inverter Control System",
+  "scripts": {
+    "build": "tsc && node esbuild.config.js",
+    "build:tsc": "tsc",
+    "build:bundle": "node esbuild.config.js",
+    "build:prod": "tsc && node esbuild.config.js --minify",
+    "watch": "tsc --watch",
+    "clean": "rimraf js-compiled dist",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "rimraf": "^5.0.0",
+    "esbuild": "^0.19.0"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.0",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^3.0.0"
+  },
+  "type": "module"
+}

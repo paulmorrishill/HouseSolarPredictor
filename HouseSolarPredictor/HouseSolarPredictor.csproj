@@ -21,6 +21,7 @@
       <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
       <PackageReference Include="NodaTime" Version="3.2.2" />
+      <PackageReference Include="NodaTime.Serialization.JsonNet" Version="3.2.0" />
       <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     </ItemGroup>
 
@@ -43,6 +44,10 @@
       <None Update="EnergySupply\Octopus\average_prices.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="executor\schedules\" />
     </ItemGroup>
 
 </Project>

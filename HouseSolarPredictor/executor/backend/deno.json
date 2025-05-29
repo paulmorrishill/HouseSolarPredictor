@@ -1,0 +1,22 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env main.ts",
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --watch main.ts",
+    "test": "deno run --allow-read --allow-write test.ts"
+  },
+  "imports": {
+    "@std/http": "jsr:@std/http@0.224",
+    "@std/path": "jsr:@std/path@0.225",
+    "@std/fs": "jsr:@std/fs@0.229",
+    "@std/log": "jsr:@std/log@0.224",
+    "sqlite": "https://deno.land/x/sqlite@v3.8/mod.ts",
+    "mqtt": "npm:mqtt@^5.3.4",
+    "sentry": "https://deno.land/x/sentry@7.77.0/index.mjs",
+    "@shared/": "../shared-types/",
+    "@shared": "../shared-types/index.ts"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["dom", "deno.ns", "deno.window", "deno.unstable"]
+  }
+}

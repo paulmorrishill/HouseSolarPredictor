@@ -48,3 +48,5 @@ data
 
 schedules
 config/
+
+js-compiled/
