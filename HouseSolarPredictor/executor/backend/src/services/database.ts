@@ -1,6 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import {MetricReading} from "../types/metricReading.ts";
-import {ControlAction} from "@shared";
+import {ControlAction, MetricInstance} from "@shared";
 
 export class DatabaseService {
   private db: DatabaseSync;
@@ -68,7 +67,7 @@ export class DatabaseService {
     `);
   }
 
-  insertMetric(metric: MetricReading): void {
+  insertMetric(metric: MetricInstance): void {
     const stmt = this.db.prepare(`
       INSERT INTO metrics (
         timestamp, battery_charge_rate, work_mode_priority,
@@ -126,7 +125,7 @@ export class DatabaseService {
     stmt.run(Date.now(), status, message ?? null);
   }
 
-  getMetrics(hours: number = 24, date?: string): MetricReading[] {
+  getMetrics(hours: number = 24, date?: string): MetricInstance[] {
     let startTime: number;
     let endTime: number;
     
@@ -163,7 +162,7 @@ export class DatabaseService {
   }
 
   // Keep for backward compatibility
-  getRecentMetrics(hours: number = 24): MetricReading[] {
+  getRecentMetrics(hours: number = 24): MetricInstance[] {
     return this.getMetrics(hours);
   }
 

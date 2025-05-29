@@ -6,6 +6,7 @@ export type MetricInstance = {
   gridPower: number;
   batteryPower: number;
   batteryCurrent: number;
+  // Percent
   batteryCharge: number;
   batteryCapacity: number;
 };

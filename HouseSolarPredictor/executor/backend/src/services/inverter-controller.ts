@@ -176,7 +176,12 @@ export class InverterController {
 
     this.state.currentSegment = currentSegment;
     
-    const { workMode, chargeRate } = this.getDesiredSettings(currentSegment.mode);
+    let { workMode, chargeRate } = this.getDesiredSettings(currentSegment.mode);
+
+    if(chargeRate !== this.currentMetrics.batteryChargeRate) {
+      workMode = "Battery first"; // Ensure we are in charge mode if changing charge rate
+    }
+
     await this.applyDesiredWorkModeAndChargeRate(workMode, chargeRate);
   }
 
@@ -204,11 +209,13 @@ export class InverterController {
 
     this.state.status = "amber";
     let settingsChanges = [];
-    if (needsWorkModeChange) {
-      settingsChanges.push(`Work Mode: ${currentMode} ➡ ${workMode}`);
-    }
+
     if (needsChargeRateChange) {
       settingsChanges.push(`Charge Rate: ${currentRate}% ➡ ${chargeRate}%`);
+    }
+
+    if (needsWorkModeChange) {
+      settingsChanges.push(`Work Mode: ${currentMode} ➡ ${workMode}`);
     }
 
     const settingsChangesStr = settingsChanges.join(", ");
@@ -379,7 +386,7 @@ export class InverterController {
       this.verifyControlAction().catch(error => {
         this.logger.logException(error as Error);
       });
-    }, 30000);
+    }, 60000);
   }
 
   private async verifyControlAction(): Promise<void> {
@@ -429,7 +436,7 @@ export class InverterController {
 
     if (this.retryCount <= this.retryAttempts) {
       this.logger.log(`Retrying control action (attempt ${this.retryCount}/${this.retryAttempts})`);
-      this.state.message = `Retrying... (${this.retryCount}/${this.retryAttempts})`;
+      this.state.message = `Retrying (${this.retryCount}/${this.retryAttempts})`;
       
       // Clear pending action and retry after delay
       this.state.pendingAction = undefined;
