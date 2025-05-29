@@ -49,4 +49,4 @@ data
 schedules
 config/
 
-js-compiled/
+dist/

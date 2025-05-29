@@ -12,9 +12,10 @@
     "dev": "tsc --watch"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "esbuild": "^0.19.0",
+    "esbuild-plugin-html": "^1.0.0",
     "rimraf": "^5.0.0",
-    "esbuild": "^0.19.0"
+    "typescript": "^5.0.0"
   },
   "dependencies": {
     "chart.js": "^4.4.0",

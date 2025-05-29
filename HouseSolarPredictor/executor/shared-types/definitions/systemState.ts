@@ -1,15 +1,16 @@
 import {TimeSegment} from "./timeSegment";
+import {InverterMode} from "./inverter-mode";
 
-export interface SystemState {
+export interface SystemState2 {
   timestamp: number;
   batteryChargeRate: number;
-  workModePriority: string;
+  workModePriority: InverterMode;
   loadPower: number;
   gridPower: number;
   batteryPower: number;
   batteryCurrent: number;
   desiredChargeRate?: number;
-  desiredWorkMode?: string;
+  desiredWorkMode?: InverterMode;
   status: "green" | "amber" | "red";
   currentSegment?: TimeSegment;
   statusMessage?: string;

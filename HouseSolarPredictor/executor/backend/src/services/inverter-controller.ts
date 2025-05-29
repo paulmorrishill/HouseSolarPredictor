@@ -5,8 +5,8 @@ import {BATTERY_PROTECTION} from "../constants/battery-protection.ts";
 import {ConfigService} from "./config.ts";
 import {SmtpClient} from "https://deno.land/x/smtp/mod.ts";
 import {Logger} from "../logger.ts";
-import {InverterMode} from "./inverter-mode.ts";
-import {ControlAction, ControllerState, MetricInstance, OutputsMode} from "@shared";
+import type {ControlAction, ControllerState, InverterMode, MetricInstance} from "@shared";
+import {OutputsMode} from "@shared";
 
 export class InverterController {
   private mqttService: MqttService;

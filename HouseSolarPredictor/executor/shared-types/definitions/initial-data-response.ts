@@ -1,9 +1,9 @@
-import {SystemStatus} from "./systemStatus";
 import {MetricInstance} from "./metric-instance";
 import {TimeSegment} from "./timeSegment";
+import {StatusResponse} from "./api-response/status-response";
 
 export interface InitialDataResponse {
-    status: SystemStatus | null;
-    metrics: MetricInstance[] | null;
-    schedule: TimeSegment[] | null;
+    status: StatusResponse;
+    metrics: MetricInstance[];
+    schedule: TimeSegment[];
 }

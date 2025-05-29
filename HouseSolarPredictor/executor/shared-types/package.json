@@ -2,5 +2,8 @@
   "name": "shared-types",
   "version": "1.0.0",
   "main": "index.ts",
-  "types": "index.ts"
+  "types": "index.ts",
+  "dependencies": {
+    "fs-extra": "^11.3.0"
+  }
 }

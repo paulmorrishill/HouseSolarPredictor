@@ -1,10 +1,19 @@
 import { build } from 'esbuild';
 import path from 'path';
+// delete dist
+import fs from 'fs';
+//emojis in console logs
+if (fs.existsSync('dist')) {
+    fs.rmSync('dist', { recursive: true, force: true });
+    console.log('🗑️  Old dist folder removed.');
+}
+console.log('🚀  Starting build process...');
 
+// include css
 build({
-    entryPoints: ['src/index.ts'],
+    entryPoints: ['src/app.ts', 'src/styles.css'],
     bundle: true,
-    outfile: 'dist/bundle.js',
+    outdir: 'dist/',
     platform: 'browser',
     target: 'es2020',
     plugins: [{
@@ -21,4 +30,19 @@ build({
             });
         }
     }]
-}).catch(() => process.exit(1));
+}).catch((e) => {
+    console.error('❌  Build failed:', e);
+    process.exit(1)
+}).then(() => {
+    const sourcePath = path.resolve('src/index.html');
+    const destPath = path.resolve('dist/index.html');
+    fs.copyFile(sourcePath, destPath, (err) => {
+        if (err) {
+            console.error('❌  Error copying index.html:', err);
+        } else {
+            console.log('📄  index.html copied to dist folder.');
+            console.log('✅  Build completed successfully!');
+        }
+    });
+});
+

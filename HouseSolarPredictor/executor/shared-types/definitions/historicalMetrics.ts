@@ -1,3 +1,4 @@
-import {MetricReading} from "../../backend/src/types/metricReading";
+import {MetricInstance} from "./metric-instance";
 
-export type HistoricalMetrics = MetricReading[];
+export type HistoricalMetrics = MetricInstance[];
+export type FilteredHistoricalMetrics = MetricInstance[];

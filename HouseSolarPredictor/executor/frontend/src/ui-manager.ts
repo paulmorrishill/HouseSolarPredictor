@@ -1,5 +1,5 @@
 import { Logger } from './logger';
-import {MetricInstance, SystemStatus} from "@shared";
+import {ControllerState, MetricInstance} from "@shared";
 import {UICallbacks} from "./types";
 
 export class UIManager {
@@ -16,8 +16,8 @@ export class UIManager {
         }
     }
 
-    updateControllerState(state: SystemStatus): void {
-        this.logger.addLogEntry(`🔄 Updating controller state - Status: ${state.connectionStatus}, Mode: ${state.actualWorkMode || 'Unknown'}`, 'info');
+    updateControllerState(state: ControllerState): void {
+        this.logger.addLogEntry(`🔄 Updating controller state - Status: ${state.status}, Mode: ${state.desiredWorkMode}`, 'info');
         
         // Update status indicator
         const statusIndicator = document.getElementById('status-indicator');
@@ -25,10 +25,10 @@ export class UIManager {
         const statusMessage = document.getElementById('status-message');
         
         if (statusIndicator && statusTitle && statusMessage) {
-            const status = state.connectionStatus || 'unknown';
+            const status = state.status
             statusIndicator.className = `status-indicator status-${status}`;
             statusTitle.textContent = this.getStatusTitle(status);
-            statusMessage.textContent = 'System operational';
+            statusMessage.textContent = state.message;
             
             if (status === 'red') {
                 this.logger.addLogEntry('⚠️ System status is RED - manual intervention may be required', 'warn');
@@ -38,10 +38,10 @@ export class UIManager {
         // Update current settings
         this.updateElement('current-work-mode', state.actualWorkMode || '-');
         this.updateElement('current-charge-rate',
-            state.actualGridChargeRate !== undefined ? `${state.actualGridChargeRate}%` : '-');
+            state.actualChargeRate !== undefined ? `${state.actualChargeRate}%` : '-');
         this.updateElement('desired-work-mode', state.desiredWorkMode || '-');
         this.updateElement('desired-charge-rate',
-            state.desiredGridChargeRate !== undefined ? `${state.desiredGridChargeRate}%` : '-');
+            state.desiredChargeRate !== undefined ? `${state.desiredChargeRate}%` : '-');
 
         // Log any discrepancies between desired and actual values
         if (state.actualWorkMode && state.desiredWorkMode && state.actualWorkMode !== state.desiredWorkMode) {
@@ -51,7 +51,7 @@ export class UIManager {
         // Show/hide retry button
         const retrySection = document.getElementById('retry-section');
         if (retrySection) {
-            retrySection.style.display = state.connectionStatus === 'red' ? 'block' : 'none';
+            //retrySection.style.display = state.connectionStatus === 'red' ? 'block' : 'none'; TODO: Show retry info?
         }
     }
 

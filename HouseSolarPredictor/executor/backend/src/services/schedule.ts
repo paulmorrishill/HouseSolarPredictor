@@ -1,4 +1,4 @@
-import {OutputsMode, TimeSegment} from "@shared";
+import {OutputsMode, type TimeSegment} from "@shared/index.ts";
 
 export class ScheduleService {
   private schedule: TimeSegment[] = [];

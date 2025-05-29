@@ -163,7 +163,7 @@ class SolarInverterApp {
     }
     
     // Remove leading slash and prepend public directory
-    const fullPath = `public${filePath}`;
+    const fullPath = `../frontend/dist${filePath}`;
     
     try {
       const file = await Deno.readFile(fullPath);

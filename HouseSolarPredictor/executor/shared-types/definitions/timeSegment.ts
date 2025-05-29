@@ -13,8 +13,6 @@ export interface TimeSegment {
   mode: OutputsMode;
   wastedSolarGeneration: number; // kWh
   actualGridUsage: number; // kWh
-  cost?: {
-    poundsAmount: number;
-  };
+  cost?: number;
 }
 

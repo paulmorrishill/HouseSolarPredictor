@@ -5,7 +5,7 @@ This directory contains the TypeScript version of the frontend JavaScript code. 
 ## Project Structure
 
 ```
-ts/
+src/
 ├── types/
 │   └── index.ts          # Type definitions for the entire application
 ├── logger.ts             # Logging functionality with typed interfaces
@@ -142,7 +142,7 @@ These modules are currently used as-is with `declare` statements in the main app
 ## Usage
 
 ### Development
-1. Make changes to TypeScript files in the `ts/` directory
+1. Make changes to TypeScript files in the `src/` directory
 2. Run `npm run watch` for automatic compilation
 3. Test using `index-ts.html`
 

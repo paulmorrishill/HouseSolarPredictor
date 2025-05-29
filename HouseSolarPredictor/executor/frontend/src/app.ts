@@ -5,10 +5,11 @@ import { UIManager } from './ui-manager';
 import { WebSocketManager } from './websocket-manager';
 import { ChartManager } from './chart-manager';
 import { ScheduleManager } from './schedule-manager';
-import {MetricInstance, SystemStatus, WebSocketMessage} from "@shared";
+import {MetricInstance,  WebSocketMessage} from "@shared";
+import {HistoricalMetrics} from "@shared/definitions/historicalMetrics";
 
 export class SolarInverterApp {
-    private allMetricsData: MetricInstance[] = [];
+    private allMetricsData: HistoricalMetrics = [];
     private currentTimeRange: number = 4;
     private readonly maxDataPoints: number = 100;
     private selectedDate: Date;
@@ -85,19 +86,19 @@ export class SolarInverterApp {
 
         switch (message.type) {
             case 'controller_state':
-                this.uiManager.updateControllerState(message.data as SystemStatus);
+                this.uiManager.updateControllerState(message.data);
                 break;
             case 'current_metrics':
-                this.uiManager.updateCurrentMetrics(message.data as MetricInstance);
-                this.updateRealtimeChart(message.data as MetricInstance);
+                this.uiManager.updateCurrentMetrics(message.data);
+                this.updateRealtimeChart(message.data);
                 break;
             case 'live_update':
-                this.uiManager.updateControllerState(message.data.controller as SystemStatus);
-                this.uiManager.updateCurrentMetrics(message.data.metrics as MetricInstance);
+                this.uiManager.updateControllerState(message.data.controller);
+                this.uiManager.updateCurrentMetrics(message.data.metrics);
                 this.updateRealtimeChart(message.data.metrics as MetricInstance);
                 break;
             case 'historical_metrics':
-                this.updateHistoricalCharts(message.data as MetricInstance[]);
+                this.updateHistoricalCharts(message.data);
                 break;
             case 'http_poll_trigger':
                 // Triggered by HTTP polling fallback
@@ -158,7 +159,7 @@ export class SolarInverterApp {
         }
     }
 
-    private updateHistoricalCharts(metrics: MetricInstance[]): void {
+    private updateHistoricalCharts(metrics: HistoricalMetrics): void {
         if (!Array.isArray(metrics) || metrics.length === 0) {
             this.logger.addLogEntry('⚠️ No historical metrics data received', 'warn');
             return;

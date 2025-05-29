@@ -188,7 +188,7 @@ export class ChartManager {
                             text: 'Battery Level (kWh)'
                         },
                         min: 0,
-                        max: 10
+                        max: 12
                     }
                 },
                 plugins: {
@@ -330,7 +330,7 @@ export class ChartManager {
                     },
                     y: {
                         min: 0,
-                        max: 10,
+                        max: 12,
                         title: {
                             display: true,
                             text: 'Battery Level (kWh)'

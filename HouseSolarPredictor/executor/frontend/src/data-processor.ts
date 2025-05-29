@@ -1,6 +1,7 @@
 import { ChartDataPoint } from './types';
 import {Schedule} from "@shared/definitions/schedule";
 import {MetricInstance} from "@shared";
+import {FilteredHistoricalMetrics, HistoricalMetrics} from "@shared/definitions/historicalMetrics";
 
 const MODE_CHARGE_FROM_GRID_AND_SOLAR = 3;
 const MODE_CHARGE_SOLAR_ONLY = 2;
@@ -22,7 +23,7 @@ export class DataProcessor {
         // No dependencies needed for data processing
     }
 
-    filterMetricsByTimeRange(metrics: MetricInstance[], hours: number, selectedDate: string | null = null): MetricInstance[] {
+    filterMetricsByTimeRange(metrics: HistoricalMetrics, hours: number, selectedDate: string | null = null): FilteredHistoricalMetrics {
         if (!Array.isArray(metrics) || metrics.length === 0) {
             return [];
         }

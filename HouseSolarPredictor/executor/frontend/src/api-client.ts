@@ -1,5 +1,5 @@
 import {Logger} from "./logger";
-import {InitialDataResponse, MetricInstance, SystemStatus, TimeSegment} from "@shared";
+import {InitialDataResponse, MetricInstance, OutputsMode, TimeSegment} from "@shared";
 
 export class ApiClient {
     private readonly logger: Logger;
@@ -13,9 +13,32 @@ export class ApiClient {
         this.logger.addLogEntry(`🔄 Loading initial data from server for ${dateStr}...`, 'info');
         
         const results: InitialDataResponse = {
-            status: null,
-            metrics: null,
-            schedule: null
+            status: {
+                status: 'amber',
+                desiredChargeRate: 0,
+                actualChargeRate: 0,
+                desiredWorkMode: 'Battery first',
+                message: 'Loading initial data...',
+                protectionReason: '',
+                isInProtectionMode: false,
+                currentSegment: {
+                    cost: 0,
+                    actualGridUsage: 0,
+                    endBatteryChargeKwh: 0,
+                    expectedConsumption: 0,
+                    mode: OutputsMode.ChargeFromGridAndSolar,
+                    expectedSolarGeneration: 0,
+                    gridPrice: 0,
+                    time: {
+                        segmentStart: new Date().toISOString(),
+                        segmentEnd: new Date().toISOString(),
+                    },
+                    startBatteryChargeKwh: 0,
+                    wastedSolarGeneration: 0
+                }
+            },
+            metrics: [],
+            schedule: []
         };
 
         try {
@@ -23,8 +46,8 @@ export class ApiClient {
             this.logger.addLogEntry('🌐 Fetching current system status...', 'info');
             const statusResponse = await fetch('/api/status');
             if (statusResponse.ok) {
-                results.status = await statusResponse.json() as SystemStatus;
-                this.logger.addLogEntry(`✅ Status loaded - Mode: ${results.status.actualWorkMode || 'Unknown'}`, 'info');
+                results.status = await statusResponse.json();
+                this.logger.addLogEntry(`✅ Status loaded - Mode: ${results.status.actualWorkMode}`, 'info');
             } else {
                 this.logger.addLogEntry(`⚠️ Status fetch failed - HTTP ${statusResponse.status}`, 'warn');
             }
