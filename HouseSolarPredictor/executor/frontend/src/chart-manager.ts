@@ -15,6 +15,7 @@ import {
     ChartType, ChartData
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import annotationPlugin from 'chartjs-plugin-annotation';
 
 import { Logger } from './logger';
 import { DataProcessor } from './data-processor';
@@ -35,9 +36,21 @@ Chart.register(
     Title,
     Tooltip,
     Legend,
-    TimeScale
+    TimeScale,
+    annotationPlugin
 );
-
+interface ModeAnnotation {
+    type: 'box';
+    xMin: Date;
+    xMax: Date;
+    backgroundColor: string;
+    borderWidth: number;
+    drawTime: 'beforeDatasetsDraw';
+    label: {
+        display: boolean;
+        content: string;
+    };
+}
 export class ChartManager {
     private readonly logger: Logger;
     private readonly dataProcessor: DataProcessor;
@@ -362,10 +375,15 @@ export class ChartManager {
                 datasets: [{
                     label: 'Grid Price (£/kWh)',
                     data: [] as ChartDataPoint[],
-                    borderColor: 'rgb(255, 205, 86)',
-                    backgroundColor: 'rgba(255, 205, 86, 0.2)',
+                    borderColor: 'rgb(220, 53, 69)',
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
                     stepped: true
                 }]
+            },
+            plugins: {
+                annotation: {
+                    annotations: {}
+                }
             },
             options: {
                 responsive: true,
@@ -389,8 +407,50 @@ export class ChartManager {
             } as ChartOptions
         };
 
+
+
         const chart = new Chart(canvas, config);
         this.charts.set('grid-pricing', chart);
+    }
+
+    createModeAnnotations(scheduleData: Schedule): Record<string, ModeAnnotation> {
+        if (!Array.isArray(scheduleData)) return {};
+
+        const annotations:Record<string, ModeAnnotation> = {};
+        const modeColors = {
+            'ChargeFromGridAndSolar': 'rgba(33, 150, 243, 0.2)', // Blue
+            'ChargeSolarOnly': 'rgba(255, 193, 7, 0.2)',         // Yellow
+            'Discharge': 'rgba(76, 175, 80, 0.2)'                // Green
+        };
+
+        const modeLabels = {
+            'ChargeFromGridAndSolar': 'Charge Grid + Solar',
+            'ChargeSolarOnly': 'Charge Solar Only',
+            'Discharge': 'Discharge'
+        };
+
+        scheduleData.forEach((segment, index) => {
+            const startTime = new Date(segment.time.segmentStart);
+            const endTime = new Date(segment.time.segmentEnd);
+            const mode = segment.mode;
+            const color = modeColors[mode] || 'rgba(128, 128, 128, 0.2)';
+            const label = modeLabels[mode] || mode;
+
+            annotations[`mode_${index}`] = {
+                type: 'box',
+                xMin: startTime,
+                xMax: endTime,
+                backgroundColor: color,
+                borderWidth: 0,
+                drawTime: 'beforeDatasetsDraw',
+                label: {
+                    display: false,
+                    content: label
+                }
+            };
+        });
+
+        return annotations;
     }
 
     private initializePowerFlowChart(): void {
@@ -544,6 +604,11 @@ export class ChartManager {
 
         const pricingData = this.dataProcessor.processGridPricingData(scheduleData);
         chart.data.datasets[0]!.data = pricingData;
+
+        const annotations = this.createModeAnnotations(scheduleData);
+        chart.options.plugins.annotation = {
+            annotations: annotations
+        };
 
         chart.update('none');
     }
