@@ -12,8 +12,7 @@ export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export interface UICallbacks {
     onRetry: () => void;
-    onTimeRangeChange: (newRange: number) => void;
-    onDateChange: (newDate: string) => void;
+    onDateChange: (newDate: Date) => void;
     onPageVisible: () => void;
 }
 

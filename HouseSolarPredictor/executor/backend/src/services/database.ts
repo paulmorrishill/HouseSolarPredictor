@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import {ControlAction, MetricInstance} from "@shared";
+import {HistoricalMetrics} from "../../../shared-types/definitions/historicalMetrics.ts";
 
 export class DatabaseService {
   private db: DatabaseSync;
@@ -21,16 +22,10 @@ export class DatabaseService {
         grid_power REAL,
         battery_power REAL,
         battery_current REAL,
-        battery_charge REAL
+        battery_charge_percent REAL,
+        battery_capacity REAL
       )
     `);
-
-    // Add battery_charge column if it doesn't exist (migration)
-    try {
-      this.db.exec(`ALTER TABLE metrics ADD COLUMN battery_charge REAL`);
-    } catch (error) {
-      // Column already exists, ignore error
-    }
 
     // Create control actions table
     this.db.exec(`
@@ -71,8 +66,8 @@ export class DatabaseService {
     const stmt = this.db.prepare(`
       INSERT INTO metrics (
         timestamp, battery_charge_rate, work_mode_priority,
-        load_power, grid_power, battery_power, battery_current, battery_charge
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        load_power, grid_power, battery_power, battery_current, battery_charge_percent, battery_capacity
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -83,7 +78,8 @@ export class DatabaseService {
       metric.gridPower ?? null,
       metric.batteryPower ?? null,
       metric.batteryCurrent ?? null,
-      metric.batteryCharge ?? null
+      metric.batteryChargePercent ?? null,
+      metric.batteryCapacity ?? null
     );
   }
 
@@ -125,26 +121,26 @@ export class DatabaseService {
     stmt.run(Date.now(), status, message ?? null);
   }
 
-  getMetrics(hours: number = 24, date?: string): MetricInstance[] {
+  getMetrics(hours: number = 24, date: Date): HistoricalMetrics {
     let startTime: number;
     let endTime: number;
     
-    if (date) {
-      // For specific date, get data for that day
-      const endOfDay = new Date(date + 'T23:59:59.999Z');
-      endTime = endOfDay.getTime();
-      startTime = endTime - (hours * 60 * 60 * 1000);
-    } else {
-      // For today, use current time
-      endTime = Date.now();
-      startTime = endTime - (hours * 60 * 60 * 1000);
-    }
-    
+    // For specific date, get data for that day
+    date.setHours(23, 59, 59, 999);
+    endTime = date.getTime();
+    startTime = endTime - (hours * 60 * 60 * 1000);
+
     const stmt = this.db.prepare(`
       SELECT * FROM metrics
       WHERE timestamp >= ? AND timestamp <= ?
       ORDER BY timestamp DESC
     `);
+
+    if(Number.isNaN(startTime) || Number.isNaN(endTime)) {
+        throw new Error(`Invalid date range for metrics query - start: ${startTime}, end: ${endTime}`);
+    }
+
+    console.log(`Fetching metrics from ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
 
     const rows = stmt.all(startTime, endTime) as any[];
 
@@ -157,13 +153,9 @@ export class DatabaseService {
       gridPower: row.grid_power,
       batteryPower: row.battery_power,
       batteryCurrent: row.battery_current,
-      batteryCharge: row.battery_charge
+      batteryChargePercent: row.battery_charge_percent,
+      batteryCapacity: row.battery_capacity
     }));
-  }
-
-  // Keep for backward compatibility
-  getRecentMetrics(hours: number = 24): MetricInstance[] {
-    return this.getMetrics(hours);
   }
 
   getRecentControlActions(hours: number = 24): ControlAction[] {

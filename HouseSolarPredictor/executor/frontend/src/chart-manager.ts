@@ -12,15 +12,16 @@ import {
     Legend,
     TimeScale,
     ChartOptions,
-    ChartType, ChartTypeRegistry
+    ChartType, ChartData
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 
 import { Logger } from './logger';
 import { DataProcessor } from './data-processor';
 import { ChartDataPoint } from './types';
-import {MetricInstance} from "@shared";
+import {MetricInstance, TimeSegment} from "@shared";
 import {Schedule} from "@shared/definitions/schedule";
+import {ChartConfiguration} from "chart.js/dist/types";
 
 // Register Chart.js components
 Chart.register(
@@ -40,7 +41,7 @@ Chart.register(
 export class ChartManager {
     private readonly logger: Logger;
     private readonly dataProcessor: DataProcessor;
-    private charts: Map<string, Chart<keyof ChartTypeRegistry, ChartDataPoint[], unknown>> = new Map();
+    private charts: Map<string, Chart<any, any, any>> = new Map();
     private lastUpdateTime: number = 0;
     private readonly updateThrottleMs: number = 1000; // 1 second throttle
 
@@ -65,6 +66,7 @@ export class ChartManager {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             this.logger.addLogEntry(`❌ Chart initialization failed: ${errorMessage}`, 'error');
+            throw error;
         }
     }
 
@@ -144,8 +146,12 @@ export class ChartManager {
         const canvas = document.getElementById('charge-chart') as HTMLCanvasElement;
         if (!canvas) return;
 
-        const config = {
-            type: 'line' as ChartType,
+        const config: {
+            type: 'line';
+            data: ChartData<'line', ChartDataPoint[]>;
+            options: ChartOptions<'line'>;
+        } = {
+            type: 'line',
             data: {
                 datasets: [
                     {
@@ -154,14 +160,16 @@ export class ChartManager {
                         borderColor: 'rgb(75, 192, 192)',
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
                         borderDash: [5, 5],
-                        tension: 0.1
+                        tension: 0.1,
+                        pointRadius: 1
                     },
                     {
                         label: 'Actual Battery Level (kWh)',
                         data: [] as ChartDataPoint[],
                         borderColor: 'rgb(153, 102, 255)',
                         backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                        tension: 0.1
+                        tension: 0.1,
+                        pointRadius: 1
                     }
                 ]
             },
@@ -197,7 +205,7 @@ export class ChartManager {
                         text: 'Expected vs Actual Battery Charge'
                     }
                 }
-            } as ChartOptions
+            }
         };
 
         const chart = new Chart(canvas, config);
@@ -217,7 +225,7 @@ export class ChartManager {
                     data: [],
                     backgroundColor: 'rgba(255, 159, 64, 0.6)',
                     borderColor: 'rgba(255, 159, 64, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
                 }]
             },
             options: {
@@ -389,7 +397,7 @@ export class ChartManager {
         const canvas = document.getElementById('power-flow-chart') as HTMLCanvasElement;
         if (!canvas) return;
 
-        const config = {
+        const config: ChartConfiguration = {
             type: 'line' as ChartType,
             data: {
                 datasets: [
@@ -397,7 +405,8 @@ export class ChartManager {
                         label: 'Load (kW)',
                         data: [] as ChartDataPoint[],
                         borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)'
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.5
                     },
                     {
                         label: 'Grid (kW)',
@@ -409,7 +418,8 @@ export class ChartManager {
                         label: 'Solar (kW)',
                         data: [] as ChartDataPoint[],
                         borderColor: 'rgb(255, 205, 86)',
-                        backgroundColor: 'rgba(255, 205, 86, 0.2)'
+                        backgroundColor: 'rgba(255, 205, 86, 0.2)',
+                        tension: 0.5
                     }
                 ]
             },
@@ -454,7 +464,7 @@ export class ChartManager {
         chart.update('none');
     }
 
-    updateScheduleCharts(scheduleData: Schedule, metrics?: MetricInstance[]): void {
+    updateHistoricCharts(scheduleData: Schedule, metrics?: MetricInstance[]): void {
         this.updateModeTimelineChart(scheduleData, metrics);
         this.updateBatteryScheduleChart(scheduleData);
         this.updateGridPricingChart(scheduleData);
@@ -465,18 +475,33 @@ export class ChartManager {
         const chart = this.charts.get('charge');
         if (!chart) return;
 
-        const actualData = metrics.map(m => ({ x: m.timestamp, y: m.batteryCharge }));
+        const actualData = metrics.map(m => {
+            if(Number.isNaN(m.batteryCapacity)) {
+                throw new Error(`Invalid battery capacity: ${m.batteryCapacity} for timestamp ${m.timestamp}`);
+            }
+            if(Number.isNaN(m.batteryChargePercent)) {
+                throw new Error(`Invalid battery charge: ${m.batteryCapacity} for timestamp ${m.timestamp}`);
+            }
+            let y = m.batteryChargePercent / 100 * m.batteryCapacity;
+            if(Number.isNaN(y)) {
+                throw new Error(`Calculated battery charge is NaN for timestamp ${m.timestamp}`);
+            }
+            return ({x: m.timestamp, y: y});
+        });
         
         let expectedData: ChartDataPoint[] = [];
-        if (schedule) {
-            expectedData = metrics.map(m => ({
-                x: m.timestamp,
-                y: this.dataProcessor.getExpectedBatteryLevel(m.timestamp, schedule) || 0
-            }));
-        }
+        expectedData = schedule.map(m => {
+            let time = new Date(m.time.segmentStart).getTime();
+            return ({
+                x: time,
+                y: m.endBatteryChargeKwh
+            });
+        });
 
         chart.data.datasets[0]!.data = expectedData;
         chart.data.datasets[1]!.data = actualData;
+
+        console.log('Charge vs Actual Data:', { expectedData, actualData });
 
         chart.update('none');
     }
@@ -548,5 +573,10 @@ export class ChartManager {
     destroy(): void {
         this.charts.forEach(chart => chart.destroy());
         this.charts.clear();
+    }
+
+    updateCurrentCharts(limitedCurrentMetrics: MetricInstance[], currentSchedule: TimeSegment[]) {
+        this.updateExpectedVsActualBatteryChargeChart(limitedCurrentMetrics, currentSchedule);
+        this.updateMetricsChart(limitedCurrentMetrics);
     }
 }

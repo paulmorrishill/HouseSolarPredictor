@@ -129,26 +129,7 @@
 
             <!-- Charts Section -->
             <section id="charts" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
-                <!-- Time Range and Date Selector -->
-                <div class="mdl-card section-header mdl-shadow--2dp">
-                    <div class="mdl-card__supporting-text">
-                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                            <label for="date-picker" style="font-weight: 500;">Date:</label>
-                            <div class="mdl-textfield mdl-js-textfield">
-                                <input class="mdl-textfield__input" type="date" id="date-picker">
-                            </div>
-                            <label for="time-range-select" style="font-weight: 500;">Time Range:</label>
-                            <div class="mdl-selectfield mdl-js-selectfield">
-                                <select class="mdl-selectfield__input" id="time-range-select">
-                                    <option value="1">1 Hour</option>
-                                    <option value="4" selected>4 Hours</option>
-                                    <option value="12">12 Hours</option>
-                                    <option value="24">24 Hours</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
                 <!-- Real-time Metrics Chart -->
                 <div class="mdl-card chart-card mdl-shadow--2dp">
                     <div class="mdl-card__title">
@@ -191,6 +172,14 @@
                 <div class="mdl-card section-header mdl-shadow--2dp">
                     <div class="mdl-card__title">
                         <h2 class="mdl-card__title-text">24-Hour Schedule Analysis</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <label for="date-picker" style="font-weight: 500;">Date:</label>
+                            <div class="mdl-textfield mdl-js-textfield">
+                                <input class="mdl-textfield__input" type="date" id="date-picker">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -276,10 +265,5 @@
         </main>
     </div>
 
-    <!-- Material Design Lite JS -->
-    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
-    
-    <!-- Bundled TypeScript application with all dependencies -->
-    <script type="module" src="dist/bundle.js"></script>
 </body>
 </html>

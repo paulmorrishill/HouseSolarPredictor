@@ -24,7 +24,15 @@ export class Logger {
             this.logEntries = this.logEntries.slice(0, this.maxEntries);
         }
 
-        console.log(`[${timestamp}] [${level}] ${message}`, additional || '');
+        if(level === 'error') {
+            console.error(`[${timestamp}] [${level}] ${message}`, additional || '');
+        }
+        else if(level === 'warn') {
+            console.warn(`[${timestamp}] [${level}] ${message}`, additional || '');
+        }
+        else {
+            console.log(`[${timestamp}] [${level}] ${message}`, additional || '');
+        }
         this.updateLogDisplay();
     }
 

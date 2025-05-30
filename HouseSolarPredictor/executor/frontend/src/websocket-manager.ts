@@ -70,10 +70,6 @@ export class WebSocketManager {
             this.connectionStatus = 'error';
             this.updateConnectionStatus();
             this.logger.addLogEntry(`❌ WebSocket creation failed: ${errorMessage}`, 'error');
-            
-            // Fallback to HTTP polling
-            this.logger.addLogEntry('🔄 Falling back to HTTP polling mode', 'warn');
-            this.startHttpPolling();
         }
     }
 
@@ -102,9 +98,6 @@ export class WebSocketManager {
                 break;
             case 'live_update':
                 this.logger.addLogEntry(`🔄 Live update received - Controller & Metrics`, 'info');
-                break;
-            case 'historical_metrics':
-                this.logger.addLogEntry(`📊 Historical metrics received - ${Array.isArray(message.data) ? message.data.length : 0} data points`, 'info');
                 break;
             default:
                 this.logger.addLogEntry(`⚠️ Unknown message type: ${message.type}`, 'warn');
@@ -151,18 +144,6 @@ export class WebSocketManager {
                 statusEl.textContent = '● Error';
                 break;
         }
-    }
-
-    private startHttpPolling(): void {
-        this.logger.addLogEntry('⏱️ Starting HTTP polling fallback (30s intervals)', 'info');
-        // Fallback polling every 30 seconds when WebSocket is not available
-        setInterval(() => {
-            if (this.connectionStatus === 'disconnected' || this.connectionStatus === 'error') {
-                this.logger.addLogEntry('🔄 HTTP polling - fetching latest data...', 'info');
-                // Trigger data reload through message handler
-                this.messageHandler({ type: 'http_poll_trigger', data: {}, timestamp: Date.now() });
-            }
-        }, 30000);
     }
 
     getConnectionStatus(): ConnectionStatus {

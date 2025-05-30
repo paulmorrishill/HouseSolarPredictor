@@ -23,25 +23,18 @@ export class DataProcessor {
         // No dependencies needed for data processing
     }
 
-    filterMetricsByTimeRange(metrics: HistoricalMetrics, hours: number, selectedDate: string | null = null): FilteredHistoricalMetrics {
+    filterMetricsByTimeRange(metrics: HistoricalMetrics, hours: number, selectedDate: Date): FilteredHistoricalMetrics {
         if (!Array.isArray(metrics) || metrics.length === 0) {
             return [];
         }
 
         let endTime: number;
         let cutoffTime: number;
-        
-        if (selectedDate) {
-            // For historical dates, filter based on the selected date
-            const selectedDateObj = new Date(selectedDate + 'T23:59:59.999Z');
-            endTime = selectedDateObj.getTime();
-            cutoffTime = endTime - (hours * 60 * 60 * 1000);
-        } else {
-            // For today, use current time
-            endTime = Date.now();
-            cutoffTime = endTime - (hours * 60 * 60 * 1000);
-        }
-        
+        selectedDate.setHours(23,59,59,999); // Set to end of the day
+        const selectedDateObj = selectedDate;
+        endTime = selectedDateObj.getTime();
+        cutoffTime = endTime - (hours * 60 * 60 * 1000);
+
         return metrics.filter(metric => {
             const timestamp = metric.timestamp;
             return timestamp >= cutoffTime && timestamp <= endTime;
@@ -179,7 +172,7 @@ export class DataProcessor {
         const gridData: ChartDataPoint[] = [];
         const solarData: ChartDataPoint[] = [];
 
-        scheduleData.forEach(segment => {
+        scheduleData.forEach((segment) => {
             const startTime = this.parseDateTime(segment.time.segmentStart);
             
             // Convert kWh to kW (divide by 0.5 for 30-minute segments)
@@ -190,12 +183,25 @@ export class DataProcessor {
             loadData.push({ x: startTime, y: loadKw });
             gridData.push({ x: startTime, y: gridKw });
             solarData.push({ x: startTime, y: solarKw });
+
+            // Add end point for each segment
+            const endTime = this.parseDateTime(segment.time.segmentEnd);
+            gridData.push({ x: endTime, y: gridKw });
         });
 
+        // remove duplicate points
+        const uniqueLoadData = loadData.filter((point, index, self) =>
+            index === self.findIndex(p => p.x === point.x && p.y === point.y));
+        const uniqueGridData = gridData.filter((point, index, self) =>
+            index === self.findIndex(p => p.x === point.x && p.y === point.y));
+        const uniqueSolarData = solarData.filter((point, index, self) =>
+            index === self.findIndex(p => p.x === point.x && p.y === point.y));
+
+
         return {
-            load: loadData.sort((a, b) => (a.x as number) - (b.x as number)),
-            grid: gridData.sort((a, b) => (a.x as number) - (b.x as number)),
-            solar: solarData.sort((a, b) => (a.x as number) - (b.x as number))
+            load: uniqueLoadData.sort((a, b) => (a.x as number) - (b.x as number)),
+            grid: uniqueGridData.sort((a, b) => (a.x as number) - (b.x as number)),
+            solar: uniqueSolarData.sort((a, b) => (a.x as number) - (b.x as number))
         };
     }
 

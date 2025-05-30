@@ -60,8 +60,8 @@ export class UIManager {
         const gridKw = ((metrics.gridPower || 0) / 1000).toFixed(2);
         const batteryKw = ((metrics.batteryPower || 0) / 1000).toFixed(2);
         const batteryCurrent = (metrics.batteryCurrent || 0).toFixed(1);
-        const remainingBatteryKwh = ((metrics.batteryCharge/100) *metrics.batteryCapacity).toFixed(1);
-        const remainingBatteryPercentage = metrics.batteryCharge.toFixed(1); // Assuming 10kWh max capacity
+        const remainingBatteryKwh = ((metrics.batteryChargePercent/100) *metrics.batteryCapacity).toFixed(1);
+        const remainingBatteryPercentage = metrics.batteryChargePercent.toFixed(1); // Assuming 10kWh max capacity
 
         this.logger.addLogEntry(`📈 Metrics update - Load: ${loadKw}kW, Grid: ${gridKw}kW, Battery: ${batteryKw}kW, Current: ${batteryCurrent}A, Remaining: ${remainingBatteryKwh}kWh`, 'info');
         
@@ -108,17 +108,6 @@ export class UIManager {
             });
         }
 
-        // Time range selector
-        const timeRangeSelect = document.getElementById('time-range-select') as HTMLSelectElement;
-        if (timeRangeSelect && callbacks.onTimeRangeChange) {
-            timeRangeSelect.addEventListener('change', (e) => {
-                const target = e.target as HTMLSelectElement;
-                const newRange = parseInt(target.value);
-                this.logger.addLogEntry(`👤 User changed time range to ${newRange}h`, 'info');
-                callbacks.onTimeRangeChange(newRange);
-            });
-        }
-
         // Date picker
         const datePicker = document.getElementById('date-picker') as HTMLInputElement;
         if (datePicker && callbacks.onDateChange) {
@@ -131,8 +120,7 @@ export class UIManager {
             datePicker.addEventListener('change', (e) => {
                 const target = e.target as HTMLInputElement;
                 const selectedDate = target.value;
-                this.logger.addLogEntry(`👤 User changed date to ${selectedDate}`, 'info');
-                callbacks.onDateChange(selectedDate);
+                callbacks.onDateChange(new Date(selectedDate + 'T00:00:00'));
             });
         }
 

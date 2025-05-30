@@ -115,9 +115,12 @@ class SolarInverterApp {
         case "/api/metrics":
         {
           const hours = parseInt(url.searchParams.get("hours") || "24");
-          const dateParam = url.searchParams.get("date");
-          this.logger.log(`Fetching metrics for ${hours} hours on date ${dateParam}`);
-          const metrics = this.databaseService.getMetrics(hours, dateParam || undefined);
+          const dateParam = url.searchParams.get("date")!;
+          this.logger.log(`🔍 Fetching metrics for ${hours} hours on date ${dateParam}`);
+          const endOfDay = new Date(dateParam + 'T12:00:00.000Z'); // Use noon to avoid timezone issues
+          // TODO: Need a real Date type for date without time
+          const metrics = this.databaseService.getMetrics(hours, endOfDay);
+          this.logger.log(`📊 Fetched ${metrics.length} metrics`);
           return this.jsonResponse(metrics);
         }
 

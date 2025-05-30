@@ -16,6 +16,7 @@ build({
     outdir: 'dist/',
     platform: 'browser',
     target: 'es2020',
+    sourcemap: 'linked',
     plugins: [{
         name: 'shared-types-resolver',
         setup(build) {

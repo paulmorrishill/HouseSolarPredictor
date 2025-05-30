@@ -148,7 +148,7 @@ class Program
        
        // Save using the new schedule file manager
        var fullPath = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory + "../../..");
-       var scheduleFilePath = Path.Combine(fullPath, "executor/schedules/schedule.json");
+       var scheduleFilePath = Path.Combine(fullPath, "executor/backend/schedules/schedule.json");
        var scheduleFileManager = new ScheduleFileManager(scheduleFilePath);
        await scheduleFileManager.SaveScheduleAsync(mappedPlan);
        

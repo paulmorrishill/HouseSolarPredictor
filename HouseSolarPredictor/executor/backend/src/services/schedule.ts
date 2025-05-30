@@ -3,9 +3,25 @@ import {OutputsMode, type TimeSegment} from "@shared/index.ts";
 export class ScheduleService {
   private schedule: TimeSegment[] = [];
   private schedulePath: string;
+  private scheduleModifiedDate: Date | null = null;
 
   constructor(schedulePath: string) {
     this.schedulePath = schedulePath;
+    setInterval(() => {
+      const scheduleModified = this.getScheduleModifiedDate();
+      if (!(scheduleModified && (!this.scheduleModifiedDate || scheduleModified > this.scheduleModifiedDate))) {
+        return;
+      }
+      console.log(`🔄 Schedule modified at ${scheduleModified.toISOString()}, reloading...`);
+      this.loadSchedule().catch(error => {
+        console.error(`❌ Error loading schedule: ${error.message}`);
+      });
+    }, 10000);
+  }
+
+  private getScheduleModifiedDate() {
+    const scheduleModified = Deno.statSync(this.schedulePath).mtime;
+    return scheduleModified;
   }
 
   async loadSchedule(): Promise<void> {
@@ -17,7 +33,8 @@ export class ScheduleService {
     }
 
     this.schedule = rawSchedule.map(this.validateAndTransformSegment);
-    console.log(`Loaded ${this.schedule.length} time segments from schedule`);
+    this.scheduleModifiedDate = this.getScheduleModifiedDate();
+    console.log(`✅ Loaded ${this.schedule.length} time segments from schedule`);
   }
 
   private validateAndTransformSegment(segment: TimeSegment): TimeSegment {

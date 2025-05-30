@@ -73,7 +73,7 @@ export class WebSocketService {
       });
 
       // Send recent historical data (24 hours for frontend filtering)
-      const recentMetrics = this.databaseService.getRecentMetrics(24);
+      const recentMetrics = this.databaseService.getMetrics(24, new Date());
       this.sendMessage(socket, {
         type: "historical_metrics",
         data: recentMetrics,
@@ -170,7 +170,7 @@ export class WebSocketService {
 
   private async handleGetRecentMetrics(socket: WebSocket, hours: number): Promise<void> {
     try {
-      const metrics = this.databaseService.getRecentMetrics(hours);
+      const metrics = this.databaseService.getMetrics(hours, new Date());
       this.sendMessage(socket, {
         type: "recent_metrics",
         data: metrics,

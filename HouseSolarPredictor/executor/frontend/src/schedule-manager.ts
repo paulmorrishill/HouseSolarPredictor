@@ -6,7 +6,7 @@ import {TimeSegment} from "@shared";
 export class ScheduleManager {
     private readonly logger: Logger;
     private readonly dataProcessor: DataProcessor;
-    private schedule: Schedule | null = null;
+    private schedule: Schedule = [];
     private scheduleUpdateTimer: number | null = null;
 
     constructor(logger: Logger, dataProcessor: DataProcessor) {
@@ -14,7 +14,7 @@ export class ScheduleManager {
         this.dataProcessor = dataProcessor;
     }
 
-    updateScheduleInfo(schedule: TimeSegment[]): void {
+    setSchedule(schedule: TimeSegment[]): void {
         // Store schedule for cost calculations
         this.logger.addLogEntry("Updating schedule info segments: " + schedule.length, 'info');
         this.schedule = schedule;
@@ -116,10 +116,10 @@ export class ScheduleManager {
         }
     }
 
-    getSchedule(date: string): Schedule {
+    getSchedule(date: Date): Schedule {
         if (!this.schedule) return [];
-        
-        const targetDate = new Date(date);
+        date.setHours(0,0,0, 0);
+        const targetDate = date;
         const nextDay = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
         
         return this.schedule.filter(block => {
