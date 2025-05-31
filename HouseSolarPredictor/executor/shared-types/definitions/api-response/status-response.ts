@@ -1,3 +1,3 @@
-import {ControllerState} from "../controller-state";
+import {SerializedControllerState} from "../liveUpdate";
 
-export type StatusResponse = ControllerState;
+export type StatusResponse = SerializedControllerState;

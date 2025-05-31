@@ -1,6 +1,6 @@
 import {OutputsMode} from "./outputsMode";
 
-export interface TimeSegment {
+export interface RawTimeSegment {
   time: {
     segmentStart: string;  // ISO datetime string (YYYY-MM-DDTHH:MM:SS)
     segmentEnd: string;    // ISO datetime string (YYYY-MM-DDTHH:MM:SS)
@@ -13,6 +13,5 @@ export interface TimeSegment {
   mode: OutputsMode;
   wastedSolarGeneration: number; // kWh
   actualGridUsage: number; // kWh
-  cost?: number;
+  cost: number;
 }
-

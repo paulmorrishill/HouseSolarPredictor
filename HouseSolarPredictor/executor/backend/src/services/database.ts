@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import {ControlAction, MetricInstance} from "@shared";
-import {HistoricalMetrics} from "../../../shared-types/definitions/historicalMetrics.ts";
+import {MetricList} from "@shared";
 
 export class DatabaseService {
   private db: DatabaseSync;
@@ -23,7 +23,8 @@ export class DatabaseService {
         battery_power REAL,
         battery_current REAL,
         battery_charge_percent REAL,
-        battery_capacity REAL
+        battery_capacity REAL,
+        solar_power REAL
       )
     `);
 
@@ -60,14 +61,24 @@ export class DatabaseService {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_system_status_timestamp ON system_status(timestamp)
     `);
+
+    try{
+      this.db.exec(`
+        ALTER TABLE metrics 
+        ADD COLUMN solar_power REAL
+    `);
+    } catch (error) {
+
+    }
   }
 
   insertMetric(metric: MetricInstance): void {
     const stmt = this.db.prepare(`
       INSERT INTO metrics (
         timestamp, battery_charge_rate, work_mode_priority,
-        load_power, grid_power, battery_power, battery_current, battery_charge_percent, battery_capacity
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        load_power, grid_power, battery_power, battery_current, battery_charge_percent, battery_capacity,
+                            solar_power
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -79,7 +90,8 @@ export class DatabaseService {
       metric.batteryPower ?? null,
       metric.batteryCurrent ?? null,
       metric.batteryChargePercent ?? null,
-      metric.batteryCapacity ?? null
+      metric.batteryCapacity ?? null,
+      metric.solarPower ?? null
     );
   }
 
@@ -118,17 +130,15 @@ export class DatabaseService {
       VALUES (?, ?, ?)
     `);
 
-    stmt.run(Date.now(), status, message ?? null);
+    stmt.run(Temporal.Now.instant().epochMilliseconds, status, message ?? null);
   }
 
-  getMetrics(hours: number = 24, date: Date): HistoricalMetrics {
+  getMetrics(hours: number = 24, date: Temporal.PlainDate): MetricList {
     let startTime: number;
     let endTime: number;
-    
-    // For specific date, get data for that day
-    date.setHours(23, 59, 59, 999);
-    endTime = date.getTime();
-    startTime = endTime - (hours * 60 * 60 * 1000);
+
+    startTime = date.toPlainDateTime('00:00:00').toZonedDateTime('Europe/London').epochMilliseconds / 1000;
+    endTime = date.toPlainDateTime('23:59:00').toZonedDateTime('Europe/London').epochMilliseconds / 1000;
 
     const stmt = this.db.prepare(`
       SELECT * FROM metrics
@@ -140,7 +150,7 @@ export class DatabaseService {
         throw new Error(`Invalid date range for metrics query - start: ${startTime}, end: ${endTime}`);
     }
 
-    console.log(`Fetching metrics from ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
+    console.log(`Fetching metrics from ${startTime} to ${endTime}`);
 
     const rows = stmt.all(startTime, endTime) as any[];
 
@@ -154,12 +164,14 @@ export class DatabaseService {
       batteryPower: row.battery_power,
       batteryCurrent: row.battery_current,
       batteryChargePercent: row.battery_charge_percent,
-      batteryCapacity: row.battery_capacity
+      batteryCapacity: row.battery_capacity,
+        solarPower: row.solar_power
     }));
   }
 
   getRecentControlActions(hours: number = 24): ControlAction[] {
-    const cutoffTime = Date.now() - (hours * 60 * 60 * 1000);
+    const cutoffTime = Temporal.Now.instant().subtract({ hours }).epochMilliseconds;
+
     const stmt = this.db.prepare(`
       SELECT * FROM control_actions 
       WHERE timestamp > ? 
@@ -180,7 +192,7 @@ export class DatabaseService {
   }
 
   getSystemStatusHistory(hours: number = 24): Array<{timestamp: number, status: string, message?: string}> {
-    const cutoffTime = Date.now() - (hours * 60 * 60 * 1000);
+    const cutoffTime = Temporal.Now.instant().subtract({ hours }).epochMilliseconds;
     const stmt = this.db.prepare(`
       SELECT * FROM system_status 
       WHERE timestamp > ? 

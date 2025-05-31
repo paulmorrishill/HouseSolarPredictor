@@ -297,20 +297,25 @@ public class OctopusApiClient
 
         var prices = new List<EnergyPrice>();
 
-        if (pricesResponse?.Results != null)
+        if (pricesResponse?.Results == null)
         {
-            foreach (var result in pricesResponse.Results)
+            throw new InvalidOperationException(
+                "No results found in the electricity prices response. Please check the tariff code and date range.");
+        }
+        
+        Console.WriteLine($"Found {pricesResponse.Results.Count} price points for the specified period.");
+        
+        foreach (var result in pricesResponse.Results)
+        {
+            if (DateTime.TryParse(result.ValidFrom, out DateTime validFrom) &&
+                DateTime.TryParse(result.ValidTo, out DateTime validTo))
             {
-                if (DateTime.TryParse(result.ValidFrom, out DateTime validFrom) &&
-                    DateTime.TryParse(result.ValidTo, out DateTime validTo))
+                prices.Add(new EnergyPrice
                 {
-                    prices.Add(new EnergyPrice
-                    {
-                        ValidFrom = validFrom,
-                        ValidTo = validTo,
-                        PricePerKwh = new Gbp(result.ValueIncVat / 100m) // Convert from pence to pounds
-                    });
-                }
+                    ValidFrom = validFrom,
+                    ValidTo = validTo,
+                    PricePerKwh = new Gbp(result.ValueIncVat / 100m) // Convert from pence to pounds
+                });
             }
         }
 

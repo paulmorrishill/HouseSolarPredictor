@@ -1,5 +1,7 @@
+import { Temporal } from '@js-temporal/polyfill';
 import {Logger} from "./logger";
-import {MetricInstance, TimeSegment} from "@shared";
+import {MetricInstance, RawTimeSegment} from "@shared";
+import {FrontEndTimeSegment} from "./types/front-end-time-segment";
 
 export class ApiClient {
     private readonly logger: Logger;
@@ -34,29 +36,36 @@ export class ApiClient {
         }
     }
 
-    async loadScheduleData(selectedDate: Date): Promise<TimeSegment[]> {
+    async loadScheduleData(selectedDate: Temporal.PlainDate): Promise<FrontEndTimeSegment[]> {
         if (!selectedDate) {
             this.logger.addLogEntry('❌ No date selected for schedule data', 'error');
             throw new Error('No date selected for schedule data');
         }
         
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        const dateStr = selectedDate.toString();
         const url = `/api/schedule?date=${dateStr}`;
         this.logger.addLogEntry(`🔄 Loading schedule data from ${url}...`, 'info');
         const response = await fetch(url);
-        if (response.ok) {
-            const scheduleData = await response.json() as TimeSegment[];
-            const dateStr = selectedDate || 'today';
-            this.logger.addLogEntry(`📊 Schedule data loaded successfully for ${dateStr}`, 'info');
-            return scheduleData;
+        if (!response.ok) {
+            throw new Error(`Failed to load schedule data: ${response.statusText} (${response.status})`);
         }
 
-        throw new Error(`Failed to load schedule data: ${response.statusText} (${response.status})`);
+        const scheduleData = await response.json() as RawTimeSegment[];
+        this.logger.addLogEntry(`📊 Schedule data loaded successfully for ${dateStr}`, 'info');
+        return scheduleData.map(ts => {
+            return {
+                ...ts,
+                time: {
+                    segmentStart: Temporal.Instant.from(ts.time.segmentStart),
+                    segmentEnd: Temporal.Instant.from(ts.time.segmentEnd)
+                }
+            }
+        });
     }
 
-    async loadMetricsData(selectedDate: Date, hours: number = 24): Promise<MetricInstance[]> {
+    async loadMetricsData(selectedDate: Temporal.PlainDate, hours: number = 24): Promise<MetricInstance[]> {
         let url = `/api/metrics?hours=${hours}`;
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        const dateStr = selectedDate.toString();
         url += `&date=${dateStr}`;
         this.logger.addLogEntry(`🔄 Loading metrics data from ${url}...`, 'info');
         const response = await fetch(url);

@@ -1,13 +1,10 @@
-import {TimeSegment} from "./timeSegment";
-
-import {ControllerStatus} from "./controller-status";
-import {ControlAction} from "./controlAction";
-import {InverterMode} from "./inverter-mode";
+import {BackendTimeSegment} from "../../time/backend-time-segment.ts";
+import {ControlAction, ControllerStatus, InverterMode} from "@shared";
 
 export interface ControllerState {
   status: ControllerStatus;
   message: string;
-  currentSegment?: TimeSegment;
+  currentSegment?: BackendTimeSegment;
   desiredWorkMode?: InverterMode;
   desiredChargeRate?: number;
   actualWorkMode?: InverterMode;

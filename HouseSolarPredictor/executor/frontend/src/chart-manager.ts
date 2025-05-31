@@ -12,7 +12,7 @@ import {
     Legend,
     TimeScale,
     ChartOptions,
-    ChartType, ChartData
+    ChartType, ChartData, Filler
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import annotationPlugin from 'chartjs-plugin-annotation';
@@ -20,9 +20,9 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import { Logger } from './logger';
 import { DataProcessor } from './data-processor';
 import { ChartDataPoint } from './types';
-import {MetricInstance, TimeSegment} from "@shared";
-import {Schedule} from "@shared/definitions/schedule";
+import {MetricInstance} from "@shared";
 import {ChartConfiguration} from "chart.js/dist/types";
+import {FrontEndTimeSegment, Schedule} from "./types/front-end-time-segment";
 
 // Register Chart.js components
 Chart.register(
@@ -37,7 +37,8 @@ Chart.register(
     Tooltip,
     Legend,
     TimeScale,
-    annotationPlugin
+    annotationPlugin,
+    Filler
 );
 interface ModeAnnotation {
     type: 'box';
@@ -51,12 +52,61 @@ interface ModeAnnotation {
         content: string;
     };
 }
+
+interface CostCalculator {
+    name: string;
+    id: string;
+    calculate: (segment: FrontEndTimeSegment) => number;
+}
+
 export class ChartManager {
     private readonly logger: Logger;
     private readonly dataProcessor: DataProcessor;
     private charts: Map<string, Chart<any, any, any>> = new Map();
     private lastUpdateTime: number = 0;
     private readonly updateThrottleMs: number = 1000; // 1 second throttle
+    private costCalculators: CostCalculator[] = [
+        {
+            name: 'Actual Schedule Cost',
+            id: 'schedule-cost',
+            calculate: (segment: FrontEndTimeSegment) => segment.cost || 0
+        },
+        {
+            name: 'No Battery/Solar Cost',
+            id: 'no-battery-solar-cost',
+            calculate: (segment: FrontEndTimeSegment) => {
+                // Cost if using no battery or solar (Load times grid price)
+                const loadKwh = segment.expectedConsumption;
+                const pricePerKwh = segment.gridPrice; // Convert pence to pounds
+                return loadKwh * pricePerKwh;
+            }
+        },
+        {
+            name: 'Fixed Price (29.4p/kWh)',
+            id: 'fixed-price-cost',
+            calculate: (segment: FrontEndTimeSegment) => {
+                // Cost if on fixed price of 29.4p per unit
+                const loadKwh = segment.expectedConsumption;
+                const fixedPricePerKwh = 0.294;
+                return loadKwh * fixedPricePerKwh;
+            }
+        },
+        {
+            name: 'Time-based Tariff (6.7p/27.03p)',
+            id: 'time-based-cost',
+            calculate: (segment: FrontEndTimeSegment) => {
+                // Cost based on time: 00:00-07:00 = 6.7p, other times = 27.03p
+                const segmentStart = segment.time.segmentStart;
+                const hour = segmentStart.toZonedDateTimeISO('Europe/London').hour;
+                
+                const loadKwh = segment.expectedConsumption;
+                const isNightRate = hour >= 0 && hour < 7; // 00:00-07:00
+                const pricePerKwh = isNightRate ? 0.067 : 0.2703; // Convert pence to pounds
+                
+                return loadKwh * pricePerKwh;
+            }
+        }
+    ];
 
     constructor(logger: Logger, dataProcessor: DataProcessor) {
         this.logger = logger;
@@ -70,6 +120,7 @@ export class ChartManager {
             this.initializeRealtimeChart();
             this.initializeChargeChart();
             this.initializeCostChart();
+            this.initializeEstimatedCostChart();
             this.initializeModeTimelineChart();
             this.initializeBatteryScheduleChart();
             this.initializeGridPricingChart();
@@ -266,6 +317,59 @@ export class ChartManager {
         this.charts.set('cost', chart);
     }
 
+    private initializeEstimatedCostChart(): void {
+        const canvas = document.getElementById('estimated-cost-chart') as HTMLCanvasElement;
+        if (!canvas) return;
+
+        const config = {
+            type: 'line' as ChartType,
+            data: {
+                datasets: [{
+                    label: 'Estimated Cost (£)',
+                    data: [] as ChartDataPoint[],
+                    borderColor: 'rgb(220, 53, 69)',
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                hour: 'HH:mm'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Cost (£)'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Estimated Schedule Cost Over Time'
+                    }
+                }
+            } as ChartOptions
+        };
+
+        const chart = new Chart(canvas, config);
+        this.charts.set('estimated-cost', chart);
+    }
+
     private initializeModeTimelineChart(): void {
         const canvas = document.getElementById('mode-timeline-chart') as HTMLCanvasElement;
         if (!canvas) return;
@@ -380,11 +484,6 @@ export class ChartManager {
                     stepped: true
                 }]
             },
-            plugins: {
-                annotation: {
-                    annotations: {}
-                }
-            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -403,6 +502,11 @@ export class ChartManager {
                             text: 'Price (£/kWh)'
                         }
                     }
+                },
+                plugins: {
+                    annotation: {
+                        annotations: {}
+                    }
                 }
             } as ChartOptions
         };
@@ -417,29 +521,29 @@ export class ChartManager {
         if (!Array.isArray(scheduleData)) return {};
 
         const annotations:Record<string, ModeAnnotation> = {};
-        const modeColors = {
+        const modeColors: Record<string, string> = {
             'ChargeFromGridAndSolar': 'rgba(33, 150, 243, 0.2)', // Blue
             'ChargeSolarOnly': 'rgba(255, 193, 7, 0.2)',         // Yellow
             'Discharge': 'rgba(76, 175, 80, 0.2)'                // Green
         };
 
-        const modeLabels = {
+        const modeLabels: Record<string, string> = {
             'ChargeFromGridAndSolar': 'Charge Grid + Solar',
             'ChargeSolarOnly': 'Charge Solar Only',
             'Discharge': 'Discharge'
         };
 
         scheduleData.forEach((segment, index) => {
-            const startTime = new Date(segment.time.segmentStart);
-            const endTime = new Date(segment.time.segmentEnd);
+            const startTime = segment.time.segmentStart;
+            const endTime = segment.time.segmentEnd;
             const mode = segment.mode;
             const color = modeColors[mode] || 'rgba(128, 128, 128, 0.2)';
             const label = modeLabels[mode] || mode;
 
             annotations[`mode_${index}`] = {
                 type: 'box',
-                xMin: startTime,
-                xMax: endTime,
+                xMin: new Date(startTime.epochMilliseconds),
+                xMax: new Date(endTime.epochMilliseconds),
                 backgroundColor: color,
                 borderWidth: 0,
                 drawTime: 'beforeDatasetsDraw',
@@ -524,11 +628,12 @@ export class ChartManager {
         chart.update('none');
     }
 
-    updateHistoricCharts(scheduleData: Schedule, metrics?: MetricInstance[]): void {
+    updateHistoricCharts(scheduleData: Schedule, metrics: MetricInstance[]): void {
         this.updateModeTimelineChart(scheduleData, metrics);
         this.updateBatteryScheduleChart(scheduleData);
         this.updateGridPricingChart(scheduleData);
         this.updatePowerFlowChart(scheduleData);
+        this.updateEstimatedCostChart(scheduleData);
     }
 
     updateExpectedVsActualBatteryChargeChart(metrics: MetricInstance[], schedule: Schedule): void {
@@ -551,7 +656,7 @@ export class ChartManager {
         
         let expectedData: ChartDataPoint[] = [];
         expectedData = schedule.map(m => {
-            let time = new Date(m.time.segmentStart).getTime();
+            let time = m.time.segmentStart.epochMilliseconds;
             return ({
                 x: time,
                 y: m.endBatteryChargeKwh
@@ -626,6 +731,62 @@ export class ChartManager {
         chart.update('none');
     }
 
+    private updateEstimatedCostChart(scheduleData: Schedule): void {
+        const chart = this.charts.get('estimated-cost');
+        if (!chart) return;
+
+        // Use the first calculator (actual schedule cost) for the chart display
+        const primaryCalculator = this.costCalculators[0]!;
+        
+        const costData: ChartDataPoint[] = [];
+
+        scheduleData.forEach(segment => {
+            const segmentCost = primaryCalculator.calculate(segment);
+            costData.push({
+                x: segment.time.segmentStart.epochMilliseconds,
+                y: segmentCost
+            });
+            costData.push({
+                x: segment.time.segmentEnd.epochMilliseconds,
+                y: segmentCost
+            });
+        });
+
+        chart.data.datasets[0]!.data = costData;
+
+        // Calculate and display all cost types
+        this.updateCostCalculations(scheduleData);
+
+        chart.update('none');
+    }
+
+    private updateCostCalculations(scheduleData: Schedule): void {
+        const costCalculationsContainer = document.getElementById('cost-calculations');
+        if (!costCalculationsContainer) return;
+
+        // Clear existing calculations
+        costCalculationsContainer.innerHTML = '';
+
+        // Calculate totals for each calculator
+        this.costCalculators.forEach(calculator => {
+            let totalCost = 0;
+            
+            scheduleData.forEach(segment => {
+                totalCost += calculator.calculate(segment);
+            });
+
+            // Create cost item element
+            const costItem = document.createElement('div');
+            costItem.className = 'cost-item';
+            costItem.innerHTML = `
+                <span class="cost-label">${calculator.name}:</span>
+                <span class="cost-value" id="${calculator.id}">£${totalCost.toFixed(2)}</span>
+            `;
+            
+            costCalculationsContainer.appendChild(costItem);
+        });
+    }
+
     shouldUpdateCharts(): boolean {
         const now = Date.now();
         if (now - this.lastUpdateTime < this.updateThrottleMs) {
@@ -640,7 +801,7 @@ export class ChartManager {
         this.charts.clear();
     }
 
-    updateCurrentCharts(limitedCurrentMetrics: MetricInstance[], currentSchedule: TimeSegment[]) {
+    updateCurrentCharts(limitedCurrentMetrics: MetricInstance[], currentSchedule: FrontEndTimeSegment[]) {
         this.updateExpectedVsActualBatteryChargeChart(limitedCurrentMetrics, currentSchedule);
         this.updateMetricsChart(limitedCurrentMetrics);
     }

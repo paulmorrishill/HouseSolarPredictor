@@ -7,12 +7,14 @@ import type {
     ChartType,
     Point
 } from 'chart.js';
+import {Temporal} from "@js-temporal/polyfill";
+import PlainDate = Temporal.PlainDate;
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export interface UICallbacks {
     onRetry: () => void;
-    onDateChange: (newDate: Date) => void;
+    onDateChange: (newDate: PlainDate) => void;
     onPageVisible: () => void;
 }
 

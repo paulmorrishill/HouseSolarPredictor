@@ -1,6 +1,7 @@
 import { Logger } from './logger';
 import {ControllerState, MetricInstance} from "@shared";
 import {UICallbacks} from "./types";
+import { Temporal } from '@js-temporal/polyfill';
 
 export class UIManager {
     private readonly logger: Logger;
@@ -120,7 +121,7 @@ export class UIManager {
             datePicker.addEventListener('change', (e) => {
                 const target = e.target as HTMLInputElement;
                 const selectedDate = target.value;
-                callbacks.onDateChange(new Date(selectedDate + 'T00:00:00'));
+                callbacks.onDateChange(Temporal.PlainDate.from(selectedDate));
             });
         }
 

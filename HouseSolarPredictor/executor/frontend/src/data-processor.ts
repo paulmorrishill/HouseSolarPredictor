@@ -1,7 +1,7 @@
+import { Temporal } from '@js-temporal/polyfill';
 import { ChartDataPoint } from './types';
-import {Schedule} from "@shared/definitions/schedule";
-import {MetricInstance} from "@shared";
-import {FilteredHistoricalMetrics, HistoricalMetrics} from "@shared/definitions/historicalMetrics";
+import {MetricInstance, MetricList} from "@shared";
+import {Schedule} from "./types/front-end-time-segment";
 
 const MODE_CHARGE_FROM_GRID_AND_SOLAR = 3;
 const MODE_CHARGE_SOLAR_ONLY = 2;
@@ -23,17 +23,19 @@ export class DataProcessor {
         // No dependencies needed for data processing
     }
 
-    filterMetricsByTimeRange(metrics: HistoricalMetrics, hours: number, selectedDate: Date): FilteredHistoricalMetrics {
+    filterMetricsByTimeRange(metrics: MetricList, hours: number, selectedDate: Temporal.PlainDate): MetricList {
         if (!Array.isArray(metrics) || metrics.length === 0) {
             return [];
         }
 
-        let endTime: number;
-        let cutoffTime: number;
-        selectedDate.setHours(23,59,59,999); // Set to end of the day
-        const selectedDateObj = selectedDate;
-        endTime = selectedDateObj.getTime();
-        cutoffTime = endTime - (hours * 60 * 60 * 1000);
+        // Convert PlainDate to end of day in London timezone
+        const endOfDay = selectedDate.toZonedDateTime({
+            timeZone: 'Europe/London',
+            plainTime: Temporal.PlainTime.from('23:59:59.999')
+        });
+        
+        const endTime = endOfDay.epochMilliseconds;
+        const cutoffTime = endTime - (hours * 60 * 60 * 1000);
 
         return metrics.filter(metric => {
             const timestamp = metric.timestamp;
@@ -75,13 +77,13 @@ export class DataProcessor {
         const plannedMode: ChartDataPoint[] = [];
 
         scheduleData.forEach((segment, i) => {
-            const startTime = this.parseDateTime(segment.time.segmentStart);
-            const endTime = this.parseDateTime(segment.time.segmentEnd);
+            const startTime = segment.time.segmentStart;
+            const endTime = segment.time.segmentEnd;
             const modeValue = this.convertPlannedModeToNumeric(segment.mode);
 
-            plannedMode.push({ x: startTime, y: modeValue });
+            plannedMode.push({ x: startTime.epochMilliseconds, y: modeValue });
             if (i === scheduleData.length - 1) {
-                plannedMode.push({ x: endTime, y: modeValue });
+                plannedMode.push({ x: endTime.epochMilliseconds, y: modeValue });
             }
         });
 
@@ -96,7 +98,7 @@ export class DataProcessor {
         if (actualModes.length > 0) {
             const lastMode = actualModes[actualModes.length - 1];
             if (lastMode) {
-                actualModes.push({ x: Date.now(), y: lastMode.y });
+                actualModes.push({ x: Temporal.Now.instant().epochMilliseconds, y: lastMode.y });
             }
         }
 
@@ -130,15 +132,15 @@ export class DataProcessor {
 
         const data: ChartDataPoint[] = [];
         scheduleData.forEach(segment => {
-            const startTime = this.parseDateTime(segment.time.segmentStart);
-            const endTime = this.parseDateTime(segment.time.segmentEnd);
+            const startTime = segment.time.segmentStart;
+            const endTime = segment.time.segmentEnd;
 
             data.push({
-                x: startTime,
+                x: startTime.epochMilliseconds,
                 y: segment.startBatteryChargeKwh
             });
             data.push({
-                x: endTime,
+                x: endTime.epochMilliseconds,
                 y: segment.endBatteryChargeKwh
             });
         });
@@ -151,14 +153,14 @@ export class DataProcessor {
 
         const data: ChartDataPoint[] = [];
         scheduleData.forEach((segment, i) => {
-            const startTime = this.parseDateTime(segment.time.segmentStart);
-            const endTime = this.parseDateTime(segment.time.segmentEnd);
+            const startTime = segment.time.segmentStart;
+            const endTime = segment.time.segmentEnd;
             const priceInPounds = segment.gridPrice;
 
-            data.push({ x: startTime, y: priceInPounds });
+            data.push({ x: startTime.epochMilliseconds, y: priceInPounds });
             if (i < scheduleData.length - 1) {
                 // Add a point at the end of the segment to maintain the price until the next segment
-                data.push({ x: endTime, y: priceInPounds });
+                data.push({ x: endTime.epochMilliseconds, y: priceInPounds });
             }
         });
 
@@ -173,20 +175,20 @@ export class DataProcessor {
         const solarData: ChartDataPoint[] = [];
 
         scheduleData.forEach((segment) => {
-            const startTime = this.parseDateTime(segment.time.segmentStart);
+            const startTime = segment.time.segmentStart;
             
             // Convert kWh to kW (divide by 0.5 for 30-minute segments)
             const loadKw = segment.expectedConsumption / 0.5;
             const gridKw = segment.actualGridUsage / 0.5;
             const solarKw = segment.expectedSolarGeneration / 0.5;
 
-            loadData.push({ x: startTime, y: loadKw });
-            gridData.push({ x: startTime, y: gridKw });
-            solarData.push({ x: startTime, y: solarKw });
+            loadData.push({ x: startTime.epochMilliseconds, y: loadKw });
+            gridData.push({ x: startTime.epochMilliseconds, y: gridKw });
+            solarData.push({ x: startTime.epochMilliseconds, y: solarKw });
 
             // Add end point for each segment
-            const endTime = this.parseDateTime(segment.time.segmentEnd);
-            gridData.push({ x: endTime, y: gridKw });
+            const endTime = segment.time.segmentEnd;
+            gridData.push({ x: endTime.epochMilliseconds, y: gridKw });
         });
 
         // remove duplicate points
@@ -229,27 +231,17 @@ export class DataProcessor {
         throw new Error('Unknown work mode priority: ' + metric.workModePriority);
     }
 
-    private parseDateTime(dateTimeString: string): number {
-        const date = new Date(dateTimeString);
-        if (isNaN(date.getTime())) {
-            throw new Error(`Invalid datetime format: ${dateTimeString}`);
-        }
-        return date.getTime();
-    }
-
     getExpectedBatteryLevel(timestamp: number, schedule: Schedule): number | null {
         if (!Array.isArray(schedule)) return null;
 
-        const targetTime = new Date(timestamp);
-
         for (const block of schedule) {
-            const startTime = this.parseDateTime(block.time.segmentStart);
-            const endTime = this.parseDateTime(block.time.segmentEnd);
+            const startTime = block.time.segmentStart.epochMilliseconds;
+            const endTime = block.time.segmentEnd.epochMilliseconds;
 
-            if (targetTime.getTime() >= startTime && targetTime.getTime() < endTime) {
+            if (timestamp >= startTime && timestamp < endTime) {
                 // Linear interpolation between start and end battery levels
                 const segmentDuration = endTime - startTime;
-                const elapsed = targetTime.getTime() - startTime;
+                const elapsed = timestamp - startTime;
                 const progress = segmentDuration > 0 ? elapsed / segmentDuration : 0;
 
                 const interpolatedLevel = block.startBatteryChargeKwh +
@@ -261,28 +253,48 @@ export class DataProcessor {
         return null;
     }
 
-    // DateTime utility methods - system timezone only
-    formatDateTime(dateTime: number | string | Date): string {
-        const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
-        return date.toLocaleString();
-    }
-
-    formatTimeOnly(dateTime: number | string | Date): string {
-        const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
-        return date.toLocaleTimeString();
-    }
-
-    formatDateOnly(dateTime: number | string | Date): string {
-        const date = dateTime instanceof Date ? dateTime : new Date(dateTime);
-        return date.toLocaleDateString();
-    }
-
-    isDateTimeInRange(targetDateTime: number | string | Date, startDateTime: number | string | Date, endDateTime: number | string | Date): boolean {
-        const target = targetDateTime instanceof Date ? targetDateTime : new Date(targetDateTime);
-        const start = startDateTime instanceof Date ? startDateTime : new Date(startDateTime);
-        const end = endDateTime instanceof Date ? endDateTime : new Date(endDateTime);
+    // DateTime utility methods - using Temporal
+    formatDateTime(dateTime: number | string): string {
+        const instant = typeof dateTime === 'number'
+            ? Temporal.Instant.fromEpochMilliseconds(dateTime)
+            : Temporal.ZonedDateTime.from(dateTime).toInstant();
         
-        return target >= start && target < end;
+        const londonTime = instant.toZonedDateTimeISO('Europe/London');
+        return londonTime.toLocaleString();
+    }
+
+    formatTimeOnly(dateTime: number | string): string {
+        const instant = typeof dateTime === 'number'
+            ? Temporal.Instant.fromEpochMilliseconds(dateTime)
+            : Temporal.ZonedDateTime.from(dateTime).toInstant();
+        
+        const londonTime = instant.toZonedDateTimeISO('Europe/London');
+        return londonTime.toPlainTime().toLocaleString();
+    }
+
+    formatDateOnly(dateTime: number | string): string {
+        const instant = typeof dateTime === 'number'
+            ? Temporal.Instant.fromEpochMilliseconds(dateTime)
+            : Temporal.ZonedDateTime.from(dateTime).toInstant();
+        
+        const londonTime = instant.toZonedDateTimeISO('Europe/London');
+        return londonTime.toPlainDate().toLocaleString();
+    }
+
+    isDateTimeInRange(targetDateTime: number | string, startDateTime: number | string, endDateTime: number | string): boolean {
+        const target = typeof targetDateTime === 'number'
+            ? Temporal.Instant.fromEpochMilliseconds(targetDateTime)
+            : Temporal.ZonedDateTime.from(targetDateTime).toInstant();
+        
+        const start = typeof startDateTime === 'number'
+            ? Temporal.Instant.fromEpochMilliseconds(startDateTime)
+            : Temporal.ZonedDateTime.from(startDateTime).toInstant();
+        
+        const end = typeof endDateTime === 'number'
+            ? Temporal.Instant.fromEpochMilliseconds(endDateTime)
+            : Temporal.ZonedDateTime.from(endDateTime).toInstant();
+        
+        return Temporal.Instant.compare(target, start) >= 0 && Temporal.Instant.compare(target, end) < 0;
     }
 
     calculateCost(metrics: MetricInstance[]): number {

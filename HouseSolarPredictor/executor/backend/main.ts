@@ -7,6 +7,7 @@ import { WebSocketService } from "./src/services/websocket.ts";
 import { Logger } from "./src/logger.ts";
 
 import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+import PlainDate = Temporal.PlainDate;
 
 class SolarInverterApp {
   private configService: ConfigService;
@@ -114,12 +115,10 @@ class SolarInverterApp {
 
         case "/api/metrics":
         {
-          const hours = parseInt(url.searchParams.get("hours") || "24");
           const dateParam = url.searchParams.get("date")!;
-          this.logger.log(`🔍 Fetching metrics for ${hours} hours on date ${dateParam}`);
-          const endOfDay = new Date(dateParam + 'T12:00:00.000Z'); // Use noon to avoid timezone issues
-          // TODO: Need a real Date type for date without time
-          const metrics = this.databaseService.getMetrics(hours, endOfDay);
+          const day = PlainDate.from(dateParam);
+          this.logger.log(`🔍 Fetching metrics on date ${dateParam}`);
+          const metrics = this.databaseService.getMetrics(24, day);
           this.logger.log(`📊 Fetched ${metrics.length} metrics`);
           return this.jsonResponse(metrics);
         }
@@ -132,8 +131,8 @@ class SolarInverterApp {
 
         case "/api/schedule": {
           const scheduleDateParam = url.searchParams.get("date");
-          const targetDate = new Date(scheduleDateParam!);
-          this.logger.log(`Fetching schedule for date: ${targetDate.toISOString()}`);
+          const targetDate = Temporal.PlainDate.from(scheduleDateParam!);
+          this.logger.log(`Fetching schedule for date: ${targetDate.toString()}`);
           const scheduleData = this.scheduleService.getAllSegmentsForDate(targetDate);
           return this.jsonResponse(scheduleData);
         }

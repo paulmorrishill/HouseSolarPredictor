@@ -1,4 +1,4 @@
-import {TimeSegment} from "./timeSegment";
+import {RawTimeSegment} from "./raw-time-segment";
 import {InverterMode} from "./inverter-mode";
 
 export interface SystemState2 {
@@ -12,6 +12,6 @@ export interface SystemState2 {
   desiredChargeRate?: number;
   desiredWorkMode?: InverterMode;
   status: "green" | "amber" | "red";
-  currentSegment?: TimeSegment;
+  currentSegment?: RawTimeSegment;
   statusMessage?: string;
 }

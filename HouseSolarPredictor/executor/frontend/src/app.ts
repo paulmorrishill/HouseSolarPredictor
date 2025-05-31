@@ -1,3 +1,7 @@
+import { Temporal, toTemporalInstant } from '@js-temporal/polyfill';
+(Date.prototype as any).toTemporalInstant = toTemporalInstant;
+
+// Rest of your app imports...
 import {Logger} from './logger';
 import {ApiClient} from './api-client';
 import {DataProcessor} from './data-processor';
@@ -5,14 +9,13 @@ import {UIManager} from './ui-manager';
 import {WebSocketManager} from './websocket-manager';
 import {ChartManager} from './chart-manager';
 import {ScheduleManager} from './schedule-manager';
-import {MetricInstance, TimeSegment, WebSocketMessage} from "@shared";
-import {HistoricalMetrics} from "@shared/definitions/historicalMetrics";
-
+import {MetricInstance, MetricList, WebSocketMessage} from "@shared";
+import {FrontEndTimeSegment} from "./types/front-end-time-segment";
 export class SolarInverterApp {
-    private historicViewMetricData: HistoricalMetrics = [];
-    private historicMetricsViewingDate: Date;
+    private historicViewMetricData: MetricList = [];
+    private historicMetricsViewingDate: Temporal.PlainDate;
 
-    private todaysMetrics: HistoricalMetrics = [];
+    private todaysMetrics: MetricList = [];
     private readonly maxDataPoints: number = 200;
 
     private readonly logger: Logger;
@@ -44,10 +47,8 @@ export class SolarInverterApp {
         this.init();
     }
 
-    private getToday() {
-        const today = new Date();
-        today.setHours(12, 0, 0, 0);
-        return today;
+    private getToday(): Temporal.PlainDate {
+        return Temporal.Now.plainDateISO();
     }
 
     private async init() {
@@ -64,7 +65,7 @@ export class SolarInverterApp {
     private setupEventListeners(): void {
         this.uiManager.setupEventListeners({
             onRetry: () => this.retryOperations(),
-            onDateChange: (newDate: Date) => this.handleUserSelectedDateChange(newDate),
+            onDateChange: (newDate: Temporal.PlainDate) => this.handleUserSelectedDateChange(newDate),
             onPageVisible: () => this.handlePageVisible()
         });
     }
@@ -90,9 +91,9 @@ export class SolarInverterApp {
         }
     }
 
-    private async handleUserSelectedDateChange(newDate: Date): Promise<void> {
+    private async handleUserSelectedDateChange(newDate: Temporal.PlainDate): Promise<void> {
         this.historicMetricsViewingDate = newDate;
-        this.logger.addLogEntry(`👤 User changed date to ${newDate}`, 'info');
+        this.logger.addLogEntry(`👤 User changed date to ${newDate.toString()}`, 'info');
         await this.applyHistoricDate(newDate);
     }
 
@@ -104,7 +105,7 @@ export class SolarInverterApp {
 
     private newRealtimeMetricRecievedFromServer(metrics: MetricInstance): void {
         const newMetric: MetricInstance = {
-            timestamp: Date.now(),
+            timestamp: Temporal.Now.instant().epochMilliseconds,
             loadPower: metrics.loadPower,
             gridPower: metrics.gridPower,
             batteryPower: metrics.batteryPower,
@@ -112,7 +113,8 @@ export class SolarInverterApp {
             batteryCurrent: metrics.batteryCurrent,
             batteryChargeRate: metrics.batteryChargeRate,
             batteryCapacity: metrics.batteryCapacity,
-            workModePriority: metrics.workModePriority
+            workModePriority: metrics.workModePriority,
+            solarPower: metrics.loadPower - metrics.gridPower - metrics.batteryPower
         };
 
         this.logger.addLogEntry(`📊 Adding real-time data point to chart buffer`, 'info');
@@ -146,13 +148,13 @@ export class SolarInverterApp {
         this.logger.addLogEntry('✅ Application shutdown completed', 'info');
     }
 
-    private async applyHistoricDate(historicMetricsViewingDate: Date): Promise<void> {
+    private async applyHistoricDate(historicMetricsViewingDate: Temporal.PlainDate): Promise<void> {
         this.historicMetricsViewingDate = historicMetricsViewingDate;
-        this.logger.addLogEntry(`📅 Historic metrics viewing date set to ${this.historicMetricsViewingDate}`, 'info');
+        this.logger.addLogEntry(`📅 Historic metrics viewing date set to ${this.historicMetricsViewingDate.toString()}`, 'info');
         this.historicViewMetricData = await this.apiClient.loadMetricsData(historicMetricsViewingDate, 24);
-        this.logger.addLogEntry(`📊 Loaded historic metrics data for ${this.historicMetricsViewingDate}`, 'info');
+        this.logger.addLogEntry(`📊 Loaded historic metrics data for ${this.historicMetricsViewingDate.toString()}`, 'info');
         const historicSchedule = await this.apiClient.loadScheduleData(historicMetricsViewingDate);
-        const currentSchedule = await this.apiClient.loadScheduleData(new Date());
+        const currentSchedule = await this.apiClient.loadScheduleData(Temporal.Now.plainDateISO());
 
         const finalSchedule = [...historicSchedule, ...currentSchedule].reduce((acc, segment) => {
             const existing = acc.find(s => s.time.segmentStart === segment.time.segmentStart && s.time.segmentEnd === segment.time.segmentEnd);
@@ -160,7 +162,7 @@ export class SolarInverterApp {
                 acc.push(segment);
             }
             return acc;
-        }, [] as TimeSegment[]);
+        }, [] as FrontEndTimeSegment[]);
 
         this.scheduleManager.setSchedule(finalSchedule);
         this.renderCharts(true);
@@ -183,10 +185,10 @@ export class SolarInverterApp {
         this.logger.addLogEntry(`🔍 Processing historic. ${timeFilteredHistoricMetrics.length} metrics. ${historicSchedule.length} schedule points. (Date: ${this.historicMetricsViewingDate})`, 'info');
         this.chartManager.updateHistoricCharts(historicSchedule, limitedHistoricMetrics);
 
-        let now = new Date();
+        let now = Temporal.Now.plainDateISO();
         const currentMetrics = this.dataProcessor.filterMetricsByTimeRange(this.todaysMetrics, 24, now);
         const currentSchedule = this.scheduleManager.getSchedule(now);
-        this.logger.addLogEntry(`🔍 Processing current. ${currentMetrics.length} metrics. ${currentSchedule.length} schedule points. (Date: ${now})`, 'info');
+        this.logger.addLogEntry(`🔍 Processing current. ${currentMetrics.length} metrics. ${currentSchedule.length} schedule points. (Date: ${now.toString()})`, 'info');
 
         const limitedCurrentMetrics = this.dataProcessor.limitDataPoints(currentMetrics, this.maxDataPoints);
         this.chartManager.updateCurrentCharts(limitedCurrentMetrics, currentSchedule);

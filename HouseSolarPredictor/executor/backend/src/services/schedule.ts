@@ -1,32 +1,34 @@
-import {OutputsMode, type TimeSegment} from "@shared/index.ts";
+import {OutputsMode} from "@shared";
+import type {BackendTimeSegment} from "../../time/backend-time-segment.ts";
+import type {RawTimeSegment} from  "@shared";
 
 export class ScheduleService {
-  private schedule: TimeSegment[] = [];
+  private schedule: BackendTimeSegment[] = [];
   private schedulePath: string;
-  private scheduleModifiedDate: Date | null = null;
+  private scheduleModifiedDate: Temporal.Instant | null = null;
 
   constructor(schedulePath: string) {
     this.schedulePath = schedulePath;
     setInterval(() => {
       const scheduleModified = this.getScheduleModifiedDate();
-      if (!(scheduleModified && (!this.scheduleModifiedDate || scheduleModified > this.scheduleModifiedDate))) {
+      if (!(scheduleModified && (!this.scheduleModifiedDate || Temporal.Instant.compare(scheduleModified, this.scheduleModifiedDate) > 0))) {
         return;
       }
-      console.log(`🔄 Schedule modified at ${scheduleModified.toISOString()}, reloading...`);
+      console.log(`🔄 Schedule modified at ${scheduleModified}, reloading...`);
       this.loadSchedule().catch(error => {
         console.error(`❌ Error loading schedule: ${error.message}`);
       });
     }, 10000);
   }
 
-  private getScheduleModifiedDate() {
-    const scheduleModified = Deno.statSync(this.schedulePath).mtime;
+  private getScheduleModifiedDate(): Temporal.Instant {
+    const scheduleModified = Temporal.Instant.fromEpochMilliseconds(Deno.statSync(this.schedulePath).mtime!.getTime());
     return scheduleModified;
   }
 
   async loadSchedule(): Promise<void> {
     const scheduleText = await Deno.readTextFile(this.schedulePath);
-    const rawSchedule = JSON.parse(scheduleText);
+    const rawSchedule = JSON.parse(scheduleText) as RawTimeSegment[];
 
     if (!Array.isArray(rawSchedule)) {
       throw new Error("Schedule must be an array of TimeSegment objects");
@@ -37,21 +39,20 @@ export class ScheduleService {
     console.log(`✅ Loaded ${this.schedule.length} time segments from schedule`);
   }
 
-  private validateAndTransformSegment(segment: TimeSegment): TimeSegment {
+  private validateAndTransformSegment(segment: RawTimeSegment): BackendTimeSegment {
     // Validate datetime format - NO backward compatibility
     if (!segment.time?.segmentStart || !segment.time?.segmentEnd) {
       throw new Error("TimeSegment must have time with segmentStart and segmentEnd datetime strings");
     }
 
-    // Validate ISO datetime format
-    const startDate = new Date(segment.time.segmentStart);
-    const endDate = new Date(segment.time.segmentEnd);
+    // Validate ISO datetime format using Temporal
+    let startDate: Temporal.Instant;
+    let endDate: Temporal.Instant;
     
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw new Error(`Invalid datetime format. Expected ISO format (YYYY-MM-DDTHH:MM:SS), got: ${segment.time.segmentStart}, ${segment.time.segmentEnd}`);
-    }
+    startDate = Temporal.Instant.from(segment.time.segmentStart);
+    endDate = Temporal.Instant.from(segment.time.segmentEnd);
 
-    if (endDate <= startDate) {
+    if (Temporal.Instant.compare(endDate, startDate) <= 0) {
       throw new Error("Segment end time must be after start time");
     }
 
@@ -61,8 +62,8 @@ export class ScheduleService {
 
     return {
       time: {
-        segmentStart: segment.time.segmentStart,
-        segmentEnd: segment.time.segmentEnd
+        segmentStart: startDate,
+        segmentEnd: endDate
       },
       expectedSolarGeneration: segment.expectedSolarGeneration || 0,
       gridPrice: segment.gridPrice || 0,
@@ -76,58 +77,60 @@ export class ScheduleService {
     };
   }
 
-  getCurrentTimeSegment(): TimeSegment | null {
-    const now = new Date();
-    
+  getCurrentTimeSegment(): BackendTimeSegment | null {
+    const utcNow = Temporal.Now.instant();
+
     return this.schedule.find(segment => {
-      const startDate = new Date(segment.time.segmentStart);
-      const endDate = new Date(segment.time.segmentEnd);
-      
-      return now >= startDate && now < endDate;
+      const startDate = Temporal.Instant.from(segment.time.segmentStart);
+      const endDate = Temporal.Instant.from(segment.time.segmentEnd);
+
+      return Temporal.Instant.compare(utcNow, startDate) >= 0 && Temporal.Instant.compare(utcNow, endDate) < 0;
     }) || null;
   }
 
-  getNextTimeSegment(): TimeSegment | null {
-    const now = new Date();
-    
+  getNextTimeSegment(): BackendTimeSegment | null {
+    const utcNow = Temporal.Now.instant();
+
     // Find all future segments and sort by start time
     const futureSegments = this.schedule
-      .filter(segment => new Date(segment.time.segmentStart) > now)
-      .sort((a, b) => new Date(a.time.segmentStart).getTime() - new Date(b.time.segmentStart).getTime());
+      .filter(segment => {
+        const startDate = Temporal.Instant.from(segment.time.segmentStart);
+        return Temporal.Instant.compare(startDate, utcNow) > 0;
+      })
+      .sort((a, b) => {
+        const startA = Temporal.Instant.from(a.time.segmentStart);
+        const startB = Temporal.Instant.from(b.time.segmentStart);
+        return Temporal.Instant.compare(startA, startB);
+      });
     
     return futureSegments[0] || null;
   }
 
-  getAllSegments(): TimeSegment[] {
+  getAllSegments(): BackendTimeSegment[] {
     return [...this.schedule];
   }
 
-  getSegmentByDateTime(targetDateTime: Date): TimeSegment | null {
-    return this.schedule.find(segment => {
-      const startDate = new Date(segment.time.segmentStart);
-      const endDate = new Date(segment.time.segmentEnd);
-      
-      return targetDateTime >= startDate && targetDateTime < endDate;
-    }) || null;
-  }
-
-  getScheduleForDateRange(startDate: Date, endDate: Date): TimeSegment[] {
+  getScheduleForDateRange(startDate: Temporal.Instant, endDate: Temporal.Instant): BackendTimeSegment[] {
     return this.schedule.filter(segment => {
-      const segmentStart = new Date(segment.time.segmentStart);
-      const segmentEnd = new Date(segment.time.segmentEnd);
-      
-      return (segmentStart >= startDate && segmentStart <= endDate) ||
-             (segmentEnd >= startDate && segmentEnd <= endDate) ||
-             (segmentStart <= startDate && segmentEnd >= endDate);
+      const segmentStart = Temporal.Instant.from(segment.time.segmentStart);
+      const segmentEnd = Temporal.Instant.from(segment.time.segmentEnd);
+
+      return (Temporal.Instant.compare(segmentStart, startDate) >= 0 && Temporal.Instant.compare(segmentStart, endDate) <= 0) ||
+          (Temporal.Instant.compare(segmentEnd, startDate) >= 0 && Temporal.Instant.compare(segmentEnd, endDate) <= 0) ||
+          (Temporal.Instant.compare(segmentStart, startDate) <= 0 && Temporal.Instant.compare(segmentEnd, endDate) >= 0);
     });
   }
 
-  getAllSegmentsForDate(targetDate: Date): TimeSegment[] {
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
+  getAllSegmentsForDate(targetDate: Temporal.PlainDate): BackendTimeSegment[] {
+    const startOfDay = targetDate.toZonedDateTime({
+      timeZone: 'Europe/London',
+      plainTime: Temporal.PlainTime.from('00:00:00')
+    }).toInstant();
     
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const endOfDay = targetDate.toZonedDateTime({
+      timeZone: 'Europe/London',
+      plainTime: Temporal.PlainTime.from('23:59:59.999')
+    }).toInstant();
     
     return this.getScheduleForDateRange(startOfDay, endOfDay);
   }

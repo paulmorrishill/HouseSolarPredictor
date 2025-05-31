@@ -1,7 +1,7 @@
+import { Temporal } from '@js-temporal/polyfill';
 import { Logger } from './logger';
 import { DataProcessor } from './data-processor';
-import {Schedule} from "@shared/definitions/schedule";
-import {TimeSegment} from "@shared";
+import {FrontEndTimeSegment, Schedule} from "./types/front-end-time-segment";
 
 export class ScheduleManager {
     private readonly logger: Logger;
@@ -14,17 +14,32 @@ export class ScheduleManager {
         this.dataProcessor = dataProcessor;
     }
 
-    setSchedule(schedule: TimeSegment[]): void {
+    private parseSegmentStart(timeSegment: any): Temporal.ZonedDateTime | null {
+        if (!timeSegment?.time?.segmentStart) return null;
+        
+        const instant = Temporal.Instant.from(timeSegment.time.segmentStart);
+        return instant.toZonedDateTimeISO('Europe/London');
+    }
+
+    private parseSegmentEnd(timeSegment: any): Temporal.ZonedDateTime | null {
+        if (!timeSegment?.time?.segmentEnd) return null;
+        
+        const instant = Temporal.Instant.from(timeSegment.time.segmentEnd);
+        return instant.toZonedDateTimeISO('Europe/London');
+    }
+
+    setSchedule(schedule: FrontEndTimeSegment[]): void {
         // Store schedule for cost calculations
         this.logger.addLogEntry("Updating schedule info segments: " + schedule.length, 'info');
         this.schedule = schedule;
         if (schedule.length > 0) {
             const firstBlock = schedule[0] as any;
             const lastBlock = schedule[schedule.length - 1] as any;
-            if (firstBlock.time && lastBlock.time) {
-                const firstDate = new Date(firstBlock.time.segmentStart);
-                const lastDate = new Date(lastBlock.time.segmentEnd);
-                console.log("⏱️ Schedule First date:", firstDate, "Last date:", lastDate);
+            const firstDate = this.parseSegmentStart(firstBlock);
+            const lastDate = this.parseSegmentEnd(lastBlock);
+            
+            if (firstDate && lastDate) {
+                console.log("⏱️ Schedule First date:", firstDate.toString(), "Last date:", lastDate.toString());
             }
         }
 
@@ -56,22 +71,20 @@ export class ScheduleManager {
             return;
         }
 
-        const now = new Date();
+        const now = Temporal.Now.zonedDateTimeISO('Europe/London');
         let nextBlock: any = null;
 
         // Find next future block
         for (const block of schedule) {
-            if (block.time && block.time.segmentStart) {
-                const startTime = new Date(block.time.segmentStart);
-                if (startTime > now) {
-                    nextBlock = block;
-                    break;
-                }
+            const startTime = this.parseSegmentStart(block);
+            if (startTime && Temporal.ZonedDateTime.compare(startTime, now) > 0) {
+                nextBlock = block;
+                break;
             }
         }
 
-        if (nextBlock && nextBlock.time) {
-            const startTime = new Date(nextBlock.time.segmentStart);
+        const startTime = this.parseSegmentStart(nextBlock);
+        if (startTime) {
             const timeUntil = this.calculateTimeUntilDateTime(startTime, now);
             const mode = this.dataProcessor.formatModeName(nextBlock.mode);
             const usage = nextBlock.expectedConsumption
@@ -79,7 +92,7 @@ export class ScheduleManager {
                 : '-';
 
             this.updateScheduleElements(
-                startTime.toLocaleTimeString(),
+                startTime.toPlainTime().toLocaleString(),
                 mode,
                 timeUntil,
                 usage
@@ -101,8 +114,8 @@ export class ScheduleManager {
         if (usageElement) usageElement.textContent = usage;
     }
 
-    private calculateTimeUntilDateTime(targetDateTime: Date, currentDateTime: Date): string {
-        const timeDiff = targetDateTime.getTime() - currentDateTime.getTime();
+    private calculateTimeUntilDateTime(targetDateTime: Temporal.ZonedDateTime, currentDateTime: Temporal.ZonedDateTime): string {
+        const timeDiff = targetDateTime.epochMilliseconds - currentDateTime.epochMilliseconds;
         
         if (timeDiff <= 0) return "Now";
 
@@ -116,19 +129,26 @@ export class ScheduleManager {
         }
     }
 
-    getSchedule(date: Date): Schedule {
+    getSchedule(date: Temporal.PlainDate): Schedule {
         if (!this.schedule) return [];
-        date.setHours(0,0,0, 0);
-        const targetDate = date;
-        const nextDay = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+        
+        const targetDate = date.toZonedDateTime({
+            timeZone: 'Europe/London',
+            plainTime: Temporal.PlainTime.from('00:00:00')
+        });
+        const nextDay = date.add({ days: 1 }).toZonedDateTime({
+            timeZone: 'Europe/London',
+            plainTime: Temporal.PlainTime.from('00:00:00')
+        });
         
         return this.schedule.filter(block => {
-            if (!block.time || !block.time.segmentStart || !block.time.segmentEnd) {
-                return false;
-            }
-            const blockStart = new Date(block.time.segmentStart);
-            const blockEnd = new Date(block.time.segmentEnd);
-            return blockStart >= targetDate && blockEnd < nextDay;
+            const blockStart = this.parseSegmentStart(block);
+            const blockEnd = this.parseSegmentEnd(block);
+            
+            if (!blockStart || !blockEnd) return false;
+            
+            return Temporal.ZonedDateTime.compare(blockStart, targetDate) >= 0 &&
+                   Temporal.ZonedDateTime.compare(blockEnd, nextDay) < 0;
         });
     }
 

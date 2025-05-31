@@ -1,9 +1,8 @@
 export type {MetricInstance} from "./definitions/metric-instance";
+export type {MetricList} from "./definitions/metric-list";
 export type {ControllerStatus} from "./definitions/controller-status";
 export {OutputsMode} from "./definitions/outputsMode";
-export type {ControllerState} from "./definitions/controller-state";
-export type {TimeSegment} from "./definitions/timeSegment";
-//export type {SystemState} from "./definitions/systemState";
+export type {RawTimeSegment} from "./definitions/raw-time-segment";
 export type {InitialDataResponse} from "./definitions/initial-data-response";
 export type {WebSocketMessage} from "./definitions/webSocketMessage";
 export type {ControlAction} from "./definitions/controlAction";

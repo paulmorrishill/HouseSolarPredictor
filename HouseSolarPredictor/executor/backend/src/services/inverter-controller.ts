@@ -5,8 +5,10 @@ import {BATTERY_PROTECTION} from "../constants/battery-protection.ts";
 import {ConfigService} from "./config.ts";
 import {SmtpClient} from "https://deno.land/x/smtp/mod.ts";
 import {Logger} from "../logger.ts";
-import type {ControlAction, ControllerState, InverterMode, MetricInstance} from "@shared";
+import type {ControlAction, InverterMode, MetricInstance} from "@shared";
 import {OutputsMode} from "@shared";
+import Instant = Temporal.Instant;
+import {ControllerState} from "../types/controller-state.ts";
 
 export class InverterController {
   private mqttService: MqttService;
@@ -15,22 +17,25 @@ export class InverterController {
   private retryAttempts: number;
   private retryDelayMinutes: number;
   private logger: Logger;
-  private lastMetricSaveTime: number = 0;
+  private lastMetricSaveTime: Temporal.Instant = Temporal.Instant.fromEpochMilliseconds(0);
 
   private state: ControllerState = {
     status: "amber",
-    message: "Initializing..."
+    message: "Initializing...",
+    isInProtectionMode: false
   };
   
   private currentMetrics: MetricInstance = {
     batteryChargeRate: 0,
-    workModePriority: "",
-    loadPower: undefined,
-    gridPower: undefined,
-    batteryPower: undefined,
-    batteryCurrent: undefined,
-    batteryChargePercent: undefined,
-    batteryCapacity: undefined
+    workModePriority: "Battery first",
+    loadPower: 0,
+    gridPower: 0,
+    batteryPower: 0,
+    batteryCurrent: 0,
+    batteryChargePercent: 0,
+    batteryCapacity: 0,
+    timestamp: Temporal.Now.instant().epochMilliseconds,
+    solarPower: 0
   };
 
   private controlTimer?: number;
@@ -67,6 +72,12 @@ export class InverterController {
     });
 
     this.mqttService.onMessage(topics.WORK_MODE_STATE, (message) => {
+        // Validate the work mode
+      if (message !== "Battery first" && message !== "Load first") {
+          this.logger.log(`⚠️ Invalid work mode received: ${message}`);
+          return;
+      }
+
       this.currentMetrics.workModePriority = message;
       this.updateSystemState();
     });
@@ -109,7 +120,7 @@ export class InverterController {
   }
 
   private updateSystemState() {
-    let tooSoon = Date.now() - this.lastMetricSaveTime < 1000;
+    let tooSoon = Temporal.Now.instant().since(this.lastMetricSaveTime).total('milliseconds') < 1000;
     if(tooSoon) {
       return;
     }
@@ -133,8 +144,8 @@ export class InverterController {
     }
 
     this.databaseService.insertMetric({
-      timestamp: Date.now(),
-      ...this.currentMetrics
+      ...this.currentMetrics,
+      timestamp: Temporal.Now.instant().epochMilliseconds,
     });
 
     // Update controller state
@@ -183,10 +194,12 @@ export class InverterController {
     const currentSegment = this.scheduleService.getCurrentTimeSegment();
 
     if (this.state.isInProtectionMode) {
-      const isCorrectAlready = await this.applyDesiredWorkModeAndChargeRate('Battery first', 1);
-      if (isCorrectAlready){
+      let overrideChargeRate = Math.max(this.currentMetrics.batteryChargeRate, BATTERY_PROTECTION.MIN_CHARGE_RATE);
+      this.state.status = "amber";
+      this.state.message = `Mode Override: ${this.state.protectionReason}`;
+      const isCorrectAlready = await this.applyDesiredWorkModeAndChargeRate('Battery first', overrideChargeRate);
+      if (!isCorrectAlready) {
         this.logger.log(`⚠️ Battery protection active: ${this.state.protectionReason}`);
-        this.state.message = `Battery Protection: ${this.state.protectionReason})`;
       }
       return;
     }
@@ -241,7 +254,6 @@ export class InverterController {
 
     this.state.status = "amber";
     let settingsChanges = [];
-
     if (needsChargeRateChange) {
       settingsChanges.push(`Charge Rate: ${currentRate}% ➡ ${chargeRate}%`);
     }
@@ -330,7 +342,7 @@ export class InverterController {
 
   private async setWorkMode(mode: string): Promise<void> {
     const action: ControlAction = {
-      timestamp: Date.now(),
+      timestamp: Temporal.Now.instant().epochMilliseconds,
       actionType: "work_mode",
       targetValue: mode,
       success: false,
@@ -345,7 +357,7 @@ export class InverterController {
 
   private async setChargeRate(rate: number): Promise<void> {
     const action: ControlAction = {
-      timestamp: Date.now(),
+      timestamp: Temporal.Now.instant().epochMilliseconds,
       actionType: "charge_rate",
       targetValue: rate.toString(),
       success: false,
@@ -501,7 +513,7 @@ export class InverterController {
       remainingBatteryKwh,
       nextScheduleInfo,
       remainingChargePercent,
-      timestamp: Date.now()
+      timestamp: Temporal.Now.instant().epochMilliseconds,
     };
   }
 
@@ -512,34 +524,30 @@ export class InverterController {
     return (this.currentMetrics.batteryChargePercent / 100) * this.currentMetrics.batteryCapacity;
   }
 
-  private getNextScheduleInfo(): { startTime: string; mode: string; expectedStartChargeKwh: number; timeUntil: string } | null {
+  private getNextScheduleInfo(): { startTime: Instant; mode: string; expectedStartChargeKwh: number; timeUntil: string } | null {
     const nextSegment = this.scheduleService.getNextTimeSegment();
     if (!nextSegment) {
       return null;
     }
 
-    const now = new Date();
-    const nextStartTime = new Date(nextSegment.time.segmentStart);
+    const now = Temporal.Now.instant();
+    const nextStartTime = nextSegment.time.segmentStart;
     
     // Calculate time until next segment (system timezone)
-    const timeDiff = nextStartTime.getTime() - now.getTime();
-    const hoursUntil = Math.floor(timeDiff / (1000 * 60 * 60));
-    const minutesUntil = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    const timeDiff = now.until(nextStartTime);
+    const hoursUntil = timeDiff.hours;
+    const minutesUntil = timeDiff.minutes;
     
     const timeUntil = hoursUntil > 0
       ? `${hoursUntil}h ${minutesUntil}m`
       : `${minutesUntil}m`;
 
     return {
-      startTime: nextStartTime.toLocaleTimeString(), // System timezone
+      startTime: nextStartTime, // System timezone
       mode: nextSegment.mode,
       expectedStartChargeKwh: nextSegment.startBatteryChargeKwh,
       timeUntil
     };
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   stop(): void {
