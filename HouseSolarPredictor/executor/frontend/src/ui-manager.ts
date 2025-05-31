@@ -1,5 +1,5 @@
 import { Logger } from './logger';
-import {ControllerState, MetricInstance} from "@shared";
+import {MetricInstance, SerializedControllerState} from "@shared";
 import {UICallbacks} from "./types";
 import { Temporal } from '@js-temporal/polyfill';
 
@@ -17,7 +17,7 @@ export class UIManager {
         }
     }
 
-    updateControllerState(state: ControllerState): void {
+    updateControllerState(state: SerializedControllerState): void {
         this.logger.addLogEntry(`🔄 Updating controller state - Status: ${state.status}, Mode: ${state.desiredWorkMode}`, 'info');
         
         // Update status indicator
@@ -44,9 +44,31 @@ export class UIManager {
         this.updateElement('desired-charge-rate',
             state.desiredChargeRate !== undefined ? `${state.desiredChargeRate}%` : '-');
 
-        // Log any discrepancies between desired and actual values
-        if (state.actualWorkMode && state.desiredWorkMode && state.actualWorkMode !== state.desiredWorkMode) {
-            this.logger.addLogEntry(`⚠️ Work mode mismatch - Desired: ${state.desiredWorkMode}, Actual: ${state.actualWorkMode}`, 'warn');
+        // Check for work mode mismatch and apply red styling
+        const desiredModeElement = document.getElementById('desired-work-mode');
+        if (desiredModeElement) {
+            const workModeMismatch = state.actualWorkMode && state.desiredWorkMode &&
+                                   state.actualWorkMode !== state.desiredWorkMode;
+            if (workModeMismatch) {
+                desiredModeElement.classList.add('mismatch');
+                this.logger.addLogEntry(`⚠️ Work mode mismatch - Desired: ${state.desiredWorkMode}, Actual: ${state.actualWorkMode}`, 'warn');
+            } else {
+                desiredModeElement.classList.remove('mismatch');
+            }
+        }
+
+        // Check for charge rate mismatch and apply red styling
+        const desiredChargeRateElement = document.getElementById('desired-charge-rate');
+        if (desiredChargeRateElement) {
+            const chargeRateMismatch = state.actualChargeRate !== undefined &&
+                                     state.desiredChargeRate !== undefined &&
+                                     state.actualChargeRate !== state.desiredChargeRate;
+            if (chargeRateMismatch) {
+                desiredChargeRateElement.classList.add('mismatch');
+                this.logger.addLogEntry(`⚠️ Charge rate mismatch - Desired: ${state.desiredChargeRate}%, Actual: ${state.actualChargeRate}%`, 'warn');
+            } else {
+                desiredChargeRateElement.classList.remove('mismatch');
+            }
         }
 
         // Show/hide retry button
@@ -91,7 +113,7 @@ export class UIManager {
             case 'green':
                 return 'System Operating Normally';
             case 'amber':
-                return 'System Updating';
+                return 'Operational problem';
             case 'red':
                 return 'System Suspended';
             default:

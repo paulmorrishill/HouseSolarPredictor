@@ -64,7 +64,7 @@ export class ChartManager {
     private readonly dataProcessor: DataProcessor;
     private charts: Map<string, Chart<any, any, any>> = new Map();
     private lastUpdateTime: number = 0;
-    private readonly updateThrottleMs: number = 1000; // 1 second throttle
+    private readonly updateThrottleMs: number = 500; // 1 second throttle
     private costCalculators: CostCalculator[] = [
         {
             name: 'Actual Schedule Cost',
@@ -125,6 +125,7 @@ export class ChartManager {
             this.initializeBatteryScheduleChart();
             this.initializeGridPricingChart();
             this.initializePowerFlowChart();
+            this.initializeSolarComparisonChart();
             
             this.logger.addLogEntry('✅ All charts initialized successfully', 'info');
         } catch (error) {
@@ -613,6 +614,74 @@ export class ChartManager {
         this.charts.set('power-flow', chart);
     }
 
+    private initializeSolarComparisonChart(): void {
+        const canvas = document.getElementById('solar-comparison-chart') as HTMLCanvasElement;
+        if (!canvas) return;
+
+        const config: ChartConfiguration = {
+            type: 'line' as ChartType,
+            data: {
+                datasets: [
+                    {
+                        label: 'Actual Solar Power (kW)',
+                        data: [] as ChartDataPoint[],
+                        borderColor: 'rgb(255, 193, 7)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                        tension: 0.1,
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Scheduled Solar Power (kW)',
+                        data: [] as ChartDataPoint[],
+                        borderColor: 'rgb(255, 152, 0)',
+                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                        borderDash: [5, 5],
+                        tension: 0.1,
+                        pointRadius: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                hour: 'HH:mm'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Power (kW)'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Solar Power: Actual vs Scheduled'
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            } as ChartOptions
+        };
+
+        const chart = new Chart(canvas, config);
+        this.charts.set('solar-comparison', chart);
+    }
+
     updateMetricsChart(metrics: MetricInstance[]): void {
         const chart = this.charts.get('realtime');
         if (!chart || !metrics.length) return;
@@ -633,7 +702,9 @@ export class ChartManager {
         this.updateBatteryScheduleChart(scheduleData);
         this.updateGridPricingChart(scheduleData);
         this.updatePowerFlowChart(scheduleData);
+        this.updateSolarComparisonChart(scheduleData, metrics);
         this.updateEstimatedCostChart(scheduleData);
+        this.updateScheduleTable(scheduleData);
     }
 
     updateExpectedVsActualBatteryChargeChart(metrics: MetricInstance[], schedule: Schedule): void {
@@ -731,6 +802,18 @@ export class ChartManager {
         chart.update('none');
     }
 
+    private updateSolarComparisonChart(scheduleData: Schedule, metrics: MetricInstance[]): void {
+        const chart = this.charts.get('solar-comparison');
+        if (!chart) return;
+
+        const solarComparisonData = this.dataProcessor.processSolarComparisonData(scheduleData, metrics);
+        
+        chart.data.datasets[0]!.data = solarComparisonData.actual;
+        chart.data.datasets[1]!.data = solarComparisonData.scheduled;
+
+        chart.update('none');
+    }
+
     private updateEstimatedCostChart(scheduleData: Schedule): void {
         const chart = this.charts.get('estimated-cost');
         if (!chart) return;
@@ -785,6 +868,71 @@ export class ChartManager {
             
             costCalculationsContainer.appendChild(costItem);
         });
+    }
+
+    private updateScheduleTable(scheduleData: Schedule): void {
+        const tableBody = document.getElementById('schedule-table-body');
+        if (!tableBody) return;
+
+        // Clear existing rows
+        tableBody.innerHTML = '';
+
+        scheduleData.forEach((segment) => {
+            const row = document.createElement('tr');
+            
+            // Format time period
+            const startTime = segment.time.segmentStart.toZonedDateTimeISO('Europe/London');
+            const endTime = segment.time.segmentEnd.toZonedDateTimeISO('Europe/London');
+            const timePeriod = `${startTime.toPlainTime().toString().slice(0, 5)} - ${endTime.toPlainTime().toString().slice(0, 5)}`;
+            
+            // Format mode with styling
+            const modeClass = this.getModeClass(segment.mode);
+            const modeDisplay = this.getModeDisplayName(segment.mode);
+            const segmentIsNow = segment.time.segmentStart.epochMilliseconds <= Date.now() && segment.time.segmentEnd.epochMilliseconds >= Date.now();
+            if (segmentIsNow) {
+                row.classList.add('current-segment');
+            }
+            row.innerHTML = `
+                <td class="time-cell">${timePeriod}</td>
+                <td class="mode-cell ${modeClass}">${modeDisplay}</td>
+                <td class="number-cell">£${segment.gridPrice.toFixed(3)}</td>
+                <td class="number-cell">${segment.expectedSolarGeneration.toFixed(2)}</td>
+                <td class="number-cell">${segment.expectedConsumption.toFixed(2)}</td>
+                <td class="number-cell">${segment.startBatteryChargeKwh.toFixed(2)}</td>
+                <td class="number-cell">${segment.endBatteryChargeKwh.toFixed(2)}</td>
+                <td class="number-cell">${segment.actualGridUsage.toFixed(2)}</td>
+                <td class="number-cell">${segment.wastedSolarGeneration.toFixed(2)}</td>
+                <td class="cost-cell">£${segment.cost.toFixed(3)}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+
+    private getModeClass(mode: string): string {
+        switch (mode) {
+            case 'Discharge':
+                return 'mode-discharge';
+            case 'ChargeSolarOnly':
+                return 'mode-solar-only';
+            case 'ChargeFromGridAndSolar':
+                return 'mode-grid-solar';
+            default:
+                return '';
+        }
+    }
+
+    private getModeDisplayName(mode: string): string {
+        switch (mode) {
+            case 'Discharge':
+                return 'Discharge';
+            case 'ChargeSolarOnly':
+                return 'Solar Only';
+            case 'ChargeFromGridAndSolar':
+                return 'Grid + Solar';
+            default:
+                return mode;
+        }
     }
 
     shouldUpdateCharts(): boolean {

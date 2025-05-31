@@ -5,7 +5,7 @@ import {BATTERY_PROTECTION} from "../constants/battery-protection.ts";
 import {ConfigService} from "./config.ts";
 import {SmtpClient} from "https://deno.land/x/smtp/mod.ts";
 import {Logger} from "../logger.ts";
-import type {ControlAction, InverterMode, MetricInstance} from "@shared";
+import {ControlAction, ControllerStatus, InverterMode, MetricInstance} from "@shared";
 import {OutputsMode} from "@shared";
 import Instant = Temporal.Instant;
 import {ControllerState} from "../types/controller-state.ts";
@@ -20,9 +20,8 @@ export class InverterController {
   private lastMetricSaveTime: Temporal.Instant = Temporal.Instant.fromEpochMilliseconds(0);
 
   private state: ControllerState = {
-    status: "amber",
-    message: "Initializing...",
-    isInProtectionMode: false
+    status: "red",
+    message: "Establishing websocket..."
   };
   
   private currentMetrics: MetricInstance = {
@@ -63,11 +62,13 @@ export class InverterController {
     this.setupMqttHandlers();
   }
 
+  private metricParts: Partial<MetricInstance> = {};
+
   private setupMqttHandlers(): void {
     const topics = this.mqttService.getTopics();
 
     this.mqttService.onMessage(topics.BATTERY_CHARGE_RATE_STATE, (message) => {
-      this.currentMetrics.batteryChargeRate = parseFloat(message) || 0;
+      this.metricParts.batteryChargeRate = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
@@ -78,38 +79,37 @@ export class InverterController {
           return;
       }
 
-      this.currentMetrics.workModePriority = message;
+      this.metricParts.workModePriority = message;
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.LOAD_POWER_STATE, (message) => {
-      this.currentMetrics.loadPower = parseFloat(message) || 0;
+      this.metricParts.loadPower = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.GRID_POWER_STATE, (message) => {
-      this.currentMetrics.gridPower = parseFloat(message) || 0;
+      this.metricParts.gridPower = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.BATTERY_POWER_STATE, (message) => {
-      this.currentMetrics.batteryPower = parseFloat(message) || 0;
+      this.metricParts.batteryPower = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.BATTERY_CURRENT_STATE, (message) => {
-      this.currentMetrics.batteryCurrent = parseFloat(message) || 0;
+      this.metricParts.batteryCurrent = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.BATTERY_CHARGE_STATE, (message) => {
-      this.currentMetrics.batteryChargePercent = parseFloat(message) || 0;
-      this.hasReceivedMqttData = true;
+      this.metricParts.batteryChargePercent = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.BATTERY_CAPACITY_STATE, (message) => {
-      this.currentMetrics.batteryCapacity = parseFloat(message) || 0;
+      this.metricParts.batteryCapacity = parseFloat(message) || 0;
       this.updateSystemState();
     });
 
@@ -136,18 +136,36 @@ export class InverterController {
         "batteryCapacity"
     ];
 
+    // check all metric parts are defined
     for (const metric of metrics) {
-      if (this.currentMetrics[metric] === undefined) {
-        this.logger.log(`Missing metric: ${metric.toString()} not saving metrics`);
+      if (this.metricParts[metric] === undefined) {
+        this.logger.log(`⚠️ Missing metric part: ${metric.toString()}`);
         return;
       }
     }
 
-    this.databaseService.insertMetric({
+    // grid 2000
+    // load 4000
+    // battery -1000
+    // solar = 1000 = gridPower - loadPower + batteryPower
+    this.metricParts.solarPower = this.metricParts.gridPower! + this.metricParts.loadPower! + this.metricParts.batteryPower!;
+
+    if(!this.hasReceivedMqttData){
+        this.logger.log("✅ First complete metric initialised from MQTT");
+    }
+
+    this.hasReceivedMqttData = true;
+    this.currentMetrics = {
       ...this.currentMetrics,
-      timestamp: Temporal.Now.instant().epochMilliseconds,
+      ...this.metricParts,
+      timestamp: Temporal.Now.instant().epochMilliseconds
+    };
+
+    this.databaseService.insertMetric({
+      ...this.currentMetrics
     });
 
+    this.lastMetricSaveTime = Temporal.Now.instant();
     // Update controller state
     this.state.actualWorkMode = this.currentMetrics.workModePriority;
     this.state.actualChargeRate = this.currentMetrics.batteryChargeRate;
@@ -176,7 +194,7 @@ export class InverterController {
           this.logger.logException(error as Error);
         });
       }
-    }, 30000);
+    }, 5000);
 
     // Initial check
     this.checkAndUpdateInverter().catch(error => {
@@ -186,58 +204,53 @@ export class InverterController {
 
   private async checkAndUpdateInverter(): Promise<void> {
     if(!this.hasReceivedMqttData){
-        this.state.status = "amber";
+        this.state.status = "red";
         this.state.message = "Waiting for initial MQTT data...";
         this.logger.log("Waiting for initial MQTT data...");
         return;
     }
+
     const currentSegment = this.scheduleService.getCurrentTimeSegment();
-
-    if (this.state.isInProtectionMode) {
-      let overrideChargeRate = Math.max(this.currentMetrics.batteryChargeRate, BATTERY_PROTECTION.MIN_CHARGE_RATE);
-      this.state.status = "amber";
-      this.state.message = `Mode Override: ${this.state.protectionReason}`;
-      const isCorrectAlready = await this.applyDesiredWorkModeAndChargeRate('Battery first', overrideChargeRate);
-      if (!isCorrectAlready) {
-        this.logger.log(`⚠️ Battery protection active: ${this.state.protectionReason}`);
-      }
-      return;
-    }
-
+    this.state.currentSegment = currentSegment || undefined;
     if (!currentSegment) {
-      this.state.status = "amber";
+      this.state.status = "red";
       this.state.message = "No current time segment found";
+      await this.syncWorkModeToInverter("Battery first", 0); // idle conditions
       return;
     }
 
-    this.state.currentSegment = currentSegment;
-    
-    let { workMode, chargeRate } = this.getDesiredSettings(currentSegment.mode);
+    const { workMode, chargeRate } = this.getDesiredSettings(currentSegment.mode);
+    const { workMode: desiredWorkMode,
+      chargeRate: desiredChargeRate,
+      status,
+      message
+    } = await this.applyApplicableOverrides(workMode, chargeRate);
 
-    // Apply battery protection overrides
-    const batteryProtectionOverride = this.batteryProtectionOverride();
+    await this.syncWorkModeToInverter(desiredWorkMode, desiredChargeRate);
+    // check is sync in progress
+    if (this.state.pendingAction)
+      return;
 
-    if (batteryProtectionOverride) {
-      this.state.isInProtectionMode = true;
-      this.state.protectionReason = "Critical battery level";
-      await this.applyDesiredWorkModeAndChargeRate(batteryProtectionOverride.workMode, batteryProtectionOverride.chargeRate);
+    if(status){
+      this.state.status = status;
     }
 
-    if(chargeRate !== this.currentMetrics.batteryChargeRate) {
+    if(message) {
+      this.state.message = message;
+    }
+  }
+
+  private async syncWorkModeToInverter(workMode: InverterMode, chargeRate: number): Promise<boolean> {
+    this.state.desiredWorkMode = workMode;
+    this.state.desiredChargeRate = chargeRate;
+    let currentMode = this.currentMetrics.workModePriority;
+    let currentRate = this.currentMetrics.batteryChargeRate;
+
+    if(chargeRate !== currentRate) {
       workMode = "Battery first";
     }
 
-    await this.applyDesiredWorkModeAndChargeRate(workMode, chargeRate);
-  }
-
-  private async applyDesiredWorkModeAndChargeRate(workMode: "Battery first" | "Load first", chargeRate: number): Promise<boolean> {
-    this.state.desiredWorkMode = workMode;
-    this.state.desiredChargeRate = chargeRate;
-
-    // Check if we need to make changes
-    let currentMode = this.currentMetrics.workModePriority;
     const needsWorkModeChange = currentMode !== workMode;
-    let currentRate = this.currentMetrics.batteryChargeRate;
     const needsChargeRateChange = currentRate !== chargeRate;
 
     if (!needsWorkModeChange && !needsChargeRateChange) {
@@ -268,12 +281,12 @@ export class InverterController {
     return false;
   }
 
-  private batteryProtectionOverride() : { workMode: InverterMode, chargeRate: number } | null {
+  private batteryProtectionOverride(plannedMode: InverterMode, plannedChargeRate: number) : { workMode: InverterMode, chargeRate: number } | null {
     const batteryCharge = this.currentMetrics.batteryChargePercent;
 
-    // Don't apply protection if we haven't received valid MQTT data yet
-    if (!this.hasReceivedMqttData) {
-      return null;
+    if(plannedMode === "Battery first" && plannedChargeRate > BATTERY_PROTECTION.MIN_CHARGE_RATE) {
+        // If we are already in Battery first mode and charge rate is above minimum, no override needed
+        return null;
     }
 
     // Critical battery protection (≤ 3%)
@@ -286,6 +299,24 @@ export class InverterController {
     }
 
     return null;
+  }
+
+  private wastedSolarOverride(plannedMode: InverterMode, plannedChargeRate: number) : { workMode: InverterMode, chargeRate: number } | null {
+    const batteryCharge = this.currentMetrics.batteryChargePercent;
+
+    if (batteryCharge < 97)
+      return null;
+
+    // Check time is between 08:00 and 18:00
+    const now = Temporal.Now.instant().toZonedDateTimeISO('Europe/London');
+    if(now.hour < 8 || now.hour > 18) {
+        return null;
+    }
+
+    return {
+      workMode: 'Load first',
+        chargeRate: 0
+    }
   }
 
   private getDesiredSettings(mode: OutputsMode): { workMode: InverterMode; chargeRate: number } {
@@ -410,16 +441,12 @@ export class InverterController {
     await this.databaseService.updateControlAction(this.pendingActionId, success, responseMessage);
 
     if (success) {
-      this.logger.log(`Control action succeeded: ${responseMessage}`);
+      this.logger.log(`✅ Control action succeeded: ${responseMessage}`);
       this.state.pendingAction = undefined;
       this.pendingActionId = undefined;
       this.retryCount = 0;
       this.state.status = "green";
-      if (this.state.isInProtectionMode) {
-        this.state.message = `System updated successfully (Battery Protection: ${this.state.protectionReason})`;
-      } else {
-        this.state.message = "System updated successfully";
-      }
+      this.state.message = "System updated successfully";
     } else {
       this.logger.log(`Control action failed: ${responseMessage}`);
       await this.handleControlFailure(responseMessage);
@@ -594,5 +621,32 @@ export class InverterController {
     });
 
     await client.close();
+  }
+
+  private async applyApplicableOverrides( workMode: InverterMode, chargeRate: number): Promise<{
+    workMode: InverterMode,
+    chargeRate: number,
+    status: ControllerStatus | null,
+    message: string | null}> {
+    const batteryProtectionOverride = this.batteryProtectionOverride(workMode, chargeRate);
+
+    if (batteryProtectionOverride) {
+      this.logger.log(`⚠️ Minimum battery protection active`);
+      return { ...batteryProtectionOverride, status: "amber", message: `Minimum battery protection active` };
+    }
+
+    const wastedSolarOverride = this.wastedSolarOverride(workMode, chargeRate);
+    if (wastedSolarOverride) {
+      await this.syncWorkModeToInverter(wastedSolarOverride.workMode, wastedSolarOverride.chargeRate);
+      this.logger.log(`⚠️ Wasted solar protection active`);
+      return { ...wastedSolarOverride, status: "amber", message: `Wasted solar protection active` };
+    }
+
+    return {
+      workMode,
+      chargeRate,
+        status: null,
+        message: null
+    }
   }
 }

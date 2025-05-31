@@ -147,7 +147,7 @@ export class DataProcessor {
             });
         });
 
-        return data.sort((a, b) => (a.x as number) - (b.x as number));
+        return data.sort((a, b) => (a.x) - (b.x));
     }
 
     processGridPricingData(scheduleData: Schedule): ChartDataPoint[] {
@@ -206,6 +206,35 @@ export class DataProcessor {
             load: uniqueLoadData.sort((a, b) => (a.x as number) - (b.x as number)),
             grid: uniqueGridData.sort((a, b) => (a.x as number) - (b.x as number)),
             solar: uniqueSolarData.sort((a, b) => (a.x as number) - (b.x as number))
+        };
+    }
+
+    processSolarComparisonData(scheduleData: Schedule, metrics: MetricInstance[]): { actual: ChartDataPoint[], scheduled: ChartDataPoint[] } {
+        if (!Array.isArray(scheduleData) || !Array.isArray(metrics)) {
+            return { actual: [], scheduled: [] };
+        }
+
+        // Process actual solar power from metrics (convert from W to kW)
+        const actualSolarData: ChartDataPoint[] = metrics.map(metric => ({
+            x: metric.timestamp,
+            y: metric.solarPower / 1000 // Convert W to kW
+        }));
+
+        // Process scheduled solar power from schedule data
+        const scheduledSolarData: ChartDataPoint[] = [];
+        scheduleData.forEach(segment => {
+            const startTime = segment.time.segmentStart.epochMilliseconds;
+            const endTime = segment.time.segmentEnd.epochMilliseconds;
+            
+            const solarKw = segment.expectedSolarGeneration * 2;
+
+            let midPoint = startTime + (endTime - startTime);
+            scheduledSolarData.push({ x: midPoint, y: solarKw });
+        });
+
+        return {
+            actual: actualSolarData.sort((a, b) => (a.x as number) - (b.x as number)),
+            scheduled: scheduledSolarData.sort((a, b) => (a.x as number) - (b.x as number))
         };
     }
 
@@ -299,28 +328,23 @@ export class DataProcessor {
         return Temporal.Instant.compare(target, start) >= 0 && Temporal.Instant.compare(target, end) < 0;
     }
 
-    calculateCost(metrics: MetricInstance[]): number {
-        // Simple cost calculation - just show a reasonable daily estimate
+    calculateCost(metrics: MetricInstance[], schedule: Schedule): number {
+        // loop through metrics, calculate cost between each metric by time diff then multiple by grid price
+        if (!Array.isArray(metrics) || metrics.length === 0) return 0;
         let totalCost = 0;
-        
-        if (Array.isArray(metrics) && metrics.length > 0) {
-            // Get the most recent metric for current power usage
-            const latestMetric = metrics[metrics.length - 1] || metrics[0];
-            
-            if (latestMetric) {
-                // Convert watts to kilowatts
-                const currentGridUsageKw = Math.max(0, (latestMetric.gridPower || 0) / 1000);
-                const avgPrice = 0.25; // £0.25 per kWh
-                
-                // Estimate daily cost based on current usage
-                // Assume current usage continues for 24 hours
-                totalCost = currentGridUsageKw * 24 * avgPrice;
-                
-                // Cap at reasonable maximum
-                totalCost = Math.min(totalCost, 50.00);
+        for (let i = 0; i < metrics.length - 1; i++) {
+            const segment = schedule.find(s => s.time.segmentStart.epochMilliseconds <= metrics[i]!.timestamp && s.time.segmentEnd.epochMilliseconds > metrics[i]!.timestamp);
+            if(!segment) {
+                console.warn(`No schedule segment found for metric at ${metrics[i]!.timestamp}`);
+                return -1;
             }
-        }
 
+            const current = metrics[i]!;
+            const next = metrics[i + 1]!;
+            const timeDiff = next.timestamp - current.timestamp;
+            const cost = (timeDiff / (1000 * 60 * 60)) * segment.gridPrice;
+            totalCost += cost;
+        }
         return totalCost;
     }
 

@@ -28,8 +28,21 @@ export class ScheduleManager {
         return instant.toZonedDateTimeISO('Europe/London');
     }
 
-    setSchedule(schedule: FrontEndTimeSegment[]): void {
+    setSchedule(rawSchedule: FrontEndTimeSegment[]): void {
         // Store schedule for cost calculations
+
+        const schedule = rawSchedule.reduce((acc, segment) => {
+            const existing = acc.find(s => {
+                let startIsSame = s.time.segmentStart.epochMilliseconds === segment.time.segmentStart.epochMilliseconds;
+                let endIsSame = s.time.segmentEnd.epochMilliseconds === segment.time.segmentEnd.epochMilliseconds;
+                return startIsSame && endIsSame;
+            });
+            if (!existing) {
+                acc.push(segment);
+            }
+            return acc;
+        }, [] as FrontEndTimeSegment[]);
+
         this.logger.addLogEntry("Updating schedule info segments: " + schedule.length, 'info');
         this.schedule = schedule;
         if (schedule.length > 0) {
@@ -135,20 +148,20 @@ export class ScheduleManager {
         const targetDate = date.toZonedDateTime({
             timeZone: 'Europe/London',
             plainTime: Temporal.PlainTime.from('00:00:00')
-        });
+        }).toInstant();
         const nextDay = date.add({ days: 1 }).toZonedDateTime({
             timeZone: 'Europe/London',
             plainTime: Temporal.PlainTime.from('00:00:00')
-        });
+        }).toInstant();
         
         return this.schedule.filter(block => {
-            const blockStart = this.parseSegmentStart(block);
-            const blockEnd = this.parseSegmentEnd(block);
-            
-            if (!blockStart || !blockEnd) return false;
-            
-            return Temporal.ZonedDateTime.compare(blockStart, targetDate) >= 0 &&
-                   Temporal.ZonedDateTime.compare(blockEnd, nextDay) < 0;
+            return Temporal.Instant.compare(
+                Temporal.Instant.from(block.time.segmentStart),
+                targetDate
+            ) >= 0 && Temporal.Instant.compare(
+                Temporal.Instant.from(block.time.segmentEnd),
+                nextDay
+            ) < 0;
         });
     }
 

@@ -165,8 +165,12 @@ export class DatabaseService {
       batteryCurrent: row.battery_current,
       batteryChargePercent: row.battery_charge_percent,
       batteryCapacity: row.battery_capacity,
-        solarPower: row.solar_power
-    }));
+      solarPower: row.solar_power
+    })).map(m => {
+      return {
+        ...m
+      }
+    });
   }
 
   getRecentControlActions(hours: number = 24): ControlAction[] {

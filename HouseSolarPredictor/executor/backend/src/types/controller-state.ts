@@ -10,7 +10,5 @@ export interface ControllerState {
   actualWorkMode?: InverterMode;
   actualChargeRate?: number;
   pendingAction?: ControlAction;
-  isInProtectionMode: boolean;
-  protectionReason?: string;
 }
 

@@ -18,6 +18,4 @@ export interface SerializedControllerState {
     actualWorkMode?: InverterMode;
     actualChargeRate?: number;
     pendingAction?: ControlAction;
-    isInProtectionMode: boolean;
-    protectionReason?: string;
 }

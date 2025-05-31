@@ -18,7 +18,7 @@ export class ScheduleService {
       this.loadSchedule().catch(error => {
         console.error(`❌ Error loading schedule: ${error.message}`);
       });
-    }, 10000);
+    }, 1000);
   }
 
   private getScheduleModifiedDate(): Temporal.Instant {

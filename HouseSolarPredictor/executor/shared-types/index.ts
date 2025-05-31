@@ -8,3 +8,4 @@ export type {WebSocketMessage} from "./definitions/webSocketMessage";
 export type {ControlAction} from "./definitions/controlAction";
 export type {InverterMode} from "./definitions/inverter-mode";
 export type {StatusResponse} from "./definitions/api-response/status-response";
+export type {LiveUpdate, SerializedControllerState} from "./definitions/liveUpdate";

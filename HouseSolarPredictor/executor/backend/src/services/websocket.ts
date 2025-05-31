@@ -40,6 +40,14 @@ export class WebSocketService {
       this.logger.log(`WebSocket error: ${error.type}`);
       this.sockets.delete(socket);
     });
+
+    // wait for ready to send message
+    socket.addEventListener("open", () => {
+      console.log('Broadcasting initial updates to new socket');
+      this.broadcastUpdates().catch(e => {
+        this.logger.logException(e);
+      })
+    });
   }
 
   private startBroadcastTimer(): void {
@@ -48,7 +56,7 @@ export class WebSocketService {
       this.broadcastUpdates().catch(error => {
         this.logger.logException(error as Error);
       });
-    }, 10000);
+    }, 1000);
   }
 
   private async broadcastUpdates(): Promise<void> {
@@ -57,7 +65,6 @@ export class WebSocketService {
     try {
       const controllerState = this.inverterController.getState();
       const currentMetrics = this.inverterController.getCurrentMetrics();
-
 
       let data: LiveUpdate = {
         controller: {

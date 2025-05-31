@@ -100,7 +100,7 @@ export class WebSocketManager {
                 this.logger.addLogEntry(`🔄 Live update received - Controller & Metrics`, 'info');
                 break;
             default:
-                this.logger.addLogEntry(`⚠️ Unknown message type: ${message.type}`, 'warn');
+                this.logger.addLogEntry(`⚠️ Unknown message type: ${JSON.stringify(message)}`, 'warn');
                 break;
         }
 

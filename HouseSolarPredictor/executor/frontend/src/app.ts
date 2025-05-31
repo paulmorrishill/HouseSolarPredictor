@@ -10,7 +10,7 @@ import {WebSocketManager} from './websocket-manager';
 import {ChartManager} from './chart-manager';
 import {ScheduleManager} from './schedule-manager';
 import {MetricInstance, MetricList, WebSocketMessage} from "@shared";
-import {FrontEndTimeSegment} from "./types/front-end-time-segment";
+import {Schedule} from "./types/front-end-time-segment";
 export class SolarInverterApp {
     private historicViewMetricData: MetricList = [];
     private historicMetricsViewingDate: Temporal.PlainDate;
@@ -78,12 +78,12 @@ export class SolarInverterApp {
                 break;
             case 'current_metrics':
                 this.uiManager.updateCurrentMetrics(message.data);
-                this.newRealtimeMetricRecievedFromServer(message.data);
+                this.newRealtimeMetricReceivedFromServer(message.data);
                 break;
             case 'live_update':
                 this.uiManager.updateControllerState(message.data.controller);
                 this.uiManager.updateCurrentMetrics(message.data.metrics);
-                this.newRealtimeMetricRecievedFromServer(message.data.metrics as MetricInstance);
+                this.newRealtimeMetricReceivedFromServer(message.data.metrics as MetricInstance);
                 break;
             default:
                 this.logger.addLogEntry(`⚠️ Unknown WebSocket message type`, 'warn', message);
@@ -103,27 +103,14 @@ export class SolarInverterApp {
         }
     }
 
-    private newRealtimeMetricRecievedFromServer(metrics: MetricInstance): void {
-        const newMetric: MetricInstance = {
-            timestamp: Temporal.Now.instant().epochMilliseconds,
-            loadPower: metrics.loadPower,
-            gridPower: metrics.gridPower,
-            batteryPower: metrics.batteryPower,
-            batteryChargePercent: metrics.batteryChargePercent,
-            batteryCurrent: metrics.batteryCurrent,
-            batteryChargeRate: metrics.batteryChargeRate,
-            batteryCapacity: metrics.batteryCapacity,
-            workModePriority: metrics.workModePriority,
-            solarPower: metrics.loadPower - metrics.gridPower - metrics.batteryPower
-        };
-
+    private newRealtimeMetricReceivedFromServer(metrics: MetricInstance): void {
         this.logger.addLogEntry(`📊 Adding real-time data point to chart buffer`, 'info');
-        this.todaysMetrics.push(newMetric);
+        this.todaysMetrics.push(metrics);
         this.renderCharts(false);
     }
 
-    private calculateAndDisplayCost(metrics: MetricInstance[]): void {
-        const totalCost = this.dataProcessor.calculateCost(metrics);
+    private calculateAndDisplayCost(metrics: MetricInstance[], schedule: Schedule): void {
+        const totalCost = this.dataProcessor.calculateCost(metrics, schedule);
         this.uiManager.updateCostDisplay(totalCost);
         this.chartManager.updateCostChart(totalCost);
     }
@@ -156,15 +143,7 @@ export class SolarInverterApp {
         const historicSchedule = await this.apiClient.loadScheduleData(historicMetricsViewingDate);
         const currentSchedule = await this.apiClient.loadScheduleData(Temporal.Now.plainDateISO());
 
-        const finalSchedule = [...historicSchedule, ...currentSchedule].reduce((acc, segment) => {
-            const existing = acc.find(s => s.time.segmentStart === segment.time.segmentStart && s.time.segmentEnd === segment.time.segmentEnd);
-            if (!existing) {
-                acc.push(segment);
-            }
-            return acc;
-        }, [] as FrontEndTimeSegment[]);
-
-        this.scheduleManager.setSchedule(finalSchedule);
+        this.scheduleManager.setSchedule([...historicSchedule, ...currentSchedule]);
         this.renderCharts(true);
     }
 
@@ -190,10 +169,20 @@ export class SolarInverterApp {
         const currentSchedule = this.scheduleManager.getSchedule(now);
         this.logger.addLogEntry(`🔍 Processing current. ${currentMetrics.length} metrics. ${currentSchedule.length} schedule points. (Date: ${now.toString()})`, 'info');
 
+        console.info('Current Data', {
+            currentMetrics: currentMetrics,
+            currentSchedule: currentSchedule
+        })
+
+        console.info('Historical Data', {
+            limitedHistoricMetrics: limitedHistoricMetrics,
+            historicSchedule: historicSchedule
+        })
+
         const limitedCurrentMetrics = this.dataProcessor.limitDataPoints(currentMetrics, this.maxDataPoints);
         this.chartManager.updateCurrentCharts(limitedCurrentMetrics, currentSchedule);
 
-        this.calculateAndDisplayCost(limitedHistoricMetrics);
+        this.calculateAndDisplayCost(limitedHistoricMetrics, historicSchedule);
 
         this.logger.addLogEntry('✅ Chart updates completed', 'info');
     }
