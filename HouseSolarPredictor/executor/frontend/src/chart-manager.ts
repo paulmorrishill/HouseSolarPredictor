@@ -681,11 +681,11 @@ export class ChartManager {
         chart.update('none');
     }
 
-    private updateModeTimelineChart(scheduleData: Schedule, metrics?: MetricInstance[]): void {
+    private updateModeTimelineChart(scheduleData: Schedule, metrics: MetricInstance[]): void {
         const chart = this.charts.get('mode-timeline');
         if (!chart) return;
 
-        const modeData = this.dataProcessor.processModeTimelineData(scheduleData, metrics || []);
+        const modeData = this.dataProcessor.processModeTimelineData(scheduleData, metrics);
         
         chart.data.datasets[0]!.data = modeData.planned;
         chart.data.datasets[1]!.data = modeData.actual;

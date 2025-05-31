@@ -94,7 +94,6 @@ export class DataProcessor {
             return { x: startTime, y: modeValue };
         });
 
-        // Add the last point of now with the same mode
         if (actualModes.length > 0) {
             const lastMode = actualModes[actualModes.length - 1];
             if (lastMode) {
@@ -105,12 +104,12 @@ export class DataProcessor {
         const dedupedModes: ChartDataPoint[] = [];
         if (actualModes.length > 0 && actualModes[0]) {
             dedupedModes.push(actualModes[0]);
-            
+
             for (let i = 1; i < actualModes.length; i++) {
                 const mostRecentMode = dedupedModes[dedupedModes.length - 1];
                 const currentDataPoint = actualModes[i];
                 const previousDataPoint = actualModes[i - 1];
-                
+
                 if (mostRecentMode && currentDataPoint && previousDataPoint) {
                     const modeHasChanged = mostRecentMode.y !== currentDataPoint.y;
                     if (modeHasChanged) {
@@ -121,10 +120,13 @@ export class DataProcessor {
             }
         }
 
-        return {
-            planned: plannedMode.sort((a, b) => (a.x as number) - (b.x as number)),
-            actual: dedupedModes.sort((a, b) => (a.x as number) - (b.x as number))
+        const chartData = {
+            planned: plannedMode.sort((a, b) => (a.x) - (b.x)),
+            actual: dedupedModes.sort((a, b) => (a.x) - (b.x))
         };
+
+        console.log(`Processed MODE timeline data: Planned segments: ${chartData.planned.length}, Actual segments: ${chartData.actual.length}`);
+        return chartData;
     }
 
     processBatteryScheduleData(scheduleData: Schedule): ChartDataPoint[] {

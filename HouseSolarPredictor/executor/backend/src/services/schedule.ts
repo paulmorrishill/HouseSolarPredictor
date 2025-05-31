@@ -131,7 +131,8 @@ export class ScheduleService {
       timeZone: 'Europe/London',
       plainTime: Temporal.PlainTime.from('23:59:59.999')
     }).toInstant();
-    
+
+    console.log(`🔍 Fetching schedule for date: ${targetDate.toString()} from ${startOfDay.toString()} to ${endOfDay.toString()}`);
     return this.getScheduleForDateRange(startOfDay, endOfDay);
   }
 

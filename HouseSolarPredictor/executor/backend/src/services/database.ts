@@ -137,8 +137,8 @@ export class DatabaseService {
     let startTime: number;
     let endTime: number;
 
-    startTime = date.toPlainDateTime('00:00:00').toZonedDateTime('Europe/London').epochMilliseconds / 1000;
-    endTime = date.toPlainDateTime('23:59:00').toZonedDateTime('Europe/London').epochMilliseconds / 1000;
+    startTime = date.toPlainDateTime('00:00:00').toZonedDateTime('Europe/London').epochMilliseconds;
+    endTime = date.toPlainDateTime('23:59:00').toZonedDateTime('Europe/London').epochMilliseconds;
 
     const stmt = this.db.prepare(`
       SELECT * FROM metrics
