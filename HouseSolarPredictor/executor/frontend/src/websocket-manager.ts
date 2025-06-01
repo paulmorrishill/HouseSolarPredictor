@@ -1,9 +1,7 @@
-import { Logger } from './logger';
 import {WebSocketMessage} from "@shared";
 import {ConnectionStatus} from "./types";
 
 export class WebSocketManager {
-    private readonly logger: Logger;
     private readonly messageHandler: (message: WebSocketMessage) => void;
     private ws: WebSocket | null = null;
     private connectionStatus: ConnectionStatus = 'disconnected';
@@ -11,8 +9,7 @@ export class WebSocketManager {
     private readonly maxReconnectAttempts: number = 5;
     private readonly reconnectDelay: number = 5000;
 
-    constructor(logger: Logger, messageHandler: (message: WebSocketMessage) => void) {
-        this.logger = logger;
+    constructor(messageHandler: (message: WebSocketMessage) => void) {
         this.messageHandler = messageHandler;
     }
 
@@ -35,7 +32,7 @@ export class WebSocketManager {
                 this.connectionStatus = 'connected';
                 this.reconnectAttempts = 0;
                 this.updateConnectionStatus();
-                this.logger.addLogEntry('🔌 WebSocket connected successfully', 'info');
+                console.log('🔌 WebSocket connected successfully', 'info');
             };
 
             this.ws.onmessage = (event: MessageEvent) => {
@@ -51,7 +48,7 @@ export class WebSocketManager {
                 console.log('WebSocket disconnected');
                 this.connectionStatus = 'disconnected';
                 this.updateConnectionStatus();
-                this.logger.addLogEntry('🔌 WebSocket disconnected - attempting reconnect in 5s', 'warn');
+                console.log('🔌 WebSocket disconnected - attempting reconnect in 5s', 'warn');
                 
                 // Attempt to reconnect after delay
                 this.scheduleReconnect();
@@ -61,7 +58,7 @@ export class WebSocketManager {
                 console.error('WebSocket error:', error);
                 this.connectionStatus = 'error';
                 this.updateConnectionStatus();
-                this.logger.addLogEntry('❌ WebSocket error occurred - connection failed', 'error');
+                console.log('❌ WebSocket error occurred - connection failed', 'error');
             };
 
         } catch (error) {
@@ -69,7 +66,7 @@ export class WebSocketManager {
             console.error('Failed to create WebSocket connection:', error);
             this.connectionStatus = 'error';
             this.updateConnectionStatus();
-            this.logger.addLogEntry(`❌ WebSocket creation failed: ${errorMessage}`, 'error');
+            console.log(`❌ WebSocket creation failed: ${errorMessage}`, 'error');
         }
     }
 
@@ -78,12 +75,12 @@ export class WebSocketManager {
             setTimeout(() => {
                 if (this.connectionStatus === 'disconnected') {
                     this.reconnectAttempts++;
-                    this.logger.addLogEntry(`🔄 Attempting WebSocket reconnection (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
+                    console.log(`🔄 Attempting WebSocket reconnection (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
                     this.connect();
                 }
             }, this.reconnectDelay);
         } else {
-            this.logger.addLogEntry('❌ Max reconnection attempts reached. Please refresh the page.', 'error');
+            console.log('❌ Max reconnection attempts reached. Please refresh the page.', 'error');
         }
     }
 
@@ -91,16 +88,16 @@ export class WebSocketManager {
         console.log(message);
         switch (message.type) {
             case 'controller_state':
-                this.logger.addLogEntry(`📊 Controller state update - Status: ${message.data.status}`, 'info');
+                console.log(`📊 Controller state update - Status: ${message.data.status}`, 'info');
                 break;
             case 'current_metrics':
-                this.logger.addLogEntry(`📈 Current metrics update - Load: ${((message.data.loadPower || 0) / 1000).toFixed(2)}kW, Grid: ${((message.data.gridPower || 0) / 1000).toFixed(2)}kW`, 'info');
+                console.log(`📈 Current metrics update - Load: ${((message.data.loadPower || 0) / 1000).toFixed(2)}kW, Grid: ${((message.data.gridPower || 0) / 1000).toFixed(2)}kW`, 'info');
                 break;
             case 'live_update':
-                this.logger.addLogEntry(`🔄 Live update received - Controller & Metrics`, 'info');
+                console.log(`🔄 Live update received - Controller & Metrics`, 'info');
                 break;
             default:
-                this.logger.addLogEntry(`⚠️ Unknown message type: ${JSON.stringify(message)}`, 'warn');
+                console.log(`⚠️ Unknown message type: ${JSON.stringify(message)}`, 'warn');
                 break;
         }
 

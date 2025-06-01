@@ -604,6 +604,39 @@ body {
     border-left: 4px solid #2196F3;
 }
 
+/* Comparison value styles */
+.comparison-value {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.expected-value {
+    color: #666;
+}
+
+.actual-value {
+    font-weight: 500;
+    color: #333;
+}
+
+.percentage-change {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 3px;
+    border-radius: 2px;
+    margin-left: 2px;
+}
+
+.positive-change {
+    color: #2e7d32;
+    background-color: #e8f5e8;
+}
+
+.negative-change {
+    color: #c62828;
+    background-color: #ffebee;
+}
+
 /* Charts Section Layout */
 #schedule-charts {
     display: grid;

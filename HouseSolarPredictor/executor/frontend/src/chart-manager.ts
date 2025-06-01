@@ -1,908 +1,135 @@
-import {
-    Chart,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    LineController,
-    BarController,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-    TimeScale,
-    ChartOptions,
-    ChartType, ChartData, Filler
-} from 'chart.js';
-import 'chartjs-adapter-date-fns';
-import annotationPlugin from 'chartjs-plugin-annotation';
-
-import { Logger } from './logger';
-import { DataProcessor } from './data-processor';
-import { ChartDataPoint } from './types';
-import {MetricInstance} from "@shared";
-import {ChartConfiguration} from "chart.js/dist/types";
-import {FrontEndTimeSegment, Schedule} from "./types/front-end-time-segment";
-
-// Register Chart.js components
-Chart.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    LineController,
-    BarController,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-    TimeScale,
-    annotationPlugin,
-    Filler
-);
-interface ModeAnnotation {
-    type: 'box';
-    xMin: Date;
-    xMax: Date;
-    backgroundColor: string;
-    borderWidth: number;
-    drawTime: 'beforeDatasetsDraw';
-    label: {
-        display: boolean;
-        content: string;
-    };
-}
-
-interface CostCalculator {
-    name: string;
-    id: string;
-    calculate: (segment: FrontEndTimeSegment) => number;
-}
+import { ChartRegistry, CostChart } from './charts';
+import { MetricInstance } from '@shared';
+import { Schedule } from './types/front-end-time-segment';
+import {DataProcessor} from "./data-processor";
 
 export class ChartManager {
-    private readonly logger: Logger;
-    private readonly dataProcessor: DataProcessor;
-    private charts: Map<string, Chart<any, any, any>> = new Map();
-    private lastUpdateTime: number = 0;
-    private readonly updateThrottleMs: number = 500; // 1 second throttle
-    private costCalculators: CostCalculator[] = [
-        {
-            name: 'Actual Schedule Cost',
-            id: 'schedule-cost',
-            calculate: (segment: FrontEndTimeSegment) => segment.cost || 0
-        },
-        {
-            name: 'No Battery/Solar Cost',
-            id: 'no-battery-solar-cost',
-            calculate: (segment: FrontEndTimeSegment) => {
-                // Cost if using no battery or solar (Load times grid price)
-                const loadKwh = segment.expectedConsumption;
-                const pricePerKwh = segment.gridPrice; // Convert pence to pounds
-                return loadKwh * pricePerKwh;
-            }
-        },
-        {
-            name: 'Fixed Price (29.4p/kWh)',
-            id: 'fixed-price-cost',
-            calculate: (segment: FrontEndTimeSegment) => {
-                // Cost if on fixed price of 29.4p per unit
-                const loadKwh = segment.expectedConsumption;
-                const fixedPricePerKwh = 0.294;
-                return loadKwh * fixedPricePerKwh;
-            }
-        },
-        {
-            name: 'Time-based Tariff (6.7p/27.03p)',
-            id: 'time-based-cost',
-            calculate: (segment: FrontEndTimeSegment) => {
-                // Cost based on time: 00:00-07:00 = 6.7p, other times = 27.03p
-                const segmentStart = segment.time.segmentStart;
-                const hour = segmentStart.toZonedDateTimeISO('Europe/London').hour;
-                
-                const loadKwh = segment.expectedConsumption;
-                const isNightRate = hour >= 0 && hour < 7; // 00:00-07:00
-                const pricePerKwh = isNightRate ? 0.067 : 0.2703; // Convert pence to pounds
-                
-                return loadKwh * pricePerKwh;
-            }
-        }
-    ];
+    private readonly chartRegistry: ChartRegistry;
 
-    constructor(logger: Logger, dataProcessor: DataProcessor) {
-        this.logger = logger;
-        this.dataProcessor = dataProcessor;
+    constructor(private dataProcessor: DataProcessor) {
+        this.chartRegistry = new ChartRegistry();
     }
 
     initializeCharts(): void {
-        this.logger.addLogEntry('📊 Initializing Chart.js charts...', 'info');
+        console.log('📊 Initializing Chart.js charts...', 'info');
         
         try {
-            this.initializeRealtimeChart();
-            this.initializeChargeChart();
-            this.initializeCostChart();
-            this.initializeEstimatedCostChart();
-            this.initializeModeTimelineChart();
-            this.initializeBatteryScheduleChart();
-            this.initializeGridPricingChart();
-            this.initializePowerFlowChart();
-            this.initializeSolarComparisonChart();
-            
-            this.logger.addLogEntry('✅ All charts initialized successfully', 'info');
+            this.chartRegistry.initializeAllCharts();
+            console.log('✅ All charts initialized successfully', 'info');
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.addLogEntry(`❌ Chart initialization failed: ${errorMessage}`, 'error');
+            console.log(`❌ Chart initialization failed: ${errorMessage}`, 'error');
             throw error;
         }
     }
 
-    private initializeRealtimeChart(): void {
-        const canvas = document.getElementById('realtime-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [
-                    {
-                        label: 'Load Power (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Grid Power (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Battery Power (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 205, 86)',
-                        backgroundColor: 'rgba(255, 205, 86, 0.2)',
-                        tension: 0.1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                minute: 'HH:mm',
-                                hour: 'HH:mm'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Power (kW)'
-                        }
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Real-time Power Metrics'
-                    },
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('realtime', chart);
-    }
-
-    private initializeChargeChart(): void {
-        const canvas = document.getElementById('charge-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config: {
-            type: 'line';
-            data: ChartData<'line', ChartDataPoint[]>;
-            options: ChartOptions<'line'>;
-        } = {
-            type: 'line',
-            data: {
-                datasets: [
-                    {
-                        label: 'Expected Battery Level (kWh)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderDash: [5, 5],
-                        tension: 0.1,
-                        pointRadius: 1
-                    },
-                    {
-                        label: 'Actual Battery Level (kWh)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(153, 102, 255)',
-                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                        tension: 0.1,
-                        pointRadius: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                minute: 'HH:mm',
-                                hour: 'HH:mm'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Battery Level (kWh)'
-                        },
-                        min: 0,
-                        max: 12
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Expected vs Actual Battery Charge'
-                    }
-                }
-            }
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('charge', chart);
-    }
-
-    private initializeCostChart(): void {
-        const canvas = document.getElementById('cost-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config = {
-            type: 'bar' as ChartType,
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Grid Usage Cost (£)',
-                    data: [],
-                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                    borderColor: 'rgba(255, 159, 64, 1)',
-                    borderWidth: 1,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Cost (£)'
-                        }
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Grid Usage Cost'
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('cost', chart);
-    }
-
-    private initializeEstimatedCostChart(): void {
-        const canvas = document.getElementById('estimated-cost-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [{
-                    label: 'Estimated Cost (£)',
-                    data: [] as ChartDataPoint[],
-                    borderColor: 'rgb(220, 53, 69)',
-                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                    tension: 0.1,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                hour: 'HH:mm'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Cost (£)'
-                        }
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Estimated Schedule Cost Over Time'
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('estimated-cost', chart);
-    }
-
-    private initializeModeTimelineChart(): void {
-        const canvas = document.getElementById('mode-timeline-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [
-                    {
-                        label: 'Planned Mode',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        stepped: true
-                    },
-                    {
-                        label: 'Actual Mode',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        stepped: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                hour: 'HH:mm'
-                            }
-                        }
-                    },
-                    y: {
-                        min: 0,
-                        max: 4,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value) {
-                                const modes = ['Unknown', 'Discharge', 'Solar Only', 'Grid + Solar'];
-                                return modes[value as number] || value;
-                            }
-                        }
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('mode-timeline', chart);
-    }
-
-    private initializeBatteryScheduleChart(): void {
-        const canvas = document.getElementById('battery-schedule-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [{
-                    label: 'Scheduled Battery Level (kWh)',
-                    data: [] as ChartDataPoint[],
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                hour: 'HH:mm'
-                            }
-                        },
-                        pointLabels: false
-                    },
-                    y: {
-                        min: 0,
-                        max: 12,
-                        title: {
-                            display: true,
-                            text: 'Battery Level (kWh)'
-                        }
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('battery-schedule', chart);
-    }
-
-    private initializeGridPricingChart(): void {
-        const canvas = document.getElementById('grid-pricing-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [{
-                    label: 'Grid Price (£/kWh)',
-                    data: [] as ChartDataPoint[],
-                    borderColor: 'rgb(220, 53, 69)',
-                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                    stepped: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                hour: 'HH:mm'
-                            }
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Price (£/kWh)'
-                        }
-                    }
-                },
-                plugins: {
-                    annotation: {
-                        annotations: {}
-                    }
-                }
-            } as ChartOptions
-        };
-
-
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('grid-pricing', chart);
-    }
-
-    createModeAnnotations(scheduleData: Schedule): Record<string, ModeAnnotation> {
-        if (!Array.isArray(scheduleData)) return {};
-
-        const annotations:Record<string, ModeAnnotation> = {};
-        const modeColors: Record<string, string> = {
-            'ChargeFromGridAndSolar': 'rgba(33, 150, 243, 0.2)', // Blue
-            'ChargeSolarOnly': 'rgba(255, 193, 7, 0.2)',         // Yellow
-            'Discharge': 'rgba(76, 175, 80, 0.2)'                // Green
-        };
-
-        const modeLabels: Record<string, string> = {
-            'ChargeFromGridAndSolar': 'Charge Grid + Solar',
-            'ChargeSolarOnly': 'Charge Solar Only',
-            'Discharge': 'Discharge'
-        };
-
-        scheduleData.forEach((segment, index) => {
-            const startTime = segment.time.segmentStart;
-            const endTime = segment.time.segmentEnd;
-            const mode = segment.mode;
-            const color = modeColors[mode] || 'rgba(128, 128, 128, 0.2)';
-            const label = modeLabels[mode] || mode;
-
-            annotations[`mode_${index}`] = {
-                type: 'box',
-                xMin: new Date(startTime.epochMilliseconds),
-                xMax: new Date(endTime.epochMilliseconds),
-                backgroundColor: color,
-                borderWidth: 0,
-                drawTime: 'beforeDatasetsDraw',
-                label: {
-                    display: false,
-                    content: label
-                }
-            };
-        });
-
-        return annotations;
-    }
-
-    private initializePowerFlowChart(): void {
-        const canvas = document.getElementById('power-flow-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config: ChartConfiguration = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [
-                    {
-                        label: 'Load (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        tension: 0.5
-                    },
-                    {
-                        label: 'Grid (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)'
-                    },
-                    {
-                        label: 'Solar (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 205, 86)',
-                        backgroundColor: 'rgba(255, 205, 86, 0.2)',
-                        tension: 0.5
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                hour: 'HH:mm'
-                            }
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Power (kW)'
-                        }
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('power-flow', chart);
-    }
-
-    private initializeSolarComparisonChart(): void {
-        const canvas = document.getElementById('solar-comparison-chart') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        const config: ChartConfiguration = {
-            type: 'line' as ChartType,
-            data: {
-                datasets: [
-                    {
-                        label: 'Actual Solar Power (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 193, 7)',
-                        backgroundColor: 'rgba(255, 193, 7, 0.2)',
-                        tension: 0.1,
-                        pointRadius: 2
-                    },
-                    {
-                        label: 'Scheduled Solar Power (kW)',
-                        data: [] as ChartDataPoint[],
-                        borderColor: 'rgb(255, 152, 0)',
-                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
-                        borderDash: [5, 5],
-                        tension: 0.1,
-                        pointRadius: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            displayFormats: {
-                                hour: 'HH:mm'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Power (kW)'
-                        },
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Solar Power: Actual vs Scheduled'
-                    },
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                }
-            } as ChartOptions
-        };
-
-        const chart = new Chart(canvas, config);
-        this.charts.set('solar-comparison', chart);
-    }
-
-    updateMetricsChart(metrics: MetricInstance[]): void {
-        const chart = this.charts.get('realtime');
-        if (!chart || !metrics.length) return;
-
-        const loadData = metrics.map(m => ({ x: m.timestamp, y: m.loadPower / 1000 }));
-        const gridData = metrics.map(m => ({ x: m.timestamp, y: m.gridPower / 1000 }));
-        const batteryData = metrics.map(m => ({ x: m.timestamp, y: m.batteryPower / 1000 }));
-
-        chart.data.datasets[0]!.data = loadData;
-        chart.data.datasets[1]!.data = gridData;
-        chart.data.datasets[2]!.data = batteryData;
-
-        chart.update('none');
-    }
-
     updateHistoricCharts(scheduleData: Schedule, metrics: MetricInstance[]): void {
-        this.updateModeTimelineChart(scheduleData, metrics);
-        this.updateBatteryScheduleChart(scheduleData);
-        this.updateGridPricingChart(scheduleData);
-        this.updatePowerFlowChart(scheduleData);
-        this.updateSolarComparisonChart(scheduleData, metrics);
-        this.updateEstimatedCostChart(scheduleData);
-        this.updateScheduleTable(scheduleData);
+        if (!this.shouldUpdateCharts()) {
+            console.warn('Chart update throttled - skipping update');
+            return;
+        }
+
+        const historicalCharts = this.chartRegistry.getHistoricalCharts();
+        const limitedHistoricMetrics = this.dataProcessor.limitDataPoints(metrics, 1000);
+
+        historicalCharts.forEach(chart => {
+            try {
+                console.time(`Updating chart ${chart.chartId}`);
+                chart.processData(limitedHistoricMetrics, scheduleData);
+                chart.updateChart();
+                console.timeEnd(`Updating chart ${chart.chartId}`);
+            } catch (error) {
+                console.error(`Failed to update chart ${chart.chartId}:`, error);
+            }
+        });
+
+        console.time('Updating schedule table');
+        // Update schedule table with metrics for comparison
+        this.updateScheduleTable(scheduleData, metrics);
+        console.timeEnd('Updating schedule table');
     }
 
-    updateExpectedVsActualBatteryChargeChart(metrics: MetricInstance[], schedule: Schedule): void {
-        const chart = this.charts.get('charge');
-        if (!chart) return;
+    updateCurrentCharts(limitedCurrentMetrics: MetricInstance[], currentSchedule: Schedule): void {
+        if (!this.shouldUpdateCharts()) return;
 
-        const actualData = metrics.map(m => {
-            if(Number.isNaN(m.batteryCapacity)) {
-                throw new Error(`Invalid battery capacity: ${m.batteryCapacity} for timestamp ${m.timestamp}`);
-            }
-            if(Number.isNaN(m.batteryChargePercent)) {
-                throw new Error(`Invalid battery charge: ${m.batteryCapacity} for timestamp ${m.timestamp}`);
-            }
-            let y = m.batteryChargePercent / 100 * m.batteryCapacity;
-            if(Number.isNaN(y)) {
-                throw new Error(`Calculated battery charge is NaN for timestamp ${m.timestamp}`);
-            }
-            return ({x: m.timestamp, y: y});
-        });
+        const currentCharts = this.chartRegistry.getCurrentCharts();
         
-        let expectedData: ChartDataPoint[] = [];
-        expectedData = schedule.map(m => {
-            let time = m.time.segmentStart.epochMilliseconds;
-            return ({
-                x: time,
-                y: m.endBatteryChargeKwh
-            });
+        currentCharts.forEach(chart => {
+            try {
+                chart.processData(limitedCurrentMetrics, currentSchedule);
+                chart.updateChart();
+            } catch (error) {
+                console.error(`Failed to update chart ${chart.chartId}:`, error);
+            }
         });
-
-        chart.data.datasets[0]!.data = expectedData;
-        chart.data.datasets[1]!.data = actualData;
-
-        console.log('Charge vs Actual Data:', { expectedData, actualData });
-
-        chart.update('none');
     }
 
     updateCostChart(totalCost: number): void {
-        const chart = this.charts.get('cost');
-        if (!chart) return;
-
-        chart.data.labels = ['Today'];
-        chart.data.datasets[0]!.data = [{x: Date.now(), y: totalCost}];
-
-        chart.update('none');
+        const costChart = this.chartRegistry.getChart('cost') as CostChart;
+        if (costChart) {
+            costChart.updateCost(totalCost);
+        }
     }
 
-    private updateModeTimelineChart(scheduleData: Schedule, metrics: MetricInstance[]): void {
-        const chart = this.charts.get('mode-timeline');
-        if (!chart) return;
-
-        const modeData = this.dataProcessor.processModeTimelineData(scheduleData, metrics);
-        
-        chart.data.datasets[0]!.data = modeData.planned;
-        chart.data.datasets[1]!.data = modeData.actual;
-
-        chart.update('none');
+    shouldUpdateCharts(): boolean {
+        return true;
     }
 
-    private updateBatteryScheduleChart(scheduleData: Schedule): void {
-        const chart = this.charts.get('battery-schedule');
-        if (!chart) return;
-
-        const batteryData = this.dataProcessor.processBatteryScheduleData(scheduleData);
-        chart.data.datasets[0]!.data = batteryData;
-
-        chart.update('none');
+    destroy(): void {
+        this.chartRegistry.destroyAllCharts();
     }
 
-    private updateGridPricingChart(scheduleData: Schedule): void {
-        const chart = this.charts.get('grid-pricing');
-        if (!chart) return;
-
-        const pricingData = this.dataProcessor.processGridPricingData(scheduleData);
-        chart.data.datasets[0]!.data = pricingData;
-
-        const annotations = this.createModeAnnotations(scheduleData);
-        chart.options.plugins.annotation = {
-            annotations: annotations
-        };
-
-        chart.update('none');
+    // Legacy methods for backward compatibility
+    updateMetricsChart(metrics: MetricInstance[]): void {
+        const realtimeChart = this.chartRegistry.getChart('realtime');
+        if (realtimeChart) {
+            realtimeChart.processData(metrics, []);
+            realtimeChart.updateChart();
+        }
     }
 
-    private updatePowerFlowChart(scheduleData: Schedule): void {
-        const chart = this.charts.get('power-flow');
-        if (!chart) return;
-
-        const powerFlowData = this.dataProcessor.processPowerFlowData(scheduleData);
-        
-        chart.data.datasets[0]!.data = powerFlowData.load;
-        chart.data.datasets[1]!.data = powerFlowData.grid;
-        chart.data.datasets[2]!.data = powerFlowData.solar;
-
-        chart.update('none');
+    updateExpectedVsActualBatteryChargeChart(metrics: MetricInstance[], schedule: Schedule): void {
+        const chargeChart = this.chartRegistry.getChart('charge');
+        if (chargeChart) {
+            chargeChart.processData(metrics, schedule);
+            chargeChart.updateChart();
+        }
     }
 
-    private updateSolarComparisonChart(scheduleData: Schedule, metrics: MetricInstance[]): void {
-        const chart = this.charts.get('solar-comparison');
-        if (!chart) return;
-
-        const solarComparisonData = this.dataProcessor.processSolarComparisonData(scheduleData, metrics);
-        
-        chart.data.datasets[0]!.data = solarComparisonData.actual;
-        chart.data.datasets[1]!.data = solarComparisonData.scheduled;
-
-        chart.update('none');
-    }
-
-    private updateEstimatedCostChart(scheduleData: Schedule): void {
-        const chart = this.charts.get('estimated-cost');
-        if (!chart) return;
-
-        // Use the first calculator (actual schedule cost) for the chart display
-        const primaryCalculator = this.costCalculators[0]!;
-        
-        const costData: ChartDataPoint[] = [];
-
-        scheduleData.forEach(segment => {
-            const segmentCost = primaryCalculator.calculate(segment);
-            costData.push({
-                x: segment.time.segmentStart.epochMilliseconds,
-                y: segmentCost
-            });
-            costData.push({
-                x: segment.time.segmentEnd.epochMilliseconds,
-                y: segmentCost
-            });
-        });
-
-        chart.data.datasets[0]!.data = costData;
-
-        // Calculate and display all cost types
-        this.updateCostCalculations(scheduleData);
-
-        chart.update('none');
-    }
-
-    private updateCostCalculations(scheduleData: Schedule): void {
-        const costCalculationsContainer = document.getElementById('cost-calculations');
-        if (!costCalculationsContainer) return;
-
-        // Clear existing calculations
-        costCalculationsContainer.innerHTML = '';
-
-        // Calculate totals for each calculator
-        this.costCalculators.forEach(calculator => {
-            let totalCost = 0;
-            
-            scheduleData.forEach(segment => {
-                totalCost += calculator.calculate(segment);
-            });
-
-            // Create cost item element
-            const costItem = document.createElement('div');
-            costItem.className = 'cost-item';
-            costItem.innerHTML = `
-                <span class="cost-label">${calculator.name}:</span>
-                <span class="cost-value" id="${calculator.id}">£${totalCost.toFixed(2)}</span>
-            `;
-            
-            costCalculationsContainer.appendChild(costItem);
-        });
-    }
-
-    private updateScheduleTable(scheduleData: Schedule): void {
+    private updateScheduleTable(scheduleData: Schedule, metrics: MetricInstance[]): void {
         const tableBody = document.getElementById('schedule-table-body');
         if (!tableBody) return;
 
-        // Clear existing rows
         tableBody.innerHTML = '';
 
         scheduleData.forEach((segment) => {
             const row = document.createElement('tr');
             
-            // Format time period
             const startTime = segment.time.segmentStart.toZonedDateTimeISO('Europe/London');
             const endTime = segment.time.segmentEnd.toZonedDateTimeISO('Europe/London');
             const timePeriod = `${startTime.toPlainTime().toString().slice(0, 5)} - ${endTime.toPlainTime().toString().slice(0, 5)}`;
             
-            // Format mode with styling
             const modeClass = this.getModeClass(segment.mode);
             const modeDisplay = this.getModeDisplayName(segment.mode);
             const segmentIsNow = segment.time.segmentStart.epochMilliseconds <= Date.now() && segment.time.segmentEnd.epochMilliseconds >= Date.now();
             if (segmentIsNow) {
                 row.classList.add('current-segment');
             }
+
+            // Get actual values from metrics for this time segment
+            const actualValues = this.getActualValuesForSegment(segment, metrics);
+            
             row.innerHTML = `
                 <td class="time-cell">${timePeriod}</td>
                 <td class="mode-cell ${modeClass}">${modeDisplay}</td>
                 <td class="number-cell">£${segment.gridPrice.toFixed(3)}</td>
-                <td class="number-cell">${segment.expectedSolarGeneration.toFixed(2)}</td>
+                <td class="number-cell">${this.formatComparisonValue(segment.expectedSolarGeneration, actualValues.avgSolar, 'solar')}</td>
                 <td class="number-cell">${segment.expectedConsumption.toFixed(2)}</td>
-                <td class="number-cell">${segment.startBatteryChargeKwh.toFixed(2)}</td>
-                <td class="number-cell">${segment.endBatteryChargeKwh.toFixed(2)}</td>
-                <td class="number-cell">${segment.actualGridUsage.toFixed(2)}</td>
+                <td class="number-cell">${this.formatComparisonValue(segment.startBatteryChargeKwh, actualValues.startBattery, 'start-battery')}</td>
+                <td class="number-cell">${this.formatComparisonValue(segment.endBatteryChargeKwh, actualValues.endBattery, 'end-battery')}</td>
+                <td class="number-cell">${this.formatComparisonValue(segment.actualGridUsage, actualValues.avgGridUsage, 'grid')}</td>
                 <td class="number-cell">${segment.wastedSolarGeneration.toFixed(2)}</td>
-                <td class="cost-cell">£${segment.cost.toFixed(3)}</td>
+                <td class="cost-cell">${this.formatComparisonValue(segment.cost, actualValues.actualCost, 'cost')}</td>
             `;
             
             tableBody.appendChild(row);
@@ -935,22 +162,110 @@ export class ChartManager {
         }
     }
 
-    shouldUpdateCharts(): boolean {
-        const now = Date.now();
-        if (now - this.lastUpdateTime < this.updateThrottleMs) {
-            return false;
+    private getActualValuesForSegment(segment: any, metrics: MetricInstance[]): {
+        avgSolar: number | null;
+        avgGridUsage: number | null;
+        startBattery: number | null;
+        endBattery: number | null;
+        actualCost: number | null;
+    } {
+        const startMs = segment.time.segmentStart.epochMilliseconds;
+        const endMs = segment.time.segmentEnd.epochMilliseconds;
+        
+        // Filter metrics within the segment time range
+        const segmentMetrics = metrics.filter(metric =>
+            metric.timestamp >= startMs && metric.timestamp <= endMs
+        );
+
+        if (segmentMetrics.length === 0) {
+            return {
+                avgSolar: null,
+                avgGridUsage: null,
+                startBattery: null,
+                endBattery: null,
+                actualCost: null
+            };
         }
-        this.lastUpdateTime = now;
-        return true;
+
+        // Calculate averages for solar and grid usage
+        const avgSolar = segmentMetrics.reduce((sum, m) => sum + m.solarPower, 0) / segmentMetrics.length;
+        const avgGridUsage = segmentMetrics.reduce((sum, m) => sum + Math.abs(m.gridPower), 0) / segmentMetrics.length;
+
+        // Find closest metrics to start and end times for battery values
+        const startBatteryMetric = this.findClosestMetric(segmentMetrics, startMs);
+        const endBatteryMetric = this.findClosestMetric(segmentMetrics, endMs);
+
+        // Convert battery percentage to kWh
+        const startBattery = startBatteryMetric ?
+            (startBatteryMetric.batteryChargePercent / 100) * startBatteryMetric.batteryCapacity : null;
+        const endBattery = endBatteryMetric ?
+            (endBatteryMetric.batteryChargePercent / 100) * endBatteryMetric.batteryCapacity : null;
+
+        // Calculate actual cost based on actual grid usage and grid price
+        const avgGridUsageKwh = avgGridUsage / 1000; // Convert W to kWh for 30min segments
+        const actualCost = avgGridUsageKwh * segment.gridPrice;
+
+        return {
+            avgSolar: avgSolar / 1000, // Convert W to kW, then assume 30min segments for kWh
+            avgGridUsage: avgGridUsageKwh,
+            startBattery,
+            endBattery,
+            actualCost
+        };
     }
 
-    destroy(): void {
-        this.charts.forEach(chart => chart.destroy());
-        this.charts.clear();
+    private findClosestMetric(metrics: MetricInstance[], targetTime: number): MetricInstance | null {
+        if (metrics.length === 0) return null;
+        
+        return metrics.reduce((closest, current) => {
+            const currentDiff = Math.abs(current.timestamp - targetTime);
+            const closestDiff = Math.abs(closest.timestamp - targetTime);
+            return currentDiff < closestDiff ? current : closest;
+        });
     }
 
-    updateCurrentCharts(limitedCurrentMetrics: MetricInstance[], currentSchedule: FrontEndTimeSegment[]) {
-        this.updateExpectedVsActualBatteryChargeChart(limitedCurrentMetrics, currentSchedule);
-        this.updateMetricsChart(limitedCurrentMetrics);
+    private formatComparisonValue(expected: number, actual: number | null, type: string): string {
+        if (actual === null) {
+            return type === 'cost' ? `£${expected.toFixed(3)}` : expected.toFixed(2);
+        }
+
+        const difference = actual - expected;
+        const percentChange = expected !== 0 ? (difference / expected) * 100 : 0;
+        const percentStr = percentChange >= 0 ? `+${percentChange.toFixed(0)}%` : `${percentChange.toFixed(0)}%`;
+        
+        const colorClass = this.getComparisonColorClass(difference, type);
+        
+        if (type === 'cost') {
+            return `<span class="comparison-value">
+                <span class="expected-value">£${expected.toFixed(3)}</span>
+                <span class="actual-value"> - £${actual.toFixed(3)}</span>
+                <span class="percentage-change ${colorClass}"> (${percentStr})</span>
+            </span>`;
+        }
+        
+        return `<span class="comparison-value">
+            <span class="expected-value">${expected.toFixed(2)}</span>
+            <span class="actual-value"> - ${actual.toFixed(2)}</span>
+            <span class="percentage-change ${colorClass}"> (${percentStr})</span>
+        </span>`;
+    }
+
+    private getComparisonColorClass(difference: number, type: string): string {
+        const isPositive = difference > 0;
+        
+        switch (type) {
+            case 'grid':
+                return isPositive ? 'negative-change' : 'positive-change'; // + grid usage is bad (red), - is good (green)
+            case 'solar':
+                return isPositive ? 'positive-change' : 'negative-change'; // + solar is good (green), - is bad (red)
+            case 'start-battery':
+                return isPositive ? 'positive-change' : 'negative-change'; // + battery is good (green), - is bad (red)
+            case 'end-battery':
+                return isPositive ? 'positive-change' : 'negative-change'; // + battery is good (green), - is bad (red)
+            case 'cost':
+                return isPositive ? 'negative-change' : 'positive-change'; // + cost is bad (red), - cost is good (green)
+            default:
+                return '';
+        }
     }
 }

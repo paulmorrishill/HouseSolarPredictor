@@ -1,16 +1,13 @@
 import { Temporal } from '@js-temporal/polyfill';
-import { Logger } from './logger';
 import { DataProcessor } from './data-processor';
 import {FrontEndTimeSegment, Schedule} from "./types/front-end-time-segment";
 
 export class ScheduleManager {
-    private readonly logger: Logger;
     private readonly dataProcessor: DataProcessor;
     private schedule: Schedule = [];
     private scheduleUpdateTimer: number | null = null;
 
-    constructor(logger: Logger, dataProcessor: DataProcessor) {
-        this.logger = logger;
+    constructor(dataProcessor: DataProcessor) {
         this.dataProcessor = dataProcessor;
     }
 
@@ -43,7 +40,7 @@ export class ScheduleManager {
             return acc;
         }, [] as FrontEndTimeSegment[]);
 
-        this.logger.addLogEntry("Updating schedule info segments: " + schedule.length, 'info');
+        console.log("Updating schedule info segments: " + schedule.length, 'info');
         this.schedule = schedule;
         if (schedule.length > 0) {
             const firstBlock = schedule[0] as any;

@@ -26,7 +26,7 @@ export class MqttService {
     WORK_MODE_STATE: "solar_assistant/inverter_1/work_mode_priority/state",
     LOAD_POWER_STATE: "solar_assistant/inverter_1/load_power/state",
     GRID_POWER_STATE: "solar_assistant/inverter_1/grid_power/state",
-    BATTERY_POWER_STATE: "solar_assistant/battery_1/power/state",
+    BATTERY_POWER_STATE: "solar_assistant/total/battery_power/state",
     BATTERY_CURRENT_STATE: "solar_assistant/battery_1/current/state",
     BATTERY_CHARGE_STATE: "solar_assistant/battery_1/state_of_charge/state",
     BATTERY_CAPACITY_STATE: "solar_assistant/battery_1/capacity/state",

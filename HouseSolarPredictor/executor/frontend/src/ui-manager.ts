@@ -1,13 +1,10 @@
-import { Logger } from './logger';
 import {MetricInstance, SerializedControllerState} from "@shared";
 import {UICallbacks} from "./types";
 import { Temporal } from '@js-temporal/polyfill';
 
 export class UIManager {
-    private readonly logger: Logger;
 
-    constructor(logger: Logger) {
-        this.logger = logger;
+    constructor() {
     }
 
     private updateElement(id: string, value: string): void {
@@ -18,7 +15,7 @@ export class UIManager {
     }
 
     updateControllerState(state: SerializedControllerState): void {
-        this.logger.addLogEntry(`🔄 Updating controller state - Status: ${state.status}, Mode: ${state.desiredWorkMode}`, 'info');
+        console.log(`🔄 Updating controller state - Status: ${state.status}, Mode: ${state.desiredWorkMode}`, 'info');
         
         // Update status indicator
         const statusIndicator = document.getElementById('status-indicator');
@@ -32,7 +29,7 @@ export class UIManager {
             statusMessage.textContent = state.message;
             
             if (status === 'red') {
-                this.logger.addLogEntry('⚠️ System status is RED - manual intervention may be required', 'warn');
+                console.log('⚠️ System status is RED - manual intervention may be required', 'warn');
             }
         }
 
@@ -51,7 +48,7 @@ export class UIManager {
                                    state.actualWorkMode !== state.desiredWorkMode;
             if (workModeMismatch) {
                 desiredModeElement.classList.add('mismatch');
-                this.logger.addLogEntry(`⚠️ Work mode mismatch - Desired: ${state.desiredWorkMode}, Actual: ${state.actualWorkMode}`, 'warn');
+                console.log(`⚠️ Work mode mismatch - Desired: ${state.desiredWorkMode}, Actual: ${state.actualWorkMode}`, 'warn');
             } else {
                 desiredModeElement.classList.remove('mismatch');
             }
@@ -65,7 +62,7 @@ export class UIManager {
                                      state.actualChargeRate !== state.desiredChargeRate;
             if (chargeRateMismatch) {
                 desiredChargeRateElement.classList.add('mismatch');
-                this.logger.addLogEntry(`⚠️ Charge rate mismatch - Desired: ${state.desiredChargeRate}%, Actual: ${state.actualChargeRate}%`, 'warn');
+                console.log(`⚠️ Charge rate mismatch - Desired: ${state.desiredChargeRate}%, Actual: ${state.actualChargeRate}%`, 'warn');
             } else {
                 desiredChargeRateElement.classList.remove('mismatch');
             }
@@ -86,7 +83,7 @@ export class UIManager {
         const remainingBatteryKwh = ((metrics.batteryChargePercent/100) *metrics.batteryCapacity).toFixed(1);
         const remainingBatteryPercentage = metrics.batteryChargePercent.toFixed(1); // Assuming 10kWh max capacity
 
-        this.logger.addLogEntry(`📈 Metrics update - Load: ${loadKw}kW, Grid: ${gridKw}kW, Battery: ${batteryKw}kW, Current: ${batteryCurrent}A, Remaining: ${remainingBatteryKwh}kWh`, 'info');
+        console.log(`📈 Metrics update - Load: ${loadKw}kW, Grid: ${gridKw}kW, Battery: ${batteryKw}kW, Current: ${batteryCurrent}A, Remaining: ${remainingBatteryKwh}kWh`, 'info');
         
         // Convert watts to kilowatts for display
         this.updateElement('load-power', `${loadKw} kW`);
@@ -97,10 +94,10 @@ export class UIManager {
 
         // Log significant power events
         if (Math.abs(metrics.gridPower || 0) > 5000) { // > 5kW
-            this.logger.addLogEntry(`⚡ High grid power detected: ${gridKw}kW`, 'warn');
+            console.log(`⚡ High grid power detected: ${gridKw}kW`, 'warn');
         }
         if (Math.abs(metrics.batteryPower || 0) > 3000) { // > 3kW
-            this.logger.addLogEntry(`🔋 High battery power detected: ${batteryKw}kW`, 'info');
+            console.log(`🔋 High battery power detected: ${batteryKw}kW`, 'info');
         }
     }
 
@@ -126,7 +123,7 @@ export class UIManager {
         const retryButton = document.getElementById('retry-button');
         if (retryButton && callbacks.onRetry) {
             retryButton.addEventListener('click', () => {
-                this.logger.addLogEntry('👤 User clicked retry button', 'info');
+                console.log('👤 User clicked retry button', 'info');
                 callbacks.onRetry();
             });
         }

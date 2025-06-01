@@ -81,6 +81,8 @@ export class DatabaseService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // console.log('Saving with solar power:', metric.solarPower);
+
     stmt.run(
       metric.timestamp,
       metric.batteryChargeRate ?? null,

@@ -148,7 +148,15 @@ export class InverterController {
     // load 4000
     // battery -1000
     // solar = 1000 = gridPower - loadPower + batteryPower
-    this.metricParts.solarPower = this.metricParts.gridPower! + this.metricParts.loadPower! + this.metricParts.batteryPower!;
+    this.metricParts.solarPower = this.metricParts.loadPower! - this.metricParts.gridPower! + this.metricParts.batteryPower!;
+
+    if (this.metricParts.solarPower < 0) {
+      this.metricParts.solarPower = 0; // Ensure solar power is not negative
+    }
+
+    if(this.metricParts.solarPower < 50){
+        this.metricParts.solarPower = 0; // Ignore small solar power readings
+    }
 
     if(!this.hasReceivedMqttData){
         this.logger.log("✅ First complete metric initialised from MQTT");
