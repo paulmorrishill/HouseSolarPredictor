@@ -52,10 +52,12 @@ class SolarInverterApp {
   async start(): Promise<void> {
     try {
       this.logger.log("Starting services...");
+      this.logger.logSignificant("SYSTEM_STARTUP_INITIATED");
       
       // Connect to MQTT broker
       this.logger.log("Connecting to MQTT broker...");
       await this.mqttService.connect();
+      this.logger.logSignificant("MQTT_CONNECTED");
       
       // Load schedule
       this.logger.log("Loading schedule...");
@@ -70,9 +72,15 @@ class SolarInverterApp {
       await this.startHttpServer();
       
       this.logger.log("Solar Inverter Control System started successfully!");
+      this.logger.logSignificant("SYSTEM_STARTUP_COMPLETE", {
+        httpPort: this.configService.getWebPort()
+      });
       
     } catch (error) {
       this.logger.logException(error as Error);
+      this.logger.logSignificant("SYSTEM_STARTUP_FAILED", {
+        error: (error as Error).message
+      });
       await this.shutdown();
       Deno.exit(1);
     }
@@ -230,6 +238,7 @@ class SolarInverterApp {
 
   async shutdown(): Promise<void> {
     this.logger.log("Shutting down Solar Inverter Control System...");
+    this.logger.logSignificant("SYSTEM_SHUTDOWN_INITIATED");
     
     try {
       // Stop services in reverse order
@@ -242,8 +251,12 @@ class SolarInverterApp {
       }
       
       this.logger.log("Shutdown complete");
+      this.logger.logSignificant("SYSTEM_SHUTDOWN_COMPLETE");
     } catch (error) {
       this.logger.logException(error as Error);
+      this.logger.logSignificant("SYSTEM_SHUTDOWN_ERROR", {
+        error: (error as Error).message
+      });
     }
   }
 }

@@ -54,6 +54,7 @@ export * from './estimated-cost-chart';
 export * from './realtime-metrics-chart';
 export * from './battery-charge-chart';
 export * from './cost-chart';
+export * from './mode-overlay-utils';
 
 export class ChartRegistry {
     private charts: Map<string, ChartProcessor> = new Map();

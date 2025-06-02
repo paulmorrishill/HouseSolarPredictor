@@ -3,19 +3,7 @@ import { BaseChartProcessor } from './chart-interface';
 import { ChartDataPoint } from '../types';
 import { MetricInstance } from '@shared';
 import { Schedule } from '../types/front-end-time-segment';
-
-interface ModeAnnotation {
-    type: 'box';
-    xMin: Date;
-    xMax: Date;
-    backgroundColor: string;
-    borderWidth: number;
-    drawTime: 'beforeDatasetsDraw';
-    label: {
-        display: boolean;
-        content: string;
-    };
-}
+import { createModeAnnotations, createModeLegend } from './mode-overlay-utils';
 
 export class GridPricingChart extends BaseChartProcessor {
     readonly chartId = 'grid-pricing';
@@ -64,12 +52,15 @@ export class GridPricingChart extends BaseChartProcessor {
         };
 
         this.chart = new Chart(canvas, config);
+        
+        // Create the mode legend
+        createModeLegend('grid-pricing-container');
     }
     
     processData(_metrics: MetricInstance[], schedule: Schedule): void {
         this.processedData = {
             pricingData: this.processGridPricingData(schedule),
-            annotations: this.createModeAnnotations(schedule)
+            annotations: createModeAnnotations(schedule)
         };
     }
     
@@ -103,43 +94,4 @@ export class GridPricingChart extends BaseChartProcessor {
         return data.sort((a, b) => (a.x as number) - (b.x as number));
     }
     
-    private createModeAnnotations(scheduleData: Schedule): Record<string, ModeAnnotation> {
-        if (!Array.isArray(scheduleData)) return {};
-
-        const annotations: Record<string, ModeAnnotation> = {};
-        const modeColors: Record<string, string> = {
-            'ChargeFromGridAndSolar': 'rgba(33, 150, 243, 0.2)',
-            'ChargeSolarOnly': 'rgba(255, 193, 7, 0.2)',
-            'Discharge': 'rgba(76, 175, 80, 0.2)'
-        };
-
-        const modeLabels: Record<string, string> = {
-            'ChargeFromGridAndSolar': 'Charge Grid + Solar',
-            'ChargeSolarOnly': 'Charge Solar Only',
-            'Discharge': 'Discharge'
-        };
-
-        scheduleData.forEach((segment, index) => {
-            const startTime = segment.time.segmentStart;
-            const endTime = segment.time.segmentEnd;
-            const mode = segment.mode;
-            const color = modeColors[mode] || 'rgba(128, 128, 128, 0.2)';
-            const label = modeLabels[mode] || mode;
-
-            annotations[`mode_${index}`] = {
-                type: 'box',
-                xMin: new Date(startTime.epochMilliseconds),
-                xMax: new Date(endTime.epochMilliseconds),
-                backgroundColor: color,
-                borderWidth: 0,
-                drawTime: 'beforeDatasetsDraw',
-                label: {
-                    display: false,
-                    content: label
-                }
-            };
-        });
-
-        return annotations;
-    }
 }

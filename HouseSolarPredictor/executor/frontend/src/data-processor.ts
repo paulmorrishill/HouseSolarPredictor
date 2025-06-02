@@ -3,6 +3,12 @@ import {MetricInstance, MetricList} from "@shared";
 import {Schedule} from "./types/front-end-time-segment";
 
 export class DataProcessor {
+    private lastCostCalculation: {
+        totalCost: number;
+        lastProcessedIndex: number;
+        lastMetricTimestamp: number;
+    } | null = null;
+    
     constructor() {
         // No dependencies needed for data processing
     }
@@ -120,36 +126,112 @@ export class DataProcessor {
     }
 
     calculateCost(metrics: MetricInstance[], schedule: Schedule): number {
-        // loop through metrics, calculate cost between each metric by time diff then multiple by grid price
         if (!Array.isArray(metrics) || metrics.length === 0) return 0;
         if (!Array.isArray(schedule) || schedule.length === 0) return 0;
         
-        let totalCost = 0;
-        let scheduleIndex = 0; // Track current position in schedule
+        // Check if we can use incremental calculation
+        if (this.lastCostCalculation && metrics.length > 0) {
+            const lastMetric = metrics[metrics.length - 1];
+            if (lastMetric && lastMetric.timestamp === this.lastCostCalculation.lastMetricTimestamp) {
+                // No new metrics, return cached result
+                return this.lastCostCalculation.totalCost;
+            }
+            
+            // Find where to start incremental calculation
+            const startIndex = this.findIncrementalStartIndex(metrics);
+            if (startIndex !== -1) {
+                return this.calculateIncrementalCost(metrics, schedule, startIndex);
+            }
+        }
         
-        for (let i = 0; i < metrics.length - 1; i++) {
-            const timestamp = metrics[i]!.timestamp;
+        // Full calculation for first time or when incremental fails
+        return this.calculateFullCost(metrics, schedule);
+    }
+    
+    private findIncrementalStartIndex(metrics: MetricInstance[]): number {
+        if (!this.lastCostCalculation) return -1;
+        
+        // Find the index where we left off
+        for (let i = this.lastCostCalculation.lastProcessedIndex; i < metrics.length; i++) {
+            const metric = metrics[i];
+            if (metric && metric.timestamp > this.lastCostCalculation.lastMetricTimestamp) {
+                return Math.max(0, i - 1); // Start from previous metric to ensure continuity
+            }
+        }
+        
+        return -1;
+    }
+    
+    private calculateIncrementalCost(metrics: MetricInstance[], schedule: Schedule, startIndex: number): number {
+        let totalCost = this.lastCostCalculation!.totalCost;
+        
+        for (let i = startIndex; i < metrics.length - 1; i++) {
+            const current = metrics[i];
+            const next = metrics[i + 1];
+            if (!current || !next) continue;
             
-            // Since both arrays are ordered ascending, advance schedule index if needed
-            while (scheduleIndex < schedule.length &&
-                   schedule[scheduleIndex]!.time.segmentEnd.epochMilliseconds <= timestamp) {
-                scheduleIndex++;
+            // Skip if we already calculated this pair
+            if (current.timestamp <= this.lastCostCalculation!.lastMetricTimestamp) {
+                continue;
             }
             
-            // Check if current schedule segment contains this timestamp
-            if (scheduleIndex >= schedule.length ||
-                timestamp < schedule[scheduleIndex]!.time.segmentStart.epochMilliseconds) {
-                console.warn(`No schedule segment found for metric at ${timestamp}`);
-                return -1;
+            // Use binary search to find the schedule segment
+            const segment = this.findScheduleSegmentByTimestamp(schedule, current.timestamp);
+            
+            if (!segment) {
+                console.warn(`No schedule segment found for metric at ${current.timestamp}`);
+                continue;
             }
             
-            const segment = schedule[scheduleIndex]!;
-            const current = metrics[i]!;
-            const next = metrics[i + 1]!;
             const timeDiff = next.timestamp - current.timestamp;
             const cost = (timeDiff / (1000 * 60 * 60)) * segment.gridPrice;
             totalCost += cost;
         }
+        
+        // Update cache
+        const lastMetric = metrics[metrics.length - 1];
+        if (lastMetric) {
+            this.lastCostCalculation = {
+                totalCost,
+                lastProcessedIndex: metrics.length - 1,
+                lastMetricTimestamp: lastMetric.timestamp
+            };
+        }
+        
+        return totalCost;
+    }
+    
+    private calculateFullCost(metrics: MetricInstance[], schedule: Schedule): number {
+        let totalCost = 0;
+        
+        for (let i = 0; i < metrics.length - 1; i++) {
+            const current = metrics[i];
+            const next = metrics[i + 1];
+            if (!current || !next) continue;
+            
+            // Use binary search to find the schedule segment
+            const segment = this.findScheduleSegmentByTimestamp(schedule, current.timestamp);
+            
+            if (!segment) {
+                console.warn(`No schedule segment found for metric at ${current.timestamp}`);
+                continue;
+            }
+            
+            const timeDiff = next.timestamp - current.timestamp;
+            const cost = (timeDiff / (1000 * 60 * 60)) * segment.gridPrice;
+            totalCost += cost;
+        }
+        
+        // Cache the result
+        const lastMetric = metrics[metrics.length - 1];
+        if (lastMetric) {
+            this.lastCostCalculation = {
+                totalCost,
+                lastProcessedIndex: metrics.length - 1,
+                lastMetricTimestamp: lastMetric.timestamp
+            };
+        }
+        
         return totalCost;
     }
 
@@ -177,5 +259,166 @@ export class DataProcessor {
             default:
                 return mode;
         }
+    }
+    /**
+     * Generic binary search helper for finding the first index where condition is true
+     */
+    private binarySearchFirst<T>(
+        array: T[],
+        condition: (item: T) => boolean
+    ): number {
+        if (array.length === 0) return -1;
+        
+        let left = 0;
+        let right = array.length - 1;
+        let result = -1;
+        
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const item = array[mid];
+            if (!item) break;
+            
+            if (condition(item)) {
+                result = mid;
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Generic binary search helper for finding the last index where condition is true
+     */
+    private binarySearchLast<T>(
+        array: T[],
+        condition: (item: T) => boolean
+    ): number {
+        if (array.length === 0) return -1;
+        
+        let left = 0;
+        let right = array.length - 1;
+        let result = -1;
+        
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const item = array[mid];
+            if (!item) break;
+            
+            if (condition(item)) {
+                result = mid;
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Find the index of the metric with timestamp closest to the target
+     * Assumes metrics array is sorted by timestamp (ascending)
+     */
+    findMetricIndexByTimestamp(metrics: MetricInstance[], targetTimestamp: number): number {
+        if (metrics.length === 0) return -1;
+        
+        let left = 0;
+        let right = metrics.length - 1;
+        let closestIndex = 0;
+        const firstMetric = metrics[0];
+        if (!firstMetric) return -1;
+        let minDiff = Math.abs(firstMetric.timestamp - targetTimestamp);
+        
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const midMetric = metrics[mid];
+            if (!midMetric) break;
+            
+            const currentDiff = Math.abs(midMetric.timestamp - targetTimestamp);
+            
+            if (currentDiff < minDiff) {
+                minDiff = currentDiff;
+                closestIndex = mid;
+            }
+            
+            if (midMetric.timestamp === targetTimestamp) {
+                return mid;
+            } else if (midMetric.timestamp < targetTimestamp) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+        
+        return closestIndex;
+    }
+
+    /**
+     * Find metrics within a time range using binary search
+     * Returns start and end indices for the range
+     */
+    findMetricsInTimeRange(metrics: MetricInstance[], startTime: number, endTime: number): {
+        startIndex: number;
+        endIndex: number;
+        metrics: MetricInstance[];
+    } {
+        if (metrics.length === 0) {
+            return { startIndex: -1, endIndex: -1, metrics: [] };
+        }
+        
+        const startIndex = this.binarySearchFirst(metrics, m => m.timestamp >= startTime);
+        const endIndex = this.binarySearchLast(metrics, m => m.timestamp <= endTime);
+        
+        if (startIndex !== -1 && endIndex !== -1 && startIndex <= endIndex) {
+            return {
+                startIndex,
+                endIndex,
+                metrics: metrics.slice(startIndex, endIndex + 1)
+            };
+        }
+        
+        return { startIndex: -1, endIndex: -1, metrics: [] };
+    }
+
+    /**
+     * Find the schedule segment that contains the given timestamp
+     * Assumes schedule array is sorted by segment start time
+     */
+    findScheduleSegmentByTimestamp(schedule: Schedule, targetTimestamp: number): any | null {
+        const index = this.findScheduleSegmentIndexByTimestamp(schedule, targetTimestamp);
+        return index !== -1 ? schedule[index] : null;
+    }
+
+    /**
+     * Find the index of the schedule segment that contains the given timestamp
+     * Returns -1 if not found
+     */
+    findScheduleSegmentIndexByTimestamp(schedule: Schedule, targetTimestamp: number): number {
+        if (schedule.length === 0) return -1;
+        
+        let left = 0;
+        let right = schedule.length - 1;
+        
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const segment = schedule[mid];
+            if (!segment) break;
+            
+            const startTime = segment.time.segmentStart.epochMilliseconds;
+            const endTime = segment.time.segmentEnd.epochMilliseconds;
+            
+            if (targetTimestamp >= startTime && targetTimestamp < endTime) {
+                return mid;
+            } else if (targetTimestamp < startTime) {
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        
+        return -1;
     }
 }

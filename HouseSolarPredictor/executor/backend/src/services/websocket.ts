@@ -3,7 +3,7 @@ import { DatabaseService } from "./database.ts";
 import { ScheduleService } from "./schedule.ts";
 import { Logger } from "../logger.ts";
 import {WebSocketMessage} from "@shared";
-import {LiveUpdate} from "../../../shared-types/definitions/liveUpdate.ts";
+import {LiveUpdate} from "@shared";
 import { convertBackendTimeSegmentToRawSegment } from "./convertBackendTimeSegmentToRawSegment.ts";
 
 export class WebSocketService {
@@ -51,12 +51,11 @@ export class WebSocketService {
   }
 
   private startBroadcastTimer(): void {
-    // Broadcast updates every 10 seconds
     this.broadcastTimer = setInterval(() => {
       this.broadcastUpdates().catch(error => {
         this.logger.logException(error as Error);
       });
-    }, 1000);
+    }, 2000);
   }
 
   private async broadcastUpdates(): Promise<void> {

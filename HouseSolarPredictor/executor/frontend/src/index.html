@@ -213,21 +213,7 @@
                         <h2 class="mdl-card__title-text">Grid Pricing</h2>
                     </div>
                     <div class="mdl-card__supporting-text">
-                        <div class="chart-container" style="position: relative;">
-                            <div class="mode-legend" style="z-index: 10; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-                                <div class="legend-item" style="display: flex; align-items: center; gap: 6px;">
-                                    <div style="width: 16px; height: 12px; background-color: rgba(33, 150, 243, 0.4); border: 1px solid rgba(33, 150, 243, 0.6);"></div>
-                                    <span>Grid + Solar</span>
-                                </div>
-                                <div class="legend-item" style="display: flex; align-items: center; gap: 6px;">
-                                    <div style="width: 16px; height: 12px; background-color: rgba(255, 193, 7, 0.4); border: 1px solid rgba(255, 193, 7, 0.6);"></div>
-                                    <span>Solar Only</span>
-                                </div>
-                                <div class="legend-item" style="display: flex; align-items: center; gap: 6px;">
-                                    <div style="width: 16px; height: 12px; background-color: rgba(76, 175, 80, 0.4); border: 1px solid rgba(76, 175, 80, 0.6);"></div>
-                                    <span>Discharge</span>
-                                </div>
-                            </div>
+                        <div class="chart-container" id="grid-pricing-container">
                             <canvas id="grid-pricing-chart"></canvas>
                         </div>
                     </div>
@@ -266,7 +252,7 @@
                         <div class="cost-summary" id="cost-calculations">
                             <!-- Cost calculations will be dynamically populated here -->
                         </div>
-                        <div class="chart-container">
+                        <div class="chart-container" id="estimated-cost-container">
                             <canvas id="estimated-cost-chart"></canvas>
                         </div>
                     </div>
@@ -286,7 +272,7 @@
                                         <th class="mdl-data-table__cell--non-numeric">Mode</th>
                                         <th>Grid Price (£/kWh)</th>
                                         <th>Expected Solar (kWh)</th>
-                                        <th>Expected Usage (kWh)</th>
+                                        <th>Load (kWh)</th>
                                         <th>Start Battery (kWh)</th>
                                         <th>End Battery (kWh)</th>
                                         <th>Grid Usage (kWh)</th>

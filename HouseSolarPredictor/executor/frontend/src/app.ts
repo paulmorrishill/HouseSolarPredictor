@@ -174,7 +174,7 @@ export class SolarInverterApp {
             historicSchedule: historicSchedule
         })
 
-        const limitedCurrentMetrics = this.dataProcessor.limitDataPoints(currentMetrics, 60*60*24);
+        const limitedCurrentMetrics = this.dataProcessor.limitDataPoints(currentMetrics, 2*60*24);
         console.time('Current chart update')
         this.chartManager.updateCurrentCharts(limitedCurrentMetrics, currentSchedule);
         console.timeEnd('Current chart update');

@@ -1,14 +1,17 @@
 import {OutputsMode} from "@shared";
 import type {BackendTimeSegment} from "../../time/backend-time-segment.ts";
 import type {RawTimeSegment} from  "@shared";
+import {Logger} from "../logger.ts";
 
 export class ScheduleService {
   private schedule: BackendTimeSegment[] = [];
   private schedulePath: string;
   private scheduleModifiedDate: Temporal.Instant | null = null;
+  private logger: Logger;
 
   constructor(schedulePath: string) {
     this.schedulePath = schedulePath;
+    this.logger = new Logger();
     setInterval(() => {
       const scheduleModified = this.getScheduleModifiedDate();
       if (!(scheduleModified && (!this.scheduleModifiedDate || Temporal.Instant.compare(scheduleModified, this.scheduleModifiedDate) > 0))) {
@@ -34,9 +37,17 @@ export class ScheduleService {
       throw new Error("Schedule must be an array of TimeSegment objects");
     }
 
+    const previousSegmentCount = this.schedule.length;
     this.schedule = rawSchedule.map(this.validateAndTransformSegment);
     this.scheduleModifiedDate = this.getScheduleModifiedDate();
     console.log(`✅ Loaded ${this.schedule.length} time segments from schedule`);
+    
+    this.logger.logSignificant("SCHEDULE_LOADED", {
+      segmentCount: this.schedule.length,
+      previousSegmentCount,
+      schedulePath: this.schedulePath,
+      modifiedDate: this.scheduleModifiedDate?.toString()
+    });
   }
 
   private validateAndTransformSegment(segment: RawTimeSegment): BackendTimeSegment {

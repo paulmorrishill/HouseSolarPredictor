@@ -3,6 +3,8 @@ import { BaseChartProcessor } from './chart-interface';
 import { ChartDataPoint } from '../types';
 import { MetricInstance } from '@shared';
 import { Schedule, FrontEndTimeSegment } from '../types/front-end-time-segment';
+import { createModeAnnotations, createModeLegend } from './mode-overlay-utils';
+import { DataProcessor } from '../data-processor';
 
 interface CostCalculator {
     name: string;
@@ -13,6 +15,7 @@ interface CostCalculator {
 export class EstimatedCostChart extends BaseChartProcessor {
     readonly chartId = 'estimated-cost';
     readonly canvasId = 'estimated-cost-chart';
+    private dataProcessor = new DataProcessor();
     
     private costCalculators: CostCalculator[] = [
         {
@@ -61,14 +64,27 @@ export class EstimatedCostChart extends BaseChartProcessor {
         const config = {
             type: 'line' as ChartType,
             data: {
-                datasets: [{
-                    label: 'Estimated Cost (£)',
-                    data: [] as ChartDataPoint[],
-                    borderColor: 'rgb(220, 53, 69)',
-                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                    tension: 0.1,
-                    fill: true
-                }]
+                datasets: [
+                    {
+                        label: 'Actual Cost (£)',
+                        data: [] as ChartDataPoint[],
+                        borderColor: 'rgb(220, 53, 69)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                        tension: 0.1,
+                        fill: true,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'Estimated Cost (£)',
+                        data: [] as ChartDataPoint[],
+                        borderColor: 'rgb(108, 117, 125)',
+                        backgroundColor: 'transparent',
+                        borderDash: [3, 2],
+                        tension: 0.1,
+                        fill: false,
+                        pointRadius: 1
+                    }
+                ]
             },
             options: {
                 responsive: true,
@@ -98,33 +114,105 @@ export class EstimatedCostChart extends BaseChartProcessor {
                     title: {
                         display: true,
                         text: 'Estimated Schedule Cost Over Time'
+                    },
+                    annotation: {
+                        annotations: {}
                     }
                 }
             } as ChartOptions
         };
 
         this.chart = new Chart(canvas, config);
+        
+        // Create the mode legend
+        createModeLegend('estimated-cost-container');
     }
     
-    processData(_metrics: MetricInstance[], schedule: Schedule): void {
-        this.processedData = this.processEstimatedCostData(schedule);
+    processData(metrics: MetricInstance[], schedule: Schedule): void {
+        this.processedData = {
+            actualCostData: this.processActualCostData(metrics, schedule),
+            estimatedCostData: this.processEstimatedCostData(schedule),
+            annotations: createModeAnnotations(schedule)
+        };
         this.updateCostCalculations(schedule);
     }
     
     protected applyDataToChart(): void {
         if (!this.chart || !this.processedData) return;
         
-        this.chart.data.datasets[0]!.data = this.processedData;
+        // Apply data to datasets
+        this.chart.data.datasets[0]!.data = this.processedData.actualCostData;
+        this.chart.data.datasets[1]!.data = this.processedData.estimatedCostData;
+        
+        // Ensure estimated cost (dashed line) is drawn on top by setting higher order
+        this.chart.data.datasets[1]!.order = 1;
+        this.chart.data.datasets[0]!.order = 2;
+        
+        if (this.chart.options.plugins) {
+            (this.chart.options.plugins as any).annotation = {
+                annotations: this.processedData.annotations
+            };
+        }
     }
     
+    private processActualCostData(metrics: MetricInstance[], scheduleData: Schedule): ChartDataPoint[] {
+        if (!Array.isArray(scheduleData) || !Array.isArray(metrics)) return [];
+
+        const costData: ChartDataPoint[] = [];
+        const currentTime = Date.now();
+
+        scheduleData.forEach(segment => {
+            // Use efficient binary search to find metrics within this segment's time range
+            const segmentStartTime = segment.time.segmentStart.epochMilliseconds;
+            const segmentEndTime = segment.time.segmentEnd.epochMilliseconds;
+            
+            // Skip future segments - only process segments that have started
+            if (segmentStartTime > currentTime) {
+                return;
+            }
+            
+            const { metrics: segmentMetrics } = this.dataProcessor.findMetricsInTimeRange(
+                metrics,
+                segmentStartTime,
+                segmentEndTime
+            );
+
+            // Only add data points if we have metrics for this segment
+            if (segmentMetrics.length > 0) {
+                // Calculate average grid power (watts) for this segment
+                const avgGridPowerWatts = segmentMetrics.reduce((sum, metric) => sum + metric.gridPower, 0) / segmentMetrics.length;
+                
+                // Convert to kWh: segment duration in hours * average power in kW
+                const segmentDurationHours = (segmentEndTime - segmentStartTime) / (1000 * 60 * 60);
+                const energyKwh = (avgGridPowerWatts / 1000) * segmentDurationHours;
+                
+                // Calculate cost: energy * price per kWh
+                const segmentCost = energyKwh * segment.gridPrice;
+
+                costData.push({
+                    x: segmentStartTime,
+                    y: segmentCost
+                });
+                
+                // For current segment, only go up to current time, otherwise use segment end
+                const endTime = segmentEndTime > currentTime ? currentTime : segmentEndTime;
+                costData.push({
+                    x: endTime,
+                    y: segmentCost
+                });
+            }
+        });
+
+        return costData;
+    }
+
     private processEstimatedCostData(scheduleData: Schedule): ChartDataPoint[] {
         if (!Array.isArray(scheduleData)) return [];
 
-        const primaryCalculator = this.costCalculators[0]!;
         const costData: ChartDataPoint[] = [];
 
         scheduleData.forEach(segment => {
-            const segmentCost = primaryCalculator.calculate(segment);
+            const segmentCost = segment.cost || 0; // Use the schedule's estimated cost
             costData.push({
                 x: segment.time.segmentStart.epochMilliseconds,
                 y: segmentCost

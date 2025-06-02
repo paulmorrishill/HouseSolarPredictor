@@ -543,6 +543,7 @@ body {
     width: 100%;
     min-width: 800px;
     margin: 0;
+    border: none;
 }
 
 #schedule-table th {
@@ -550,10 +551,15 @@ body {
     font-weight: 500;
     position: sticky;
     top: 0;
+    border: none;
     z-index: 10;
     white-space: nowrap;
     padding: 12px 8px;
     font-size: 12px;
+}
+
+#schedule-table th:first-child {
+    padding-left: 12px;
 }
 
 #schedule-table td {
@@ -602,6 +608,19 @@ body {
 .current-segment {
     background-color: #e3f2fd;
     border-left: 4px solid #2196F3;
+}
+
+.past-segment {
+    background-color: #fff;
+    color: #333;
+    border-left: 4px solid #4caf50;
+}
+
+.past-segment .time-cell,
+.past-segment .mode-cell,
+.past-segment .number-cell,
+.past-segment .cost-cell {
+    opacity: 1;
 }
 
 /* Comparison value styles */
