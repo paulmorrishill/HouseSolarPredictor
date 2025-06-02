@@ -28,9 +28,9 @@ fi
 # Backend build
 echo "Building backend..."
 cd ../backend || handle_error "Failed to change to backend directory"
-mkdir schedules
-mkdir backend
-mkdir config
+mkdir schedules -p
+mkdir backend -p
+mkdir config -p
 
 echo "Building backend..."
 # Fixed the deno run command (assuming this is what you meant)
