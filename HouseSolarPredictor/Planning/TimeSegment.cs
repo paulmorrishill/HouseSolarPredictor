@@ -41,20 +41,21 @@ public class TimeSegment
 
     public Gbp Cost()
     {
-        var solarUsed = Time.Kwh.Min(ExpectedSolarGeneration, ActualGridUsage);
         var batteryContribution = Time.Kwh.Zero;
+        var solarContribution = Time.Kwh.Zero;
         
         if (Mode == OutputsMode.Discharge)
+        {
             batteryContribution = StartBatteryChargeKwh - EndBatteryChargeKwh;
+            // Solar only reduces grid consumption in discharge mode
+            solarContribution = Kwh.Min(ExpectedSolarGeneration, ActualGridUsage);
+        }
                 
-        var gridUsed = ActualGridUsage - solarUsed - batteryContribution;
+        var gridUsed = ActualGridUsage - batteryContribution - solarContribution;
         if (gridUsed.Value < 0)
             gridUsed = Kwh.Zero;
             
         var gridCost = gridUsed * GridPrice;
-        var wastedSolar = WastedSolarGeneration;
-        var wastedSolarCostGbp = wastedSolar * GridPrice;
-        
-        return gridCost + wastedSolarCostGbp;
+        return gridCost;
     }
 }
