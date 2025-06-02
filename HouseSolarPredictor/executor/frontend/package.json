@@ -3,13 +3,7 @@
   "version": "1.0.0",
   "description": "TypeScript frontend for Solar Inverter Control System",
   "scripts": {
-    "build": "tsc && node esbuild.config.js",
-    "build:tsc": "tsc",
-    "build:bundle": "node esbuild.config.js",
-    "build:prod": "tsc && node esbuild.config.js --minify",
-    "watch": "tsc --watch",
-    "clean": "rimraf js-compiled dist",
-    "dev": "tsc --watch"
+    "build": "node build.js"
   },
   "devDependencies": {
     "esbuild": "^0.19.0",
