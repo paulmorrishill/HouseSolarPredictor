@@ -56,7 +56,7 @@ export class InverterController {
     mqttService: MqttService,
     scheduleService: ScheduleService,
     databaseService: DatabaseService,
-    retryAttempts: number = 3,
+    retryAttempts: number = 6,
     retryDelayMinutes: number = 5,
     private configService: ConfigService
   ) {
@@ -76,6 +76,20 @@ export class InverterController {
   }
 
   private metricParts: Partial<MetricInstance> = {};
+
+  // Rolling average data structures
+  private readonly ROLLING_WINDOW_MINUTES = 10;
+  private readonly ROLLING_WINDOW_MS = this.ROLLING_WINDOW_MINUTES * 60 * 1000;
+  
+  private metricHistory: {
+    loadPower: Array<{ value: number; timestamp: number }>;
+    gridPower: Array<{ value: number; timestamp: number }>;
+    batteryPower: Array<{ value: number; timestamp: number }>;
+  } = {
+    loadPower: [],
+    gridPower: [],
+    batteryPower: []
+  };
 
   private setupMqttHandlers(): void {
     const topics = this.mqttService.getTopics();
@@ -108,17 +122,23 @@ export class InverterController {
     });
 
     this.mqttService.onMessage(topics.LOAD_POWER_STATE, (message) => {
-      this.metricParts.loadPower = parseFloat(message) || 0;
+      const value = parseFloat(message) || 0;
+      this.metricParts.loadPower = value;
+      this.addToMetricHistory('loadPower', value);
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.GRID_POWER_STATE, (message) => {
-      this.metricParts.gridPower = parseFloat(message) || 0;
+      const value = parseFloat(message) || 0;
+      this.metricParts.gridPower = value;
+      this.addToMetricHistory('gridPower', value);
       this.updateSystemState();
     });
 
     this.mqttService.onMessage(topics.BATTERY_POWER_STATE, (message) => {
-      this.metricParts.batteryPower = parseFloat(message) || 0;
+      const value = parseFloat(message) || 0;
+      this.metricParts.batteryPower = value;
+      this.addToMetricHistory('batteryPower', value);
       this.updateSystemState();
     });
 
@@ -141,6 +161,78 @@ export class InverterController {
       this.logger.log(`Inverter response: ${message}`);
       this.handleInverterResponse(message);
     });
+  }
+
+  private addToMetricHistory(metric: keyof typeof this.metricHistory, value: number): void {
+    const now = Temporal.Now.instant().epochMilliseconds;
+    const history = this.metricHistory[metric];
+    
+    // Add new value
+    history.push({ value, timestamp: now });
+    
+    // Remove values older than the rolling window
+    const cutoffTime = now - this.ROLLING_WINDOW_MS;
+    while (history.length > 0 && history[0].timestamp < cutoffTime) {
+      history.shift();
+    }
+  }
+
+  private calculateRollingAverage(metric: keyof typeof this.metricHistory): number {
+    const history = this.metricHistory[metric];
+    
+    if (history.length === 0) {
+      return 0;
+    }
+    
+    // Clean up old entries first
+    const now = Temporal.Now.instant().epochMilliseconds;
+    const cutoffTime = now - this.ROLLING_WINDOW_MS;
+    while (history.length > 0 && history[0].timestamp < cutoffTime) {
+      history.shift();
+    }
+    
+    if (history.length === 0) {
+      return 0;
+    }
+    
+    const sum = history.reduce((acc, entry) => acc + entry.value, 0);
+    return sum / history.length;
+  }
+
+  private hasEnoughHistoryForAverages(): boolean {
+    // Require at least 10 data points for each metric to calculate meaningful averages
+    return this.metricHistory.loadPower.length >= 10 &&
+           this.metricHistory.gridPower.length >= 10 &&
+           this.metricHistory.batteryPower.length >= 10;
+  }
+
+  private calculateSolarPower(): number {
+    let solarPower: number;
+    
+    if (this.hasEnoughHistoryForAverages()) {
+      // Use rolling averages for more stable solar power calculation
+      const avgLoadPower = this.calculateRollingAverage('loadPower');
+      const avgGridPower = this.calculateRollingAverage('gridPower');
+      const avgBatteryPower = this.calculateRollingAverage('batteryPower');
+      
+      // solar = load - grid + battery
+      // Example: load 4000W, grid 2000W, battery -1000W = solar 1000W
+      solarPower = avgLoadPower - avgGridPower + avgBatteryPower;
+      
+      this.logger.log(`Solar power calculated using 10min averages: Load=${avgLoadPower.toFixed(1)}W, Grid=${avgGridPower.toFixed(1)}W, Battery=${avgBatteryPower.toFixed(1)}W, Solar=${solarPower.toFixed(1)}W`);
+    } else {
+      solarPower = 0;
+    }
+
+    if (solarPower < 0) {
+      solarPower = 0; // Ensure solar power is not negative
+    }
+
+    if (solarPower < 50) {
+      solarPower = 0; // Ignore small solar power readings
+    }
+
+    return solarPower;
   }
 
   private updateSystemState() {
@@ -168,22 +260,11 @@ export class InverterController {
       }
     }
 
-    // grid 2000
-    // load 4000
-    // battery -1000
-    // solar = 1000 = gridPower - loadPower + batteryPower
-    this.metricParts.solarPower = this.metricParts.loadPower! - this.metricParts.gridPower! + this.metricParts.batteryPower!;
+    // Calculate solar power using rolling averages
+    this.metricParts.solarPower = this.calculateSolarPower();
 
-    if (this.metricParts.solarPower < 0) {
-      this.metricParts.solarPower = 0; // Ensure solar power is not negative
-    }
-
-    if(this.metricParts.solarPower < 50){
-        this.metricParts.solarPower = 0; // Ignore small solar power readings
-    }
-
-    if(!this.hasReceivedMqttData){
-        this.logger.log("✅ First complete metric initialised from MQTT");
+    if(!this.hasReceivedMqttData && this.hasEnoughHistoryForAverages()){
+        this.logger.log("✅ First complete metric initialised from MQTT with sufficient history for averaging");
         this.logger.logSignificant("MQTT_DATA_RECEIVED", {
           batteryLevel: this.metricParts.batteryChargePercent,
           workMode: this.metricParts.workModePriority,
@@ -191,9 +272,8 @@ export class InverterController {
           gridPower: this.metricParts.gridPower,
           loadPower: this.metricParts.loadPower
         });
+        this.hasReceivedMqttData = true;
     }
-
-    this.hasReceivedMqttData = true;
     this.currentMetrics = {
       ...this.currentMetrics,
       ...this.metricParts,
@@ -228,6 +308,9 @@ export class InverterController {
 
     // Start the control loop
     this.startControlLoop();
+    
+    // Start periodic cleanup of metric history
+    this.startHistoryCleanup();
   }
 
   private startControlLoop(): void {
@@ -244,6 +327,23 @@ export class InverterController {
     this.checkAndUpdateInverter().catch(error => {
       this.logger.logException(error as Error);
     });
+  }
+
+  private startHistoryCleanup(): void {
+    // Clean up metric history every 5 minutes to prevent memory leaks
+    setInterval(() => {
+      const now = Temporal.Now.instant().epochMilliseconds;
+      const cutoffTime = now - this.ROLLING_WINDOW_MS;
+      
+      for (const metric of Object.keys(this.metricHistory) as Array<keyof typeof this.metricHistory>) {
+        const history = this.metricHistory[metric];
+        while (history.length > 0 && history[0].timestamp < cutoffTime) {
+          history.shift();
+        }
+      }
+      
+      this.logger.log(`Metric history cleanup completed. Current sizes: Load=${this.metricHistory.loadPower.length}, Grid=${this.metricHistory.gridPower.length}, Battery=${this.metricHistory.batteryPower.length}`);
+    }, 5 * 60 * 1000); // Every 5 minutes
   }
 
   private async checkAndUpdateInverter(): Promise<void> {
@@ -664,6 +764,11 @@ export class InverterController {
     if (this.verificationTimer) {
       clearTimeout(this.verificationTimer);
     }
+    
+    // Clear metric history to free memory
+    this.metricHistory.loadPower = [];
+    this.metricHistory.gridPower = [];
+    this.metricHistory.batteryPower = [];
   }
 
   private async sendEmailNotification(reason: string) {

@@ -165,6 +165,29 @@
                         <canvas id="cost-chart"></canvas>
                     </div>
                 </div>
+
+                <!-- Appliance Cost Table -->
+                <div class="mdl-card chart-card mdl-shadow--2dp">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">Appliance Load Cost</h2>
+                    </div>
+                    <div class="mdl-card__supporting-text">
+                        <div class="appliance-cost-table-container">
+                            <table id="appliance-cost-table" class="mdl-data-table mdl-js-data-table mdl-shadow--2dp">
+                                <thead>
+                                    <tr>
+                                        <th class="mdl-data-table__cell--non-numeric">Start Time</th>
+                                        <th>Cost per Load (£)</th>
+                                        <th class="mdl-data-table__cell--non-numeric">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="appliance-cost-table-body">
+                                    <!-- Cost data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Schedule Charts Section -->

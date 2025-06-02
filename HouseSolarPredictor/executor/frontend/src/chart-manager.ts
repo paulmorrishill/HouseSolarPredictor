@@ -7,6 +7,7 @@ export class ChartManager {
     private readonly chartRegistry: ChartRegistry;
     private previousScheduleData: Schedule | null = null;
     private scheduleRowCache = new Map<string, HTMLTableRowElement>();
+    private previousApplianceCostData: string | null = null;
 
     constructor(private dataProcessor: DataProcessor) {
         this.chartRegistry = new ChartRegistry();
@@ -49,6 +50,11 @@ export class ChartManager {
         // Update schedule table with metrics for comparison
         this.updateScheduleTable(scheduleData, metrics);
         console.timeEnd('Updating schedule table');
+
+        console.time('Updating appliance cost table');
+        // Update appliance cost table
+        this.updateApplianceCostTable(scheduleData);
+        console.timeEnd('Updating appliance cost table');
     }
 
     updateCurrentCharts(limitedCurrentMetrics: MetricInstance[], currentSchedule: Schedule): void {
@@ -468,5 +474,121 @@ export class ChartManager {
         } else {
             return isPositive ? 'negative-change' : 'positive-change';
         }
+    }
+
+    private updateApplianceCostTable(scheduleData: Schedule): void {
+        const tableBody = document.getElementById('appliance-cost-table-body');
+        if (!tableBody) return;
+
+        // Create a hash of the schedule data to check if it has changed
+        const scheduleHash = this.createScheduleHash(scheduleData);
+        
+        // Skip update if data hasn't changed
+        if (this.previousApplianceCostData === scheduleHash) {
+            return;
+        }
+
+        console.log('📊 Appliance cost table: Data changed, updating...');
+
+        // Calculate cost for 1.5kWh over 1.5 hours for each segment
+        const costData = scheduleData.map(segment => {
+            const startTime = segment.time.segmentStart.toZonedDateTimeISO('Europe/London');
+            
+            // Calculate average cost per kWh over 1.5 hours starting from this segment
+            let totalCost = 0;
+            let totalHours = 0;
+            const targetHours = 1.5;
+            const targetKwh = 1.5;
+            
+            // Find segments that overlap with the 1.5 hour window
+            const windowEndTime = segment.time.segmentStart.epochMilliseconds + (targetHours * 60 * 60 * 1000);
+            
+            for (const checkSegment of scheduleData) {
+                const checkStart = checkSegment.time.segmentStart.epochMilliseconds;
+                const checkEnd = checkSegment.time.segmentEnd.epochMilliseconds;
+                
+                // Check if this segment overlaps with our 1.5 hour window
+                if (checkStart < windowEndTime && checkEnd > segment.time.segmentStart.epochMilliseconds) {
+                    const overlapStart = Math.max(checkStart, segment.time.segmentStart.epochMilliseconds);
+                    const overlapEnd = Math.min(checkEnd, windowEndTime);
+                    const overlapHours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+                    
+                    if (overlapHours > 0) {
+                        totalCost += (checkSegment.gridPrice) * overlapHours * (targetKwh / targetHours); // Convert pence to pounds
+                        totalHours += overlapHours;
+                    }
+                }
+                
+                if (totalHours >= targetHours) break;
+            }
+            
+            // If we don't have enough segments to cover 1.5 hours, use the last available price
+            if (totalHours < targetHours && totalHours > 0 && scheduleData.length > 0) {
+                const lastSegment = scheduleData[scheduleData.length - 1];
+                if (lastSegment) {
+                    const remainingHours = targetHours - totalHours;
+                    totalCost += (lastSegment.gridPrice) * remainingHours * (targetKwh / targetHours);
+                }
+            }
+            
+            return {
+                startTime: startTime.toPlainTime().toString().slice(0, 5),
+                cost: totalCost,
+                timestamp: segment.time.segmentStart.epochMilliseconds
+            };
+        });
+
+        // Sort by reverse chronological order (latest time first)
+        costData.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Calculate mean and percentiles for color coding
+        const costs = costData.map(item => item.cost);
+        const meanCost = costs.reduce((sum, cost) => sum + cost, 0) / costs.length;
+        const threshold25 = meanCost * 0.25;
+        const threshold50 = meanCost * 0.50;
+        const threshold75 = meanCost * 0.75;
+
+        // Clear existing rows
+        tableBody.innerHTML = '';
+
+        // Add rows for each segment
+        costData.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Determine color class and emoji based on cost relative to mean
+            let colorClass = '';
+            let emoji = '';
+            
+            if (item.cost <= threshold25) {
+                colorClass = 'cost-excellent';
+                emoji = '🥳'; // Happy face
+            } else if (item.cost <= threshold50) {
+                colorClass = 'cost-good';
+                emoji = '😊'; // Happy face
+            } else if (item.cost <= threshold75) {
+                colorClass = 'cost-average';
+                emoji = '😐'; // Neutral face
+            } else {
+                colorClass = 'cost-expensive';
+                emoji = '😢'; // Sad face
+            }
+            
+            row.innerHTML = `
+                <td class="time-cell">${item.startTime}</td>
+                <td class="cost-cell ${colorClass}">£${item.cost.toFixed(2)}</td>
+                <td class="emoji-cell">${emoji}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+        // Update the cache with the new hash
+        this.previousApplianceCostData = scheduleHash;
+    }
+
+    private createScheduleHash(scheduleData: Schedule): string {
+        // Create a hash based on relevant schedule data for appliance cost calculation
+        return scheduleData.map(segment =>
+            `${segment.time.segmentStart.epochMilliseconds}-${segment.time.segmentEnd.epochMilliseconds}-${segment.gridPrice}`
+        ).join('|');
     }
 }

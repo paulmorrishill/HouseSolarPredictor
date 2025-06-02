@@ -18,6 +18,7 @@ export class MqttService {
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000; // 5 seconds
   private logger: Logger;
+  private messageQueue: Array<{ topic: string; message: string; resolve: () => void; reject: (error: Error) => void }> = [];
 
   // MQTT Topics
   private readonly TOPICS = {
@@ -73,22 +74,37 @@ export class MqttService {
 
       this.client.on('connect', () => {
         this.logger.log('Connected to MQTT broker');
+        this.logger.logSignificant('MQTT_CONNECTED');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.subscribeToTopics();
+        this.processMessageQueue();
         resolve();
       });
 
       this.client.on('error', (error) => {
         this.logger.logException(error as Error);
+        this.logger.logSignificant('MQTT_CONNECTION_ERROR', {
+          error: error.message
+        });
         this.isConnected = false;
         if (this.reconnectAttempts === 0) {
           reject(error);
+        } else {
+          this.scheduleReconnect();
         }
       });
 
       this.client.on('close', () => {
         this.logger.log('MQTT connection closed');
+        this.logger.logSignificant(`MQTT_CONNECTION_CLOSED`);
+        this.isConnected = false;
+        this.scheduleReconnect();
+      });
+
+      this.client.on('offline', () => {
+        this.logger.log('MQTT client went offline');
+        this.logger.logSignificant('MQTT_CLIENT_OFFLINE');
         this.isConnected = false;
         this.scheduleReconnect();
       });
@@ -150,48 +166,82 @@ export class MqttService {
     }, delay);
   }
 
+  private processMessageQueue(): void {
+    if (!this.isConnected || this.messageQueue.length === 0) return;
+
+    this.logger.log(`Processing ${this.messageQueue.length} queued messages`);
+    
+    const queue = [...this.messageQueue];
+    this.messageQueue = [];
+
+    queue.forEach(({ topic, message, resolve, reject }) => {
+      if (this.client && this.isConnected) {
+        this.client.publish(topic, message, (error) => {
+          if (error) {
+            this.logger.logException(error as Error);
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      } else {
+        reject(new Error('MQTT client disconnected while processing queue'));
+      }
+    });
+  }
+
+  private async publishWithQueue(topic: string, message: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.client && this.isConnected) {
+        this.client.publish(topic, message, (error) => {
+          if (error) {
+            this.logger.logException(error as Error);
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      } else {
+        // Queue the message for later delivery
+        this.logger.log(`Queueing message for topic ${topic} (client disconnected)`);
+        this.messageQueue.push({ topic, message, resolve, reject });
+        
+        // Attempt to reconnect if not already trying
+        if (!this.connectionPromise) {
+          this.connect().catch(error => {
+            this.logger.logException(error as Error);
+          });
+        }
+      }
+    });
+  }
+
   onMessage(topic: string, handler: (message: string) => void): void {
     this.messageHandlers.set(topic, handler);
   }
 
   async publishWorkMode(mode: "Battery first" | "Load first"): Promise<void> {
-    if (!this.client || !this.isConnected) {
-      throw new Error('MQTT client is not connected');
+    try {
+      await this.publishWithQueue(this.TOPICS.WORK_MODE_SET, mode);
+      this.logger.log(`Published work mode: ${mode}`);
+    } catch (error) {
+      this.logger.logException(error as Error);
+      throw error;
     }
-
-    return new Promise((resolve, reject) => {
-      this.client!.publish(this.TOPICS.WORK_MODE_SET, mode, (error) => {
-        if (error) {
-          this.logger.logException(error as Error);
-          reject(error);
-        } else {
-          this.logger.log(`Published work mode: ${mode}`);
-          resolve();
-        }
-      });
-    });
   }
 
   async publishChargeRate(rate: number): Promise<void> {
-    if (!this.client || !this.isConnected) {
-      throw new Error('MQTT client is not connected');
-    }
-
     if (rate < 0 || rate > 100) {
       throw new Error('Charge rate must be between 0 and 100');
     }
 
-    return new Promise((resolve, reject) => {
-      this.client!.publish(this.TOPICS.BATTERY_CHARGE_RATE_SET, rate.toString(), (error) => {
-        if (error) {
-          this.logger.logException(error as Error);
-          reject(error);
-        } else {
-          this.logger.log(`Published charge rate: ${rate}%`);
-          resolve();
-        }
-      });
-    });
+    try {
+      await this.publishWithQueue(this.TOPICS.BATTERY_CHARGE_RATE_SET, rate.toString());
+      this.logger.log(`Published charge rate: ${rate}%`);
+    } catch (error) {
+      this.logger.logException(error as Error);
+      throw error;
+    }
   }
 
   isClientConnected(): boolean {
