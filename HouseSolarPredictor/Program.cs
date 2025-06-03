@@ -135,9 +135,9 @@ class Program
 
         var solarContextProvider = new SolarPredictionContextProvider(weatherDataCache, dayInfo);
         var solarPredictor = new SolarPredictor(
-            "solar/model.onnx",
-            "solar/scaling_params.json",
-            "solar/computed_values.json",
+            "Solar/model.onnx",
+            "Solar/scaling_params.json",
+            "Solar/computed_values.json",
             solarContextProvider);
 
         var loadContextProvider = new LoadPredictionContextProvider(
@@ -148,8 +148,8 @@ class Program
             targetDate);
 
         _loadEnergyPredictor = new LoadEnergyPredictor(
-            "load/load_prediction_model.onnx",
-            "load/load_feature_info.json",
+            "Load/load_prediction_model.onnx",
+            "Load/load_feature_info.json",
             loadContextProvider);
 
         Console.WriteLine("Predicting solar generation for each half-hour...");
@@ -272,9 +272,9 @@ class Program
 
         var solarContextProvider = new SolarPredictionContextProvider(weatherDataCache, dayInfo);
         var solarPredictor = new SolarPredictor(
-            "solar/model.onnx",
-            "solar/scaling_params.json",
-            "solar/computed_values.json",
+            "Solar/model.onnx",
+            "Solar/scaling_params.json",
+            "Solar/computed_values.json",
             solarContextProvider);
 
         var loadContextProvider = new LoadPredictionContextProvider(
@@ -285,8 +285,8 @@ class Program
             targetDate);
 
         _loadEnergyPredictor = new LoadEnergyPredictor(
-            "load/load_prediction_model.onnx",
-            "load/load_feature_info.json",
+            "Load/load_prediction_model.onnx",
+            "Load/load_feature_info.json",
             loadContextProvider);
 
         // Step 3: Predict solar generation for each half-hour
