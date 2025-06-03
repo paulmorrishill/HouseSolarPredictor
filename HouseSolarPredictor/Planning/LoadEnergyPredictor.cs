@@ -86,7 +86,7 @@ public class LoadEnergyPredictor : ILoadPredictor
             context.PrevWeekLoad);
         
         // Return the result as a Kwh object
-        var seasonalAdjustment = 2; // seems to be about 50% wrong
+        var seasonalAdjustment = 1.7; // seems to be about 50% wrong
         return new Kwh(prediction * seasonalAdjustment);
     }
     

@@ -9,7 +9,7 @@ import {OutputsMode} from "@shared";
 import Instant = Temporal.Instant;
 import {ControllerState} from "../types/controller-state.ts";
 import type {ProtectionOverride} from "./protections/index.ts";
-import {BatteryProtection, WastedSolarProtection} from "./protections/index.ts";
+import {BatteryProtection, WastedSolarProtection, BatteryOverchargeProtection} from "./protections/index.ts";
 
 export class InverterController {
   private mqttService: MqttService;
@@ -50,6 +50,7 @@ export class InverterController {
   // Protection instances
   private readonly batteryProtection: BatteryProtection;
   private readonly wastedSolarProtection: WastedSolarProtection;
+  private readonly batteryOverchargeProtection: BatteryOverchargeProtection;
   private readonly protections: ProtectionOverride[];
 
   constructor(
@@ -70,7 +71,8 @@ export class InverterController {
     // Initialize protection instances
     this.batteryProtection = new BatteryProtection();
     this.wastedSolarProtection = new WastedSolarProtection();
-    this.protections = [this.batteryProtection, this.wastedSolarProtection];
+    this.batteryOverchargeProtection = new BatteryOverchargeProtection(scheduleService);
+    this.protections = [this.batteryProtection, this.wastedSolarProtection, this.batteryOverchargeProtection];
     
     this.setupMqttHandlers();
   }
