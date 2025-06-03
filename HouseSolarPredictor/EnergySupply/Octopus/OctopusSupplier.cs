@@ -54,7 +54,7 @@ public class OctopusSupplier: ISupplier
 
         static PriceCurve()
         {
-            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "energysupply/octopus/average_prices.json");
+            var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EnergySupply/Octopus/average_prices.json");
             var jsonContent = File.ReadAllText(jsonPath);
             _priceData = JsonConvert.DeserializeObject<Dictionary<string, List<Segment>>>(jsonContent);
         }
